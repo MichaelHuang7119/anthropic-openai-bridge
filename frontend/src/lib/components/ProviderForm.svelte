@@ -293,13 +293,16 @@
         {/if}
       </div>
 
-      <div class="form-group checkbox-group">
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            bind:checked={formData.enabled}
-          />
+      <div class="form-group toggle-group">
+        <label class="toggle-label">
           <span>启用提供商</span>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              bind:checked={formData.enabled}
+            />
+            <span class="toggle-slider"></span>
+          </label>
         </label>
       </div>
     </div>
@@ -317,7 +320,12 @@
     <div class="model-section">
       <div class="model-header">
         <label>大模型 (Big Models)</label>
-        <Button size="sm" on:click={() => addModel('big')}>+ 添加</Button>
+        <Button size="sm" on:click={() => addModel('big')} title="添加大模型" class="icon-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </Button>
       </div>
       <div class="model-list">
         {#each formData.models.big as model, index}
@@ -331,8 +339,15 @@
               variant="danger"
               size="sm"
               on:click={() => removeModel('big', index)}
+              title="删除"
+              class="icon-button"
             >
-              删除
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
             </Button>
           </div>
         {/each}
@@ -346,7 +361,12 @@
     <div class="model-section">
       <div class="model-header">
         <label>中模型 (Middle Models)</label>
-        <Button size="sm" on:click={() => addModel('middle')}>+ 添加</Button>
+        <Button size="sm" on:click={() => addModel('middle')} title="添加中模型" class="icon-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </Button>
       </div>
       <div class="model-list">
         {#each formData.models.middle as model, index}
@@ -360,8 +380,15 @@
               variant="danger"
               size="sm"
               on:click={() => removeModel('middle', index)}
+              title="删除"
+              class="icon-button"
             >
-              删除
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
             </Button>
           </div>
         {/each}
@@ -375,7 +402,12 @@
     <div class="model-section">
       <div class="model-header">
         <label>小模型 (Small Models)</label>
-        <Button size="sm" on:click={() => addModel('small')}>+ 添加</Button>
+        <Button size="sm" on:click={() => addModel('small')} title="添加小模型" class="icon-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </Button>
       </div>
       <div class="model-list">
         {#each formData.models.small as model, index}
@@ -389,8 +421,15 @@
               variant="danger"
               size="sm"
               on:click={() => removeModel('small', index)}
+              title="删除"
+              class="icon-button"
             >
-              删除
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
             </Button>
           </div>
         {/each}
@@ -416,7 +455,12 @@
         bind:value={newHeaderValue}
         placeholder="Header值"
       />
-      <Button size="sm" on:click={addHeader}>添加</Button>
+      <Button size="sm" on:click={addHeader} title="添加请求头" class="icon-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </Button>
     </div>
 
     {#if Object.keys(formData.custom_headers).length > 0}
@@ -429,8 +473,15 @@
               variant="danger"
               size="sm"
               on:click={() => removeHeader(key)}
+              title="删除"
+              class="icon-button"
             >
-              删除
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
             </Button>
           </div>
         {/each}
@@ -439,11 +490,18 @@
   </div>
 
   <div class="form-actions">
-    <Button variant="secondary" on:click={handleCancel} disabled={loading}>
-      取消
+    <Button variant="secondary" on:click={handleCancel} disabled={loading} title="取消" class="icon-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
     </Button>
-    <Button type="submit" on:click={handleSave} disabled={loading}>
-      {loading ? '保存中...' : '保存'}
+    <Button type="submit" on:click={handleSave} disabled={loading} title={loading ? '保存中...' : '保存'} class="icon-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+        <polyline points="7 3 7 8 15 8"></polyline>
+      </svg>
     </Button>
   </div>
 </div>
@@ -465,11 +523,11 @@
     margin: 0;
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .form-section small {
-    color: #666;
+    color: var(--text-secondary, #666);
     font-size: 0.875rem;
   }
 
@@ -487,34 +545,103 @@
 
   .form-group label {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
     font-size: 0.875rem;
   }
 
   .required {
-    color: #dc3545;
+    color: var(--danger-color, #dc3545);
   }
 
-  .checkbox-group {
+  .toggle-group {
     display: flex;
     align-items: end;
   }
 
-  .checkbox-label {
+  .toggle-label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: space-between;
+    gap: 0.75rem;
     cursor: pointer;
+    width: 100%;
   }
 
-  .checkbox-label input[type="checkbox"] {
-    width: 1rem;
-    height: 1rem;
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
     cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary, #ccc);
+    transition: 0.3s;
+    border-radius: 24px;
+    border: 1px solid var(--border-color, transparent);
+  }
+
+  :global([data-theme="dark"]) .toggle-slider {
+    background-color: #21262d;
+    border-color: #30363d;
+  }
+
+  .toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  :global([data-theme="dark"]) .toggle-slider:before {
+    background-color: #c9d1d9;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background-color: var(--success-color, #28a745);
+    border-color: var(--success-color, #28a745);
+  }
+
+  :global([data-theme="dark"]) .toggle-switch input:checked + .toggle-slider {
+    background-color: #238636;
+    border-color: #238636;
+  }
+
+  .toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+  }
+
+  .toggle-switch:hover .toggle-slider {
+    opacity: 0.9;
+  }
+
+  .toggle-switch input:disabled + .toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .error {
-    color: #dc3545;
+    color: var(--danger-color, #dc3545);
     font-size: 0.875rem;
   }
 
@@ -532,7 +659,7 @@
 
   .model-header label {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
     font-size: 0.875rem;
   }
 
@@ -552,12 +679,12 @@
   }
 
   .empty-models {
-    color: #999;
+    color: var(--text-secondary, #999);
     font-size: 0.875rem;
     font-style: italic;
     margin: 0;
     padding: 0.5rem;
-    background: #f8f9fa;
+    background: var(--bg-tertiary, #f8f9fa);
     border-radius: 0.25rem;
   }
 
@@ -579,17 +706,17 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: #f8f9fa;
+    background: var(--bg-tertiary, #f8f9fa);
     border-radius: 0.25rem;
   }
 
   .header-key {
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
   }
 
   .header-value {
-    color: #666;
+    color: var(--text-secondary, #666);
     flex: 1;
   }
 
@@ -598,7 +725,27 @@
     justify-content: flex-end;
     gap: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--border-color, #dee2e6);
+  }
+
+  .icon-button {
+    padding: 0.5rem;
+    min-width: auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-button :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  /* 隐藏图标按钮中的文字节点 */
+  .icon-button :global(span),
+  .icon-button :global(text) {
+    display: none !important;
   }
 
   .password-input {
@@ -618,17 +765,21 @@
     border: none;
     cursor: pointer;
     padding: 0.25rem;
-    color: #6c757d;
+    color: var(--text-secondary, #6c757d);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 0.25rem;
-    transition: color 0.2s;
+    transition: color 0.2s, background-color 0.2s;
   }
 
   .toggle-password:hover {
-    color: #495057;
+    color: var(--text-primary, #495057);
     background: rgba(0, 0, 0, 0.05);
+  }
+
+  :global([data-theme="dark"]) .toggle-password:hover {
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .toggle-password svg {

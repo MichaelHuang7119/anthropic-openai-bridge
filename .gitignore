@@ -42,6 +42,18 @@ backend/provider.json
 .env.local
 .env.*.local
 
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+**/data/
+
+# 加密密钥文件
+.encryption_key
+backend/.encryption_key
+**/.encryption_key
+
 # 日志文件
 *.log
 logs/

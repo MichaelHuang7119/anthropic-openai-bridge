@@ -24,9 +24,16 @@
   async function loadHealth() {
     try {
       loading = true;
+      const startTime = Date.now();
       const data = await healthService.getAll();
       healthStatus.set(data);
       lastHealthCheck.set(new Date());
+      
+      // 确保至少显示 300ms 的加载动画
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 300) {
+        await new Promise(resolve => setTimeout(resolve, 300 - elapsed));
+      }
     } catch (error) {
       console.error('Failed to load health status:', error);
     } finally {
@@ -54,13 +61,17 @@
 </script>
 
 <div class="container">
-  <div class="header">
+  <div class="page-header">
     <div class="title-section">
       <h1 class="page-title">健康监控</h1>
     </div>
     <div class="actions">
-      <Button variant="primary" on:click={loadHealth} disabled={loading}>
-        {loading ? '刷新中...' : '刷新状态'}
+      <Button variant="primary" on:click={loadHealth} disabled={loading} title="刷新状态" class="icon-button {loading ? 'spinning' : ''}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
       </Button>
     </div>
   </div>
@@ -171,36 +182,10 @@
 </div>
 
 <style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
   .title-section {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-
-  .page-title {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 600;
-    color: #1a1a1a;
-  }
-
-  .subtitle {
-    margin: 0;
-    font-size: 0.875rem;
-    color: #6c757d;
   }
 
   .actions {
@@ -216,12 +201,21 @@
     margin-bottom: 1.5rem;
   }
 
+  :global([data-theme="dark"]) .info-banner {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: rgba(88, 166, 255, 0.3);
+  }
+
   .banner-content {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     color: #004085;
     font-size: 0.875rem;
+  }
+
+  :global([data-theme="dark"]) .banner-content {
+    color: var(--text-primary);
   }
 
   .banner-content svg {
@@ -245,15 +239,15 @@
 
   .label {
     font-weight: 500;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .value {
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .table-container {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -266,15 +260,15 @@
   }
 
   .health-table thead {
-    background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
   }
 
   .health-table th {
     padding: 1rem;
     text-align: left;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary, #495057);
     white-space: nowrap;
   }
 
@@ -307,12 +301,12 @@
   }
 
   .health-table tbody tr {
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
     transition: background-color 0.2s;
   }
 
   .health-table tbody tr:hover {
-    background: #f8f9fa;
+    background: var(--bg-tertiary, #f8f9fa);
   }
 
   .health-table tbody tr.disabled-row {
@@ -330,7 +324,7 @@
 
   .provider-name {
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .priority-cell {
@@ -340,10 +334,10 @@
   .priority-value {
     display: inline-block;
     padding: 0.25rem 0.5rem;
-    background: #e9ecef;
+    background: var(--bg-tertiary, #e9ecef);
     border-radius: 0.25rem;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
   }
 
   .response-time-cell {
@@ -353,19 +347,25 @@
   .response-time-value {
     display: inline-block;
     padding: 0.25rem 0.5rem;
-    background: #d1ecf1;
+    background: rgba(88, 166, 255, 0.1);
     border-radius: 0.25rem;
     font-weight: 500;
-    color: #0c5460;
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+  }
+
+  :global([data-theme="dark"]) .response-time-value {
+    background: rgba(88, 166, 255, 0.2);
+    border-color: rgba(88, 166, 255, 0.4);
   }
 
   .response-time-na {
-    color: #adb5bd;
+    color: var(--text-secondary, #adb5bd);
     font-style: italic;
   }
 
   .last-check-cell {
-    color: #6c757d;
+    color: var(--text-secondary, #6c757d);
     font-size: 0.8125rem;
     white-space: nowrap;
   }
@@ -377,7 +377,7 @@
   .error-value {
     display: inline-block;
     max-width: 100%;
-    color: #dc3545;
+    color: var(--danger-color, #dc3545);
     font-size: 0.8125rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -385,7 +385,7 @@
   }
 
   .error-na {
-    color: #adb5bd;
+    color: var(--text-secondary, #adb5bd);
     font-style: italic;
   }
 
@@ -393,7 +393,7 @@
   .empty {
     text-align: center;
     padding: 3rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .loading p,
@@ -445,10 +445,6 @@
   }
 
   @media (max-width: 480px) {
-    .container {
-      padding: 0 0.75rem;
-    }
-
     .health-table th,
     .health-table td {
       padding: 0.5rem 0.375rem;

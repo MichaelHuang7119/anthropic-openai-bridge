@@ -54,14 +54,22 @@
 </script>
 
 <div class="container">
-  <div class="header">
+  <div class="page-header">
     <h1 class="page-title">全局配置</h1>
     <div class="actions">
-      <Button variant="secondary" on:click={handleReset} disabled={loading || saving}>
-        重置
+      <Button variant="secondary" on:click={handleReset} disabled={loading || saving} title="重置配置" class="icon-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
       </Button>
-      <Button variant="primary" on:click={handleSave} disabled={loading || saving}>
-        {saving ? '保存中...' : '保存配置'}
+      <Button variant="primary" on:click={handleSave} disabled={loading || saving} title={saving ? '保存中...' : '保存配置'} class="icon-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
       </Button>
     </div>
   </div>
@@ -125,27 +133,31 @@
 <style>
   .container {
     max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
-  .page-title {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 600;
-    color: #1a1a1a;
   }
 
   .actions {
     display: flex;
     gap: 1rem;
+  }
+
+  .icon-button {
+    padding: 0.5rem;
+    min-width: auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-button :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  /* 隐藏图标按钮中的文字节点 */
+  .icon-button :global(span),
+  .icon-button :global(text) {
+    display: none !important;
   }
 
   .config-grid {
@@ -168,34 +180,51 @@
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .form-control {
     width: 100%;
     padding: 0.5rem 0.75rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--input-border, var(--border-color, #ddd));
     border-radius: 0.25rem;
     font-size: 1rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+    background: var(--input-bg, var(--bg-primary, white));
+    color: var(--text-primary, #1a1a1a);
   }
 
   .form-control:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: var(--input-border-focus, var(--primary-color, #007bff));
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+
+  :global([data-theme="dark"]) .form-control:focus {
+    box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3);
+  }
+
+  /* 修复 select 下拉选项的白色背景闪跳问题 */
+  .form-control option {
+    background: var(--input-bg, var(--bg-primary, white));
+    color: var(--text-primary, #1a1a1a);
+  }
+
+  :global([data-theme="dark"]) .form-control option {
+    background: #0d1117;
+    color: #c9d1d9;
   }
 
   .help-text {
     margin: 0.5rem 0 0 0;
     font-size: 0.875rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .loading {
     text-align: center;
     padding: 3rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .loading p {

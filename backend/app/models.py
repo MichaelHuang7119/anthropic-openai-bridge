@@ -1,7 +1,8 @@
 """Data models for Anthropic API compatibility."""
 from typing import List, Optional, Union, Dict, Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from enum import Enum
+import re
 
 
 class MessageRole(str, Enum):
@@ -58,12 +59,49 @@ class Message(BaseModel):
     role: MessageRole
     content: Union[str, List[Union[TextContent, ImageContent, ContentBlock]]]
 
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v):
+        """Validate message content."""
+        if isinstance(v, str):
+            if len(v) > 100000:  # 100KB limit
+                raise ValueError("Message content too long")
+            # Check for suspicious patterns
+            if '\x00' in v:
+                raise ValueError("Message contains null bytes")
+        elif isinstance(v, list):
+            if len(v) > 100:  # Max 100 content blocks
+                raise ValueError("Too many content blocks")
+        return v
+
 
 class ToolDefinition(BaseModel):
     """Tool definition."""
     name: str
     description: str
     input_schema: Dict[str, Any] = Field(alias="input_schema")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        """Validate tool name."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Tool name cannot be empty")
+        if len(v) > 64:
+            raise ValueError("Tool name too long")
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', v):
+            raise ValueError("Tool name must start with letter or underscore, contain only alphanumeric and underscore")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v):
+        """Validate tool description."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Tool description cannot be empty")
+        if len(v) > 10000:  # Increased from 1000 to 10000 to support longer tool descriptions
+            raise ValueError("Tool description too long")
+        return v
 
 
 class MessagesRequest(BaseModel):
@@ -85,6 +123,55 @@ class MessagesRequest(BaseModel):
     mcp_servers: Optional[List[Dict[str, Any]]] = None  # Optional per spec
     service_tier: Optional[Literal["auto", "standard_only"]] = None  # Optional per spec
     thinking: Optional[Dict[str, Any]] = None  # Optional per spec
+
+    model_config = ConfigDict(extra="allow")
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v):
+        """Validate model name."""
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Model name cannot be empty")
+        if len(v) > 100:
+            raise ValueError("Model name too long")
+        # Allow alphanumeric, dashes, underscores, and dots
+        if not re.match(r'^[a-zA-Z0-9._-]+$', v):
+            raise ValueError("Model name contains invalid characters")
+        return v.strip()
+
+    @field_validator("max_tokens")
+    @classmethod
+    def validate_max_tokens(cls, v):
+        """Validate max_tokens."""
+        if v <= 0:
+            raise ValueError("max_tokens must be positive")
+        if v > 1000000:  # Increased from 100000 to 1000000 to support larger token limits
+            raise ValueError("max_tokens too large")
+        return v
+
+    @field_validator("temperature")
+    @classmethod
+    def validate_temperature(cls, v):
+        """Validate temperature."""
+        if v is not None and (v < 0 or v > 2):
+            raise ValueError("Temperature must be between 0 and 2")
+        return v
+
+    @field_validator("top_p")
+    @classmethod
+    def validate_top_p(cls, v):
+        """Validate top_p."""
+        if v is not None and (v <= 0 or v > 1):
+            raise ValueError("top_p must be between 0 and 1")
+        return v
+
+    @field_validator("top_k")
+    @classmethod
+    def validate_top_k(cls, v):
+        """Validate top_k."""
+        if v is not None and v < 1:
+            raise ValueError("top_k must be at least 1")
+        return v
 
 
 class TextBlock(BaseModel):

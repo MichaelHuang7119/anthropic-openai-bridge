@@ -31,17 +31,17 @@
 
 <style>
   .card {
-    background: white;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg, white);
+    border: 1px solid var(--border-color, #e0e0e0);
     border-radius: 0.5rem;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--card-shadow, 0 2px 4px rgba(0, 0, 0, 0.1));
   }
 
   .card-header {
     padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
   }
 
   .title-section {
@@ -54,13 +54,13 @@
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .card-subtitle {
     margin: 0;
     font-size: 0.875rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .card-body {
@@ -69,7 +69,7 @@
 
   .card-footer {
     padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e0e0e0;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-top: 1px solid var(--border-color, #e0e0e0);
   }
 </style>

@@ -115,9 +115,14 @@
 </script>
 
 <div class="container">
-  <div class="header">
+  <div class="page-header">
     <h1 class="page-title">供应商管理</h1>
-    <Button on:click={handleAdd}>添加供应商</Button>
+    <Button on:click={handleAdd} title="添加供应商" class="icon-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </Button>
   </div>
 
   {#if loading}
@@ -125,9 +130,14 @@
       <p>加载中...</p>
     </div>
   {:else if providersList.length === 0}
-    <div class="empty">
+      <div class="empty">
       <p>暂无供应商配置</p>
-      <Button on:click={handleAdd}>添加第一个供应商</Button>
+      <Button on:click={handleAdd} title="添加第一个供应商" class="icon-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </Button>
     </div>
   {:else}
     <div class="table-container">
@@ -143,7 +153,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each providersList as provider}
+      {#each providersList as provider}
             <tr>
               <td class="name-cell">
                 <div class="name-wrapper">
@@ -151,9 +161,9 @@
                 </div>
               </td>
               <td>
-                <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                  {provider.enabled ? '已启用' : '已禁用'}
-                </Badge>
+              <Badge type={provider.enabled ? 'success' : 'secondary'}>
+                {provider.enabled ? '已启用' : '已禁用'}
+              </Badge>
               </td>
               <td class="url-cell">
                 <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
@@ -166,7 +176,7 @@
                   <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
                   <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
                   <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
-                </div>
+            </div>
               </td>
               <td class="actions-cell">
                 <div class="actions-wrapper">
@@ -175,29 +185,30 @@
                     size="sm"
                     on:click={() => handleTest(provider)}
                     title="测试连接"
+                    class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                     </svg>
-                    测试
-                  </Button>
+            </Button>
                   <Button
                     variant="secondary"
                     size="sm"
                     on:click={() => handleEdit(provider)}
                     title="编辑"
+                    class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
-                    编辑
-                  </Button>
+            </Button>
                   <Button
                     variant="danger"
                     size="sm"
                     on:click={() => handleDelete(provider)}
                     title="删除"
+                    class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="3 6 5 6 21 6"></polyline>
@@ -205,12 +216,11 @@
                       <line x1="10" y1="11" x2="10" y2="17"></line>
                       <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
-                    删除
-                  </Button>
-                </div>
+            </Button>
+          </div>
               </td>
             </tr>
-          {/each}
+      {/each}
         </tbody>
       </table>
     </div>
@@ -233,46 +243,26 @@
 {/if}
 
 <style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-
-  .page-title {
-    font-size: 2rem;
-    font-weight: 600;
-    margin: 0;
-    color: #1a1a1a;
-  }
-
   .loading {
     text-align: center;
     padding: 4rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .empty {
     text-align: center;
     padding: 4rem;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
   }
 
   .empty p {
-    color: #666;
+    color: var(--text-secondary, #666);
     margin-bottom: 1rem;
   }
 
   .table-container {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -285,15 +275,15 @@
   }
 
   .providers-table thead {
-    background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
   }
 
   .providers-table th {
     padding: 1rem;
     text-align: left;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary, #495057);
     white-space: nowrap;
   }
 
@@ -322,12 +312,12 @@
   }
 
   .providers-table tbody tr {
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
     transition: background-color 0.2s;
   }
 
   .providers-table tbody tr:hover {
-    background: #f8f9fa;
+    background: var(--bg-tertiary, #f8f9fa);
   }
 
   .providers-table td {
@@ -347,7 +337,7 @@
 
   .provider-name {
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .url-cell {
@@ -360,7 +350,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #6c757d;
+    color: var(--text-secondary, #6c757d);
     font-size: 0.8125rem;
   }
 
@@ -371,10 +361,10 @@
   .priority-value {
     display: inline-block;
     padding: 0.25rem 0.5rem;
-    background: #e9ecef;
+    background: var(--bg-tertiary, #e9ecef);
     border-radius: 0.25rem;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
   }
 
   .models-cell {
@@ -407,6 +397,26 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
+  }
+
+  .icon-button {
+    padding: 0.5rem;
+    min-width: auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-button :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  /* 隐藏图标按钮中的文字节点 */
+  .icon-button :global(span),
+  .icon-button :global(text) {
+    display: none !important;
   }
 
   /* Responsive Design */
@@ -451,14 +461,6 @@
   }
 
   @media (max-width: 480px) {
-    .container {
-      padding: 0 0.75rem;
-    }
-
-    .page-title {
-      font-size: 1.5rem;
-    }
-
     .providers-table th,
     .providers-table td {
       padding: 0.5rem 0.375rem;
@@ -489,18 +491,20 @@
   }
 
   .modal-content {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
     max-width: 600px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
     padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
   .modal-content h2 {
     margin: 0 0 1rem 0;
     font-size: 1.5rem;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .modal-actions {

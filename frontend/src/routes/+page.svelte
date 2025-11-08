@@ -7,6 +7,7 @@
   import { providers, providerStats } from '$stores/providers';
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { providerService } from '$services/providers';
+  import { authService } from '$services/auth';
   import { toast } from '$stores/toast';
 
   let loading = true;
@@ -14,6 +15,11 @@
   let copySuccess = false;
 
   onMount(async () => {
+    // 确保已认证后再加载数据
+    if (!authService.isAuthenticated()) {
+      return;
+    }
+
     try {
       // 获取当前 URL
       if (browser) {
@@ -87,14 +93,14 @@
   $: healthyCount = $healthStatus.providers.filter(p => p.healthy === true).length;
   $: unhealthyCount = $healthStatus.providers.filter(p => p.healthy === false).length;
   $: hasHealthData = $healthStatus.providers.length > 0 && healthyCount + unhealthyCount > 0;
-  
+
   // 使用后端返回的总体状态，而不是自己计算
   $: overallStatus = $healthStatus.status;
   $: statusBadgeType = 
-    overallStatus === 'healthy' ? 'success' : 
-    overallStatus === 'partial' ? 'warning' : 
-    overallStatus === 'unhealthy' ? 'danger' : 
-    'info';
+    overallStatus === 'healthy' ? 'success' as const : 
+    overallStatus === 'partial' ? 'warning' as const : 
+    overallStatus === 'unhealthy' ? 'danger' as const : 
+    'info' as const;
   $: statusBadgeText = 
     overallStatus === 'healthy' ? '健康' : 
     overallStatus === 'partial' ? '部分健康' : 
@@ -106,7 +112,9 @@
 </script>
 
 <div class="container">
-  <h1 class="page-title">仪表盘</h1>
+  <div class="page-header">
+    <h1 class="page-title">仪表盘</h1>
+  </div>
 
   {#if loading}
     <div class="loading">
@@ -183,8 +191,17 @@
           <div class="config-code">
             <div class="code-header">
               <span class="code-label">环境变量配置</span>
-              <Button variant="secondary" size="sm" on:click={() => copyToClipboard(configCommand)}>
-                {copySuccess ? '已复制' : '复制'}
+              <Button variant="secondary" size="sm" on:click={() => copyToClipboard(configCommand)} title={copySuccess ? '已复制' : '复制'} class="icon-button">
+                {#if copySuccess}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                {:else}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                {/if}
               </Button>
             </div>
             <pre class="code-block"><code>export ANTHROPIC_BASE_URL={anthropicBaseUrl}
@@ -194,6 +211,14 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
             <p><strong>方式一：</strong>在 Claude Code 设置中配置环境变量</p>
             <p><strong>方式二：</strong>在启动 Claude Code 前执行上述命令</p>
             <p class="note-text">💡 提示：当前服务地址为 <code>{anthropicBaseUrl}</code>，已自动填充到配置中</p>
+            <div class="api-key-note">
+              <p><strong>关于 ANTHROPIC_API_KEY：</strong></p>
+              <ul>
+                <li><strong>开发模式：</strong>如果后端启用了开发模式（<code>--dev</code>），API Key 可以是任意值，如 <code>"any-value"</code>、<code>"dev"</code>、<code>"test"</code> 等，或者设置为空字符串</li>
+                <li><strong>生产模式：</strong>如果后端未启用开发模式，必须使用有效的 API Key（在"API Key 管理"页面创建）</li>
+                <li><strong>检查模式：</strong>后端启动时会显示当前模式，开发模式会显示 <code>Development Mode: ✅ Enabled</code></li>
+              </ul>
+            </div>
           </div>
         </div>
       </Card>
@@ -230,9 +255,9 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                     <span class="provider-name">{provider.name}</span>
                   </td>
                   <td>
-                    <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                      {provider.enabled ? '已启用' : '已禁用'}
-                    </Badge>
+              <Badge type={provider.enabled ? 'success' : 'secondary'}>
+                {provider.enabled ? '已启用' : '已禁用'}
+              </Badge>
                   </td>
                   <td class="url-cell">
                     <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
@@ -242,13 +267,13 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                       <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
                       <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
                       <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
-                    </div>
+            </div>
                   </td>
                 </tr>
               {/each}
             </tbody>
           </table>
-        </div>
+              </div>
 
         {#if $providers.length > 5}
           <div class="view-more">
@@ -261,23 +286,10 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 </div>
 
 <style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-  }
-
-  .page-title {
-    font-size: 2rem;
-    font-weight: 600;
-    margin: 0 0 2rem 0;
-    color: #1a1a1a;
-  }
-
   .loading {
     text-align: center;
     padding: 4rem;
-    color: #666;
+    color: var(--text-secondary, #666);
   }
 
   .stats-grid {
@@ -300,32 +312,50 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   }
 
   .label {
-    color: #666;
+    color: var(--text-secondary, #666);
     font-size: 0.875rem;
   }
 
   .value {
     font-size: 1.5rem;
     font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .value.success {
-    color: #28a745;
+    color: var(--success-color, #28a745);
+  }
+
+  :global([data-theme="dark"]) .value.success {
+    color: #238636;
   }
 
   .value.danger {
-    color: #dc3545;
+    color: var(--danger-color, #dc3545);
+  }
+
+  :global([data-theme="dark"]) .value.danger {
+    color: #f85149;
   }
 
   .value.link {
-    color: #007bff;
+    color: var(--link-color, var(--primary-color, #007bff));
     font-size: 1rem;
     font-weight: 500;
     text-decoration: none;
   }
 
   .value.link:hover {
+    color: var(--link-hover-color, var(--primary-color, #0056b3));
     text-decoration: underline;
+  }
+
+  :global([data-theme="dark"]) .value.link {
+    color: #58a6ff;
+  }
+
+  :global([data-theme="dark"]) .value.link:hover {
+    color: #79c0ff;
   }
 
   .sys-info {
@@ -343,7 +373,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   .sys-info .value {
     font-size: 0.875rem;
     font-weight: 400;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .providers-preview {
@@ -361,46 +391,73 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     font-size: 1.5rem;
     font-weight: 600;
     margin: 0;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .view-all {
-    color: #007bff;
+    color: var(--link-color, var(--primary-color, #007bff));
     text-decoration: none;
     font-weight: 500;
     font-size: 0.875rem;
+    transition: color 0.2s;
   }
 
   .view-all:hover {
+    color: var(--link-hover-color, var(--primary-color, #0056b3));
     text-decoration: underline;
+  }
+
+  :global([data-theme="dark"]) .view-all {
+    color: #58a6ff;
+  }
+
+  :global([data-theme="dark"]) .view-all:hover {
+    color: #79c0ff;
   }
 
   .empty-state {
     text-align: center;
     padding: 3rem;
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e0e0e0);
   }
 
   .empty-state p {
-    color: #666;
+    color: var(--text-secondary, #666);
     margin-bottom: 1rem;
   }
 
   .add-link {
-    color: #007bff;
+    color: var(--link-color, var(--primary-color, #007bff));
     text-decoration: none;
     font-weight: 500;
+    transition: color 0.2s;
   }
 
   .add-link:hover {
+    color: var(--link-hover-color, var(--primary-color, #0056b3));
     text-decoration: underline;
   }
 
+  :global([data-theme="dark"]) .add-link {
+    color: #58a6ff;
+  }
+
+  :global([data-theme="dark"]) .add-link:hover {
+    color: #79c0ff;
+  }
+
   .table-container {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 0.5rem;
+    border: 1px solid var(--border-color, #e0e0e0);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+  }
+
+  :global([data-theme="dark"]) .table-container {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 
   .providers-table {
@@ -410,15 +467,15 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   }
 
   .providers-table thead {
-    background: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
   }
 
   .providers-table th {
     padding: 1rem;
     text-align: left;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary, #495057);
     white-space: nowrap;
   }
 
@@ -439,12 +496,12 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   }
 
   .providers-table tbody tr {
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
     transition: background-color 0.2s;
   }
 
   .providers-table tbody tr:hover {
-    background: #f8f9fa;
+    background: var(--bg-tertiary, #f8f9fa);
   }
 
   .providers-table tbody tr.disabled-row {
@@ -462,7 +519,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
   .provider-name {
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
   }
 
   .url-cell {
@@ -475,8 +532,9 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #6c757d;
+    color: var(--text-secondary, #6c757d);
     font-size: 0.8125rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
   }
 
   .models-cell {
@@ -494,9 +552,24 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     padding: 0.25rem 0.5rem;
   }
 
-  .view-more {
-    text-align: center;
-    margin-top: 1.5rem;
+  .icon-button {
+    padding: 0.5rem;
+    min-width: auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-button :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  /* 隐藏图标按钮中的文字节点 */
+  .icon-button :global(span),
+  .icon-button :global(text) {
+    display: none !important;
   }
 
   .btn-link {
@@ -521,14 +594,14 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
   .config-description {
     margin: 0;
-    color: #666;
+    color: var(--text-secondary, #666);
     font-size: 0.875rem;
     line-height: 1.6;
   }
 
   .config-code {
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
+    background: var(--bg-tertiary, #f8f9fa);
+    border: 1px solid var(--border-color, #e0e0e0);
     border-radius: 0.5rem;
     overflow: hidden;
   }
@@ -538,27 +611,27 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
-    background: #e9ecef;
-    border-bottom: 1px solid #e0e0e0;
+    background: var(--bg-tertiary, #e9ecef);
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
   }
 
   .code-label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #495057;
+    color: var(--text-primary, #495057);
   }
 
   .code-block {
     margin: 0;
     padding: 1rem;
-    background: #fff;
+    background: var(--code-bg, var(--bg-primary, #fff));
     overflow-x: auto;
   }
 
   .code-block code {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
     font-size: 0.875rem;
-    color: #1a1a1a;
+    color: var(--text-primary, #1a1a1a);
     white-space: pre;
   }
 
@@ -572,11 +645,20 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     border-left: 4px solid #007bff;
   }
 
+  :global([data-theme="dark"]) .config-note {
+    background: rgba(88, 166, 255, 0.1);
+    border-left-color: #58a6ff;
+  }
+
   .config-note p {
     margin: 0;
     font-size: 0.875rem;
     color: #004085;
     line-height: 1.6;
+  }
+
+  :global([data-theme="dark"]) .config-note p {
+    color: var(--text-primary);
   }
 
   .config-note code {
@@ -589,8 +671,54 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     border: 1px solid #b3d9ff;
   }
 
+  :global([data-theme="dark"]) .config-note code {
+    background: var(--code-bg, var(--bg-tertiary));
+    color: #58a6ff;
+    border-color: rgba(88, 166, 255, 0.3);
+  }
+
   .note-text {
     margin-top: 0.5rem;
     font-weight: 500;
+  }
+
+  .api-key-note {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #b3d9ff;
+  }
+
+  :global([data-theme="dark"]) .api-key-note {
+    border-top-color: rgba(88, 166, 255, 0.3);
+  }
+
+  .api-key-note p {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+
+  .api-key-note ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+    list-style-type: disc;
+  }
+
+  .api-key-note li {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #004085;
+    line-height: 1.6;
+  }
+
+  :global([data-theme="dark"]) .api-key-note li {
+    color: var(--text-primary);
+  }
+
+  .api-key-note li strong {
+    color: #002752;
+  }
+
+  :global([data-theme="dark"]) .api-key-note li strong {
+    color: var(--text-primary);
   }
 </style>

@@ -2,9 +2,12 @@
 import json
 import logging
 import asyncio
+import time
+import uuid
 from typing import Optional, Union
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from datetime import datetime
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 from openai import RateLimitError, APIError, APIConnectionError
 import httpx
@@ -25,7 +28,13 @@ from .utils import openai_response_to_dict
 from .api.providers import router as providers_router
 from .api.health import router as health_router
 from .api.config import router as config_router
+from .api.stats import router as stats_router
+from .api.auth import router as auth_router
+from .api.api_keys import router as api_keys_router
 from .retry import retry_with_backoff, is_retryable_error
+from .cache import CacheKey, get_cache_manager
+from .database import get_database
+from .auth import require_api_key
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -111,19 +120,71 @@ async def count_tokens_using_api(messages: list, provider: OpenAIClient, model: 
 
 
 @app.post("/v1/messages")
-async def messages(request: Union[MessagesRequest, dict]):
+async def messages(
+    request: Union[MessagesRequest, dict],
+    api_user: dict = Depends(require_api_key())
+):
     """Handle Anthropic /v1/messages endpoint."""
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    input_tokens = None
+    output_tokens = None
+    status_code = 200
+    error_message = None
+
     try:
         # Parse request
         if isinstance(request, dict):
             req = MessagesRequest(**request)
         else:
             req = request
-        
+
         # Get provider and model
         provider_config, actual_model = model_manager.get_provider_and_model(req.model)
         client = OpenAIClient(provider_config)
-        
+
+        # Try to get from cache for non-streaming requests
+        cache_enabled = config.app_config.cache.enabled and not req.stream
+        cached_response = None
+        cache_key = None
+
+        if cache_enabled:
+            # Generate cache key first
+            # We need the openai_request for this, so convert first
+            openai_request_for_cache = convert_anthropic_request_to_openai(req)
+
+            cache_key = CacheKey.generate_key(
+                model=actual_model,
+                messages=openai_request_for_cache.get("messages", []),
+                max_tokens=openai_request_for_cache.get("max_tokens"),
+                temperature=openai_request_for_cache.get("temperature"),
+                tools=openai_request_for_cache.get("tools"),
+                stream=req.stream,
+                provider=provider_config.name
+            )
+
+            # Try to get from cache
+            cache_manager = get_cache_manager()
+            cached_response = await cache_manager.get(cache_key)
+
+            if cached_response is not None:
+                logger.info(f"Cache hit for provider {provider_config.name}, model {actual_model}")
+                # Log to database (successful cache hit)
+                db = get_database()
+                await db.log_request(
+                    request_id=request_id,
+                    provider_name=provider_config.name,
+                    model=actual_model,
+                    request_params={
+                        "model": req.model,
+                        "stream": req.stream,
+                        "cache_hit": True
+                    },
+                    status_code=200,
+                    response_time_ms=(time.time() - start_time) * 1000
+                )
+                return cached_response
+
         # Convert Anthropic request to OpenAI format
         openai_request = convert_anthropic_request_to_openai(req)
         
@@ -568,28 +629,122 @@ async def messages(request: Union[MessagesRequest, dict]):
             
             # Convert response
             openai_dict = openai_response_to_dict(openai_response)
-            
+
             anthropic_response = convert_openai_response_to_anthropic(
                 openai_dict,
                 req.model,
                 stream=False
             )
-            
+
+            # Cache the response if caching is enabled
+            if cache_enabled and cached_response is None:
+                try:
+                    cache_manager = get_cache_manager()
+                    await cache_manager.set(
+                        cache_key,
+                        anthropic_response,
+                        ttl=config.app_config.cache.default_ttl
+                    )
+                    logger.info(f"Cached response for provider {provider_config.name}, model {actual_model}")
+                except Exception as e:
+                    # Don't fail the request if caching fails
+                    logger.warning(f"Failed to cache response: {e}")
+
+            # Extract token usage from response if available
+            usage = anthropic_response.get("usage", {})
+            input_tokens = usage.get("input_tokens")
+            output_tokens = usage.get("output_tokens")
+
+            # Log to database (successful request)
+            db = get_database()
+            await db.log_request(
+                request_id=request_id,
+                provider_name=provider_config.name,
+                model=actual_model,
+                request_params=openai_request,
+                response_data=anthropic_response,
+                status_code=200,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                response_time_ms=(time.time() - start_time) * 1000
+            )
+
+            # Update token usage statistics
+            if input_tokens or output_tokens:
+                today = datetime.now().strftime("%Y-%m-%d")
+                # Estimated cost: $0.01 per 1K input tokens, $0.03 per 1K output tokens
+                cost_estimate = (
+                    (input_tokens or 0) * 0.00001 +
+                    (output_tokens or 0) * 0.00003
+                )
+                await db.update_token_usage(
+                    date=today,
+                    provider_name=provider_config.name,
+                    model=actual_model,
+                    input_tokens=input_tokens or 0,
+                    output_tokens=output_tokens or 0,
+                    cost_estimate=cost_estimate
+                )
+
             return anthropic_response
     
-    except HTTPException:
+    except HTTPException as e:
+        # Log error to database
+        error_message = str(e.detail)
+        status_code = e.status_code
+        db = get_database()
+        await db.log_request(
+            request_id=request_id,
+            provider_name=provider_config.name if 'provider_config' in locals() else "unknown",
+            model=actual_model if 'actual_model' in locals() else req.model,
+            request_params=openai_request if 'openai_request' in locals() else {},
+            status_code=status_code,
+            error_message=error_message,
+            response_time_ms=(time.time() - start_time) * 1000
+        )
         # Re-raise HTTP exceptions (RateLimitError, APIError, etc.)
         raise
     except ValueError as e:
         logger.error(f"Value error: {e}")
+        # Log error to database
+        error_message = str(e)
+        status_code = 400
+        db = get_database()
+        if 'provider_config' in locals():
+            await db.log_request(
+                request_id=request_id,
+                provider_name=provider_config.name,
+                model=actual_model if 'actual_model' in locals() else req.model,
+                request_params=openai_request if 'openai_request' in locals() else {},
+                status_code=status_code,
+                error_message=error_message,
+                response_time_ms=(time.time() - start_time) * 1000
+            )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error processing request: {e}", exc_info=True)
+        # Log error to database
+        error_message = str(e)
+        status_code = 500
+        db = get_database()
+        if 'provider_config' in locals():
+            await db.log_request(
+                request_id=request_id,
+                provider_name=provider_config.name,
+                model=actual_model if 'actual_model' in locals() else req.model,
+                request_params=openai_request if 'openai_request' in locals() else {},
+                status_code=status_code,
+                error_message=error_message,
+                response_time_ms=(time.time() - start_time) * 1000
+            )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.post("/v1/messages/count_tokens")
-async def count_tokens(request: Union[CountTokensRequest, dict]):
+async def count_tokens(
+    request: Union[CountTokensRequest, dict],
+    api_user: dict = Depends(require_api_key())
+):
     """Handle Anthropic /v1/messages/count_tokens endpoint."""
     try:
         # Parse request
@@ -642,6 +797,12 @@ async def health():
     return {"status": "healthy"}
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    """Favicon endpoint - returns 204 No Content to prevent 404 errors."""
+    return Response(status_code=204)
+
+
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -668,7 +829,88 @@ async def root():
     }
 
 # Register API routers
+app.include_router(auth_router)
+app.include_router(api_keys_router)
 app.include_router(providers_router)
 app.include_router(health_router)
 app.include_router(config_router)
+app.include_router(stats_router)
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize cache on startup."""
+    if config.app_config.cache.enabled:
+        logger.info("Initializing cache system...")
+        cache_manager = get_cache_manager()
+        await cache_manager.initialize()
+        logger.info("Cache system initialized successfully")
+    
+    # Initialize default admin user if not exists
+    await _init_default_admin()
+    
+    # Start config hot reload
+    import os
+    hot_reload_enabled = os.getenv("CONFIG_HOT_RELOAD", "true").lower() in ("true", "1", "yes")
+    if hot_reload_enabled:
+        from .config_hot_reload import start_config_hot_reload
+        # Create reload callback that reloads config
+        def reload_config():
+            try:
+                config._load_config()
+                logger.info("Configuration hot reloaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to hot reload configuration: {e}", exc_info=True)
+        
+        start_config_hot_reload(config.config_path, reload_config)
+        logger.info("Configuration hot reload enabled")
+    else:
+        logger.info("Configuration hot reload disabled (set CONFIG_HOT_RELOAD=false to disable)")
+
+
+async def _init_default_admin():
+    """Initialize default admin user if not exists."""
+    import os
+    from .auth import hash_password
+    
+    db = get_database()
+    
+    # Check if any admin user exists
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    
+    existing_user = await db.get_user_by_email(admin_email)
+    if existing_user:
+        logger.info(f"Admin user already exists: {admin_email}")
+        return
+    
+    # Create default admin user
+    password_hash = hash_password(admin_password)
+    user_id = await db.create_user(
+        email=admin_email,
+        password_hash=password_hash,
+        name="Administrator",
+        is_admin=True
+    )
+    
+    if user_id:
+        logger.info(f"Created default admin user: {admin_email}")
+        logger.warning(f"Default admin password: {admin_password} - Please change it after first login!")
+    else:
+        logger.error("Failed to create default admin user")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on shutdown."""
+    logger.info("Shutting down and cleaning up resources...")
+    
+    # Stop config hot reload
+    from .config_hot_reload import stop_config_hot_reload
+    stop_config_hot_reload()
+    
+    # Close cache connections
+    from .cache import close_cache
+    await close_cache()
+    
+    logger.info("Shutdown complete")

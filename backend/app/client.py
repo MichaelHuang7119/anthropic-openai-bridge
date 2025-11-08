@@ -1,8 +1,16 @@
 """OpenAI client wrapper for making requests to providers."""
 from typing import Optional, Dict, Any, AsyncIterator
 import os
+import httpx
 from openai import OpenAI, AsyncOpenAI
 from .config import ProviderConfig
+
+# Configure httpx limits for connection pooling
+DEFAULT_LIMITS = httpx.Limits(
+    max_keepalive_connections=20,
+    max_connections=100,
+    keepalive_expiry=30
+)
 
 
 class OpenAIClient:
@@ -16,23 +24,45 @@ class OpenAIClient:
         if api_key.startswith("${") and api_key.endswith("}"):
             var_name = api_key[2:-1]
             api_key = os.getenv(var_name, "")
-        
+
         # Configure timeout as a tuple (connect, read, write, pool) for better control
         # Using a single timeout value that applies to all phases
         timeout_config = provider.timeout
-        
+
+        # Create httpx client with connection pooling
+        self._http_client = httpx.Client(
+            timeout=timeout_config,
+            limits=DEFAULT_LIMITS,
+            headers={
+                "Connection": "keep-alive",
+            }
+        )
+
         self.client = OpenAI(
             api_key=api_key,
             base_url=provider.base_url,
             timeout=timeout_config,
-            max_retries=provider.max_retries
+            max_retries=provider.max_retries,
+            # Use custom http client with connection pooling
+            http_client=self._http_client
         )
-        
+
+        # Create async httpx client with connection pooling
+        self._async_http_client = httpx.AsyncClient(
+            timeout=timeout_config,
+            limits=DEFAULT_LIMITS,
+            headers={
+                "Connection": "keep-alive",
+            }
+        )
+
         self.async_client = AsyncOpenAI(
             api_key=api_key,
             base_url=provider.base_url,
             timeout=timeout_config,
-            max_retries=provider.max_retries
+            max_retries=provider.max_retries,
+            # Use custom http client with connection pooling
+            http_client=self._async_http_client
         )
     
     def chat_completion(
@@ -98,4 +128,18 @@ class OpenAIClient:
         params.update(kwargs)
         
         return await self.async_client.chat.completions.create(**params)
+
+    def close(self):
+        """Close the HTTP client connections."""
+        if hasattr(self, '_http_client'):
+            self._http_client.close()
+        if hasattr(self, '_async_http_client'):
+            # Note: For async client, caller should use await client.async_client.close()
+            # or we can provide a separate close_async method
+            pass
+
+    async def close_async(self):
+        """Close the async HTTP client connections."""
+        if hasattr(self, '_async_http_client'):
+            await self._async_http_client.aclose()
 

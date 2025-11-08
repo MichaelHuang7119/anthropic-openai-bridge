@@ -111,8 +111,17 @@ Examples:
         choices=['critical', 'error', 'warning', 'info', 'debug', 'trace'],
         help='Log level (default: info, or LOG_LEVEL env var)'
     )
+    parser.add_argument(
+        '--dev',
+        action='store_true',
+        help='Enable development mode (allows API access without valid API key). Can also be set via DEV_MODE=true env var.'
+    )
     
     args = parser.parse_args()
+    
+    # Set DEV_MODE environment variable if --dev flag is used
+    if args.dev:
+        os.environ['DEV_MODE'] = 'true'
     
     # Set PROVIDER_CONFIG_PATH if not already set
     if 'PROVIDER_CONFIG_PATH' not in os.environ:
@@ -147,12 +156,16 @@ Examples:
         sys.exit(1)
     
     # Print startup information
+    dev_mode = os.environ.get('DEV_MODE', 'false').lower() in ('true', '1', 'yes')
     print("🚀 Starting Anthropic OpenAI Bridge Server")
     print(f"   Host: {host}")
     print(f"   Port: {port}")
     print(f"   Provider Config: {os.environ.get('PROVIDER_CONFIG_PATH', './provider.json')}")
     print(f"   Auto-reload: {'Enabled' if args.reload else 'Disabled'}")
     print(f"   Log level: {args.log_level}")
+    print(f"   Development Mode: {'✅ Enabled (API Key not required)' if dev_mode else '❌ Disabled (API Key required)'}")
+    if dev_mode:
+        print("   ⚠️  WARNING: Development mode is enabled. API Key authentication is disabled!")
     print()
     
     # Start uvicorn server

@@ -3,12 +3,20 @@
   export let size: 'sm' | 'md' | 'lg' = 'md';
   export let disabled: boolean = false;
   export let type: 'button' | 'submit' | 'reset' = 'button';
+  export let title: string | undefined = undefined;
+  
+  // 支持自定义 class
+  let className = '';
+  export { className as class };
+  
+  $: classes = `btn btn-${variant} btn-${size} ${className}`.trim();
 </script>
 
 <button
   {type}
-  class="btn btn-{variant} btn-{size}"
+  class={classes}
   {disabled}
+  {title}
   on:click
 >
   <slot />
@@ -48,29 +56,61 @@
   }
 
   .btn-primary {
-    background: #007bff;
+    background: var(--primary-color, #007bff);
     color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #0056b3;
+    background: var(--primary-color, #007bff);
+    opacity: 0.9;
+  }
+
+  :global([data-theme="dark"]) .btn-primary {
+    background: #238636;
+    color: white;
+  }
+
+  :global([data-theme="dark"]) .btn-primary:hover:not(:disabled) {
+    background: #2ea043;
   }
 
   .btn-secondary {
-    background: #e9ecef;
-    color: #495057;
+    background: var(--bg-tertiary, #e9ecef);
+    color: var(--text-primary, #495057);
+    border: 1px solid var(--border-color, #dee2e6);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: #dee2e6;
+    background: var(--bg-tertiary, #dee2e6);
+    border-color: var(--border-color, #adb5bd);
+  }
+
+  :global([data-theme="dark"]) .btn-secondary {
+    background: #21262d;
+    color: var(--text-primary);
+    border-color: #30363d;
+  }
+
+  :global([data-theme="dark"]) .btn-secondary:hover:not(:disabled) {
+    background: #30363d;
+    border-color: #484f58;
   }
 
   .btn-danger {
-    background: #dc3545;
+    background: var(--danger-color, #dc3545);
     color: white;
   }
 
   .btn-danger:hover:not(:disabled) {
-    background: #c82333;
+    background: var(--danger-color, #dc3545);
+    opacity: 0.9;
+  }
+
+  :global([data-theme="dark"]) .btn-danger {
+    background: #da3633;
+  }
+
+  :global([data-theme="dark"]) .btn-danger:hover:not(:disabled) {
+    background: #f85149;
   }
 </style>

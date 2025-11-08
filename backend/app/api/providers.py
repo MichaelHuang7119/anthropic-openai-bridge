@@ -1,9 +1,11 @@
 """供应商管理API端点"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from pydantic import BaseModel
 import json
 import os
+from ..config import config
+from ..auth import require_admin
 
 router = APIRouter(prefix="/api/providers", tags=["providers"])
 
@@ -40,17 +42,17 @@ def save_config(data):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 @router.get("", response_model=List[dict])
-async def get_providers(include_secrets: bool = False):
+async def get_providers(include_secrets: bool = False, user: dict = Depends(require_admin())):
     """获取所有供应商
 
     Args:
         include_secrets: 是否包含敏感信息（如API key），默认False
     """
     try:
-        config = load_config()
+        config_data = load_config()
         providers = []
 
-        for p in config.get("providers", []):
+        for p in config_data.get("providers", []):
             provider = {
                 "name": p.get("name"),
                 "enabled": p.get("enabled", True),
@@ -77,22 +79,25 @@ async def get_providers(include_secrets: bool = False):
         raise HTTPException(status_code=500, detail=f"Failed to load providers: {str(e)}")
 
 @router.post("", status_code=201)
-async def create_provider(provider: ProviderModel):
+async def create_provider(provider: ProviderModel, user: dict = Depends(require_admin())):
     """创建新供应商"""
     try:
-        config = load_config()
+        config_data = load_config()
 
         # 验证供应商名称唯一
-        for p in config.get("providers", []):
+        for p in config_data.get("providers", []):
             if p.get("name") == provider.name:
                 raise HTTPException(status_code=400, detail="Provider already exists")
 
         # 添加到配置
         provider_dict = provider.model_dump()
-        config.setdefault("providers", []).append(provider_dict)
+        config_data.setdefault("providers", []).append(provider_dict)
 
         # 保存
-        save_config(config)
+        save_config(config_data)
+
+        # 重新加载全局配置，确保 model_manager 使用最新配置
+        config._load_config()
 
         return {"success": True, "message": "Provider created successfully"}
     except HTTPException:
@@ -101,11 +106,11 @@ async def create_provider(provider: ProviderModel):
         raise HTTPException(status_code=500, detail=f"Failed to create provider: {str(e)}")
 
 @router.put("/{name}")
-async def update_provider(name: str, provider: ProviderModel):
+async def update_provider(name: str, provider: ProviderModel, user: dict = Depends(require_admin())):
     """更新供应商"""
     try:
-        config = load_config()
-        providers = config.get("providers", [])
+        config_data = load_config()
+        providers = config_data.get("providers", [])
 
         # 找到并更新供应商
         for i, p in enumerate(providers):
@@ -119,10 +124,13 @@ async def update_provider(name: str, provider: ProviderModel):
                 # 更新
                 provider_dict = provider.model_dump()
                 providers[i] = provider_dict
-                config["providers"] = providers
+                config_data["providers"] = providers
 
                 # 保存
-                save_config(config)
+                save_config(config_data)
+
+                # 重新加载全局配置，确保 model_manager 使用最新配置
+                config._load_config()
 
                 return {"success": True, "message": "Provider updated successfully"}
 
@@ -133,20 +141,23 @@ async def update_provider(name: str, provider: ProviderModel):
         raise HTTPException(status_code=500, detail=f"Failed to update provider: {str(e)}")
 
 @router.delete("/{name}")
-async def delete_provider(name: str):
+async def delete_provider(name: str, user: dict = Depends(require_admin())):
     """删除供应商"""
     try:
-        config = load_config()
-        providers = config.get("providers", [])
+        config_data = load_config()
+        providers = config_data.get("providers", [])
 
         # 找到并删除
         for i, p in enumerate(providers):
             if p.get("name") == name:
                 del providers[i]
-                config["providers"] = providers
+                config_data["providers"] = providers
 
                 # 保存
-                save_config(config)
+                save_config(config_data)
+
+                # 重新加载全局配置，确保 model_manager 使用最新配置
+                config._load_config()
 
                 return {"success": True, "message": "Provider deleted successfully"}
 
@@ -157,14 +168,14 @@ async def delete_provider(name: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete provider: {str(e)}")
 
 @router.post("/{name}/test")
-async def test_provider(name: str):
+async def test_provider(name: str, user: dict = Depends(require_admin())):
     """测试供应商连接"""
     try:
-        config = load_config()
+        config_data = load_config()
         provider_data = None
 
         # 找到供应商
-        for p in config.get("providers", []):
+        for p in config_data.get("providers", []):
             if p.get("name") == name:
                 provider_data = p
                 break

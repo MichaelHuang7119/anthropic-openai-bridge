@@ -1,8 +1,9 @@
 """全局配置API端点"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import json
 import os
 from pydantic import BaseModel
+from ..auth import require_admin
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
@@ -36,7 +37,7 @@ def save_config(data):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 @router.get("", response_model=dict)
-async def get_global_config():
+async def get_global_config(user: dict = Depends(require_admin())):
     """获取全局配置"""
     try:
         config = load_config()
@@ -55,7 +56,7 @@ async def get_global_config():
         raise HTTPException(status_code=500, detail=f"Failed to load config: {str(e)}")
 
 @router.put("")
-async def update_global_config(config_model: GlobalConfigModel):
+async def update_global_config(config_model: GlobalConfigModel, user: dict = Depends(require_admin())):
     """更新全局配置"""
     try:
         config = load_config()

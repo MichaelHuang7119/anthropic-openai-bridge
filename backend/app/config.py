@@ -1,15 +1,29 @@
 """Configuration management for Anthropic OpenAI Bridge"""
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
 
+class CacheConfig(BaseModel):
+    """Cache configuration."""
+    enabled: bool = True
+    cache_type: str = "memory"  # "memory" or "redis"
+    default_ttl: int = 3600  # seconds
+    max_size: int = 1000  # for memory cache
+    redis_url: str = "redis://localhost:6379/0"
+    redis_max_connections: int = 20
+    # Exclude certain parameters from cache key
+    exclude_from_cache: list = Field(default_factory=lambda: ["stream"])
+
+
 class CircuitBreakerConfig(BaseModel):
     """Circuit breaker configuration."""
     failure_threshold: int = 5
     recovery_timeout: int = 60
+    enabled: bool = True
 
 
 class ProviderConfig(BaseModel):
@@ -32,6 +46,7 @@ class AppConfig(BaseModel):
     providers: List[ProviderConfig] = Field(default_factory=list)
     fallback_strategy: str = "priority"
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
 
 
 class Config:
@@ -56,14 +71,25 @@ class Config:
         
         # Global token limits (per claude-code-proxy pattern)
         # These apply to all requests regardless of provider
-        self.max_tokens_limit = int(os.getenv("MAX_TOKENS_LIMIT", "4096"))
+        self.max_tokens_limit = int(os.getenv("MAX_TOKENS_LIMIT", "1000000"))  # Increased from 4096 to 1000000
         self.min_tokens_limit = int(os.getenv("MIN_TOKENS_LIMIT", "100"))
     
     def _load_config(self) -> AppConfig:
         """Load configuration from JSON file."""
         with open(self.config_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        return AppConfig(**data)
+
+        # Validate configuration security
+        from .security import validate_config_security
+        warnings = validate_config_security(data)
+        if warnings:
+            logger = logging.getLogger(__name__)
+            for warning in warnings:
+                logger.warning(f"Security warning: {warning}")
+
+        # Update app_config with new configuration
+        self.app_config = AppConfig(**data)
+        return self.app_config
     
     def get_enabled_providers(self) -> List[ProviderConfig]:
         """Get list of enabled providers sorted by priority."""

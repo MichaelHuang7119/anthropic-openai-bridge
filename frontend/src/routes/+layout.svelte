@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import Header from '$components/layout/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
-  import { page } from '$app/stores';
+  import { theme } from '$stores/theme';
+  import { authService } from '$services/auth';
   import '../lib/styles/global.css';
 
   // 导航项配置
@@ -9,7 +13,9 @@
     { href: '/', label: '首页' },
     { href: '/providers', label: '供应商' },
     { href: '/health', label: '健康监控' },
-    { href: '/config', label: '配置' }
+    { href: '/config', label: '配置' },
+    { href: '/stats', label: '性能监控' },
+    { href: '/api-keys', label: 'API Key 管理' }
   ];
 
   // 检查链接是否激活
@@ -19,28 +25,46 @@
     }
     return $page.url.pathname.startsWith(href);
   }
+
+  // 初始化主题和认证检查
+  onMount(() => {
+    theme.init();
+    
+    // 检查认证状态（排除登录页）
+    if ($page.url.pathname !== '/login' && !authService.isAuthenticated()) {
+      goto('/login');
+    }
+  });
+
+  function handleLogout() {
+    authService.logout();
+  }
 </script>
 
 <div class="app">
-  <Header title="Anthropic OpenAI Bridge 管理界面" subtitle="供应商管理与监控系统">
-    <nav slot="nav">
-      {#each navItems as item}
-        <a
-          href={item.href}
-          class="nav-link"
-          class:active={isActive(item.href)}
-        >
-          {item.label}
-        </a>
-      {/each}
-    </nav>
-  </Header>
+  {#if $page.url.pathname !== '/login'}
+    <Header title="Anthropic OpenAI Bridge 管理界面" subtitle="供应商管理与监控系统">
+      <nav slot="nav">
+        {#each navItems as item}
+          <a
+            href={item.href}
+            class="nav-link"
+            class:active={isActive(item.href)}
+          >
+            {item.label}
+          </a>
+        {/each}
+      </nav>
+    </Header>
+  {/if}
   <main class="main">
     <slot />
   </main>
-  <footer class="footer">
-    <p>© 2025 Anthropic OpenAI Bridge.</p>
-  </footer>
+  {#if $page.url.pathname !== '/login'}
+    <footer class="footer">
+      <p>© 2025 Anthropic OpenAI Bridge.</p>
+    </footer>
+  {/if}
   <Toast />
 </div>
 
@@ -53,16 +77,22 @@
 
   .main {
     flex: 1;
-    background: #f5f5f5;
+    background: var(--bg-secondary);
     padding: 2rem 0;
   }
 
+  @media (max-width: 768px) {
+    .main {
+      padding: 1rem 0;
+    }
+  }
+
   .footer {
-    background: #fff;
-    border-top: 1px solid #e0e0e0;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
     padding: 1.5rem 0;
     text-align: center;
-    color: #666;
+    color: var(--text-secondary);
   }
 
   .footer p {
@@ -71,23 +101,38 @@
   }
 
   .nav-link {
-    color: #495057;
+    color: var(--text-secondary);
     text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: 0.25rem;
     transition: all 0.2s;
     border-bottom: 2px solid transparent;
+    white-space: nowrap;
   }
 
   .nav-link:hover {
-    background: #e9ecef;
-    color: #007bff;
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
   }
 
   .nav-link.active {
-    color: #007bff;
+    color: var(--primary-color);
     font-weight: 600;
-    background: #e7f3ff;
-    border-bottom-color: #007bff;
+    background: var(--bg-tertiary);
+    border-bottom-color: var(--primary-color);
+  }
+
+  @media (max-width: 768px) {
+    .nav-link {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .nav-link {
+      padding: 0.5rem 0.5rem;
+      font-size: 0.8125rem;
+    }
   }
 </style>
