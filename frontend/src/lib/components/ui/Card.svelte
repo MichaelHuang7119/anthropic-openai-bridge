@@ -4,17 +4,22 @@
 </script>
 
 <div class="card">
-  {#if title || $$slots.title}
+  {#if title || $$slots.title || $$slots.titleActions}
     <div class="card-header">
-      {#if title || $$slots.title}
-        <div class="title-section">
-          {#if title}
-            <h3 class="card-title">{title}</h3>
-          {/if}
-          {#if subtitle}
-            <p class="card-subtitle">{subtitle}</p>
-          {/if}
+      <div class="title-section">
+        {#if title}
+          <h3 class="card-title">{title}</h3>
+        {/if}
+        {#if subtitle}
+          <p class="card-subtitle">{subtitle}</p>
+        {/if}
+        {#if $$slots.title}
           <slot name="title" />
+        {/if}
+      </div>
+      {#if $$slots.titleActions}
+        <div class="title-actions">
+          <slot name="titleActions" />
         </div>
       {/if}
     </div>
@@ -42,12 +47,22 @@
     padding: 1rem 1.5rem;
     background: var(--bg-tertiary, #f8f9fa);
     border-bottom: 1px solid var(--border-color, #e0e0e0);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
   }
 
   .title-section {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    flex: 1;
+  }
+
+  .title-actions {
+    display: flex;
+    align-items: center;
+    margin-left: 1rem;
   }
 
   .card-title {
@@ -64,7 +79,7 @@
   }
 
   .card-body {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .card-footer {

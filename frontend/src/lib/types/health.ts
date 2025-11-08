@@ -1,3 +1,9 @@
+export interface CategoryHealth {
+  healthy: boolean;
+  responseTime: number | null;
+  error: string | null;
+}
+
 export interface ProviderHealth {
   name: string;
   healthy: boolean | null;
@@ -6,6 +12,11 @@ export interface ProviderHealth {
   lastCheck: string | null;
   responseTime: number | null;
   error?: string | null;
+  categories?: {
+    big?: CategoryHealth;
+    middle?: CategoryHealth;
+    small?: CategoryHealth;
+  };
 }
 
 export interface HealthStatus {

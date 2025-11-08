@@ -15,9 +15,27 @@ services:
       - PORT=8000
       - LOG_LEVEL=info
       - PROVIDER_CONFIG_PATH=/app/provider.json
+      - TZ=Asia/Shanghai
     volumes:
-      - ./backend/provider.json:/app/provider.json
-      - backend-logs:/app/logs
+      # 配置文件（包含供应商配置）
+      - ./backend/provider.json:/app/provider.json:ro
+      
+      # 数据目录（数据库文件）
+      # 包含：app.db (SQLite 数据库)
+      - ./backend/data:/app/data
+      
+      # 日志目录（应用日志文件）
+      # 方便在宿主机查看和管理日志
+      - ./backend/logs:/app/logs
+      
+      # 加密密钥文件（如果存在）
+      # 用于加密敏感数据，必须持久化否则重启后无法解密
+      - ./backend/.encryption_key:/app/.encryption_key
+      
+      # 挂载时区文件（可选，如果宿主机有时区文件）
+      # 注意：在某些系统（如 macOS）上可能不存在这些文件，可以注释掉这两行
+      # - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
     networks:
       - anthropic-openai-bridge-network
     restart: unless-stopped
@@ -39,16 +57,13 @@ services:
     environment:
       # 继承全局变量
       - EXPOSE_PORT=${EXPOSE_PORT:-5173}
+      - TZ=Asia/Shanghai
     networks:
       - anthropic-openai-bridge-network
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-
-volumes:
-  backend-logs:
-    driver: local
 
 networks:
   anthropic-openai-bridge-network:

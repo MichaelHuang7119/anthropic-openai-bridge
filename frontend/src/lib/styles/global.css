@@ -272,48 +272,6 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--input-border-focus, var(--primary-color));
 }
 
-/* Page title styles - 适配深色模式 */
-.page-title {
-  font-size: 2rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-/* 当 page-title 在 page-header 中时，移除下边距（由 page-header 控制） */
-.page-header .page-title {
-  margin-bottom: 0;
-}
-
-@media (max-width: 768px) {
-  .page-title {
-    font-size: 1.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-}
-
-/* 统一的页面 header 样式 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
 /* Code block styles - GitHub style */
 code, pre {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;

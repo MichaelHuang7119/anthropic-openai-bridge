@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import Button from '$components/ui/Button.svelte';
   import Card from '$components/ui/Card.svelte';
@@ -7,36 +8,180 @@
   import Input from '$components/ui/Input.svelte';
   import { apiKeysService } from '$services/apiKeys';
   import { toast } from '$stores/toast';
+  import { saveFullApiKey, getFullApiKey, hasFullApiKey, removeFullApiKey } from '$services/apiKeyStorage';
   import type { APIKey, CreateAPIKeyRequest, UpdateAPIKeyRequest } from '$types/apiKey';
+  import type { APIKeyListResponse } from '$services/apiKeys';
 
   let loading = true;
   let apiKeys: APIKey[] = [];
+  let allAPIKeysData: APIKey[] = []; // 存储所有已加载的数据
   let showCreateForm = false;
   let editingKey: APIKey | null = null;
   let saving = false;
-  let newKey: CreateAPIKeyRequest = { name: '', email: '' };
+  let newKey: CreateAPIKeyRequest = { name: '' };
   let editForm: UpdateAPIKeyRequest = {};
   let createdApiKey: string | null = null; // 存储新创建的完整 API Key
   let copySuccess = false;
+  
+  
+  // 筛选和分页（响应式）
+  $: filteredAPIKeys = (() => {
+    let filtered = allAPIKeysData;
+    
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(key => 
+        key.name.toLowerCase().includes(query)
+      );
+    }
+    
+    // 状态过滤
+    if (filterStatus === 'active') {
+      filtered = filtered.filter(key => key.is_active);
+    } else if (filterStatus === 'inactive') {
+      filtered = filtered.filter(key => !key.is_active);
+    }
+    
+    // 更新分页信息
+    totalCount = filtered.length;
+    totalPages = Math.ceil(totalCount / pageSize);
+    
+    // 确保当前页在有效范围内
+    if (totalPages === 0) {
+      currentPage = 1;
+    } else if (totalPages > 0 && currentPage > totalPages) {
+      currentPage = totalPages;
+    } else if (currentPage < 1) {
+      currentPage = 1;
+    }
+    
+    // 分页切片
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filtered.slice(start, end);
+  })();
+  
+  // 当前页显示的数据（响应式）
+  $: apiKeys = filteredAPIKeys;
+  
+  // 分页相关
+  let currentPage = 1;
+  const pageSize = 5;
+  let totalPages = 1;
+  let totalCount = 0;
+  let loadingKeys = false;
+  
+  // 筛选相关
+  let searchQuery = '';
+  let filterStatus: 'all' | 'active' | 'inactive' = 'all';
+  
+  // 防抖定时器
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  // 请求取消控制器（用于组件卸载时取消请求）
+  let abortController: AbortController | null = null;
+
+  onDestroy(() => {
+    // 取消所有进行中的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    
+    // 清理防抖定时器
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  });
 
   onMount(async () => {
-    await loadAPIKeys();
+    abortController = new AbortController();
+    try {
+      await loadAPIKeys();
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      throw error;
+    }
   });
 
   async function loadAPIKeys() {
-    loading = true;
+    if (!abortController) return;
+    loadingKeys = true;
     try {
-      apiKeys = await apiKeysService.getAll();
+      // 加载所有数据（使用较大的 limit）
+      const params: any = {
+        limit: 1000, // 加载更多数据以支持客户端分页
+        offset: 0
+      };
+      
+      // 注意：搜索和状态筛选改为客户端处理，不发送到服务器
+      // 这样可以支持客户端实时搜索和分页
+      
+      const result = await apiKeysService.getAll(params, { signal: abortController.signal });
+      
+      // 检查是否已被取消
+      if (abortController.signal.aborted) return;
+      
+      console.debug('[API Keys] Response:', result);
+      allAPIKeysData = Array.isArray(result?.data) ? result.data : [];
+      
+      console.debug('[API Keys] Loaded:', allAPIKeysData.length, 'keys');
+      
+      // 响应式语句会自动更新 filteredAPIKeys、totalCount、totalPages 和 apiKeys
     } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to load API keys:', error);
       toast.error('加载 API Key 列表失败');
+      // 确保 allAPIKeysData 始终是数组
+      allAPIKeysData = [];
     } finally {
-      loading = false;
+      if (!abortController?.signal.aborted) {
+        loading = false;
+        loadingKeys = false;
+      }
     }
   }
 
+  function handleSearch() {
+    // 防抖：300ms 后执行
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      currentPage = 1; // 搜索时重置到第一页
+      // 不需要重新加载数据，响应式语句会自动更新
+    }, 300);
+  }
+
+  function handleFilterChange() {
+    currentPage = 1; // 筛选时重置到第一页
+    // 不需要重新加载数据，响应式语句会自动更新
+  }
+
+  function handlePageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+      currentPage = newPage;
+      // 不需要重新加载数据，响应式语句会自动更新 apiKeys
+    }
+  }
+
+  function clearFilters() {
+    searchQuery = '';
+    filterStatus = 'all';
+    currentPage = 1;
+    // 不需要重新加载数据，响应式语句会自动更新
+  }
+
   function handleCreate() {
-    newKey = { name: '', email: '' };
+    newKey = { name: '' };
     createdApiKey = null;
     showCreateForm = true;
   }
@@ -49,19 +194,16 @@
 
     saving = true;
     try {
-      // 构建请求数据，确保 email 为空字符串时转换为 undefined
+      // 构建请求数据
       const requestData: CreateAPIKeyRequest = {
         name: newKey.name.trim()
       };
       
-      // 只有当 email 有值且不为空时才添加
-      if (newKey.email && newKey.email.trim()) {
-        requestData.email = newKey.email.trim();
-      }
-      
       console.log('Sending request:', requestData);
       const response = await apiKeysService.create(requestData);
       createdApiKey = response.api_key; // 保存完整 Key（只在创建时显示）
+      // 保存完整 key 到 localStorage
+      saveFullApiKey(response.id, response.api_key);
       toast.success('API Key 创建成功');
       await loadAPIKeys();
       // 不关闭表单，让用户复制 Key
@@ -77,14 +219,13 @@
   function handleCloseCreateForm() {
     showCreateForm = false;
     createdApiKey = null;
-    newKey = { name: '', email: '' };
+    newKey = { name: '' };
   }
 
   function handleEdit(key: APIKey) {
     editingKey = key;
     editForm = {
       name: key.name,
-      email: key.email || '',
       is_active: key.is_active
     };
   }
@@ -99,18 +240,11 @@
 
     saving = true;
     try {
-      // 构建请求数据，确保 email 为空字符串时不包含在请求中
+      // 构建请求数据
       const requestData: UpdateAPIKeyRequest = {
         name: editForm.name,
         is_active: editForm.is_active
       };
-      
-      // 只有当 email 有值且不为空时才添加
-      // 如果 email 为空字符串，不包含该字段（后端会保持原值）
-      if (editForm.email && editForm.email.trim()) {
-        requestData.email = editForm.email.trim();
-      }
-      // 如果 email 为空字符串，不设置该字段，后端不会更新邮箱字段
       
       await apiKeysService.update(editingKey.id, requestData);
       toast.success('更新成功');
@@ -135,6 +269,8 @@
 
     try {
       await apiKeysService.delete(key.id);
+      // 删除 localStorage 中保存的完整 key
+      removeFullApiKey(key.id);
       toast.success('删除成功');
       await loadAPIKeys();
     } catch (error) {
@@ -188,11 +324,49 @@
     }
   }
 
+  /**
+   * 复制完整 API Key
+   */
+  async function copyFullKey(key: APIKey) {
+    const fullKey = getFullApiKey(key.id);
+    if (!fullKey) {
+      toast.error('无法获取完整 Key。如果 Key 已丢失，请删除后重新创建。');
+      return;
+    }
+    await copyToClipboard(fullKey);
+  }
+
   function formatDate(dateStr?: string): string {
     if (!dateStr) return '-';
     try {
-      const date = new Date(dateStr);
-      return date.toLocaleString('zh-CN');
+      // SQLite 返回的时间格式通常是 "YYYY-MM-DD HH:MM:SS"，没有时区信息
+      // 假设它是 UTC 时间，添加 'Z' 后缀以确保正确解析
+      let dateStrToParse = dateStr;
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+        // 格式为 "YYYY-MM-DD HH:MM:SS"，假设是 UTC 时间
+        dateStrToParse = dateStr.replace(' ', 'T') + 'Z';
+      } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
+        // 格式为 "YYYY-MM-DDTHH:MM:SS"，假设是 UTC 时间
+        dateStrToParse = dateStr + 'Z';
+      }
+      
+      const date = new Date(dateStrToParse);
+      
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        return dateStr; // 如果日期无效，返回原始字符串
+      }
+      
+      // 使用明确的时区和格式选项
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
     } catch {
       return dateStr;
     }
@@ -201,7 +375,6 @@
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">API Key 管理</h1>
     <Button on:click={handleCreate} title="创建 API Key" class="icon-button">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -214,58 +387,90 @@
     <div class="loading">
       <p>加载中...</p>
     </div>
-  {:else if apiKeys.length === 0}
-    <div class="empty">
-      <p>暂无 API Key</p>
-      <Button on:click={handleCreate} title="创建第一个 API Key" class="icon-button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </Button>
-    </div>
   {:else}
     <Card>
-      <div class="table-container">
-        <table class="api-keys-table">
-          <thead>
-            <tr>
-              <th>用户名</th>
-              <th>Key 前缀</th>
-              <th>邮箱</th>
-              <th>状态</th>
-              <th>创建时间</th>
-              <th>最后使用</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each apiKeys as key}
+      <!-- 搜索和筛选 -->
+      <div class="filters">
+        <div class="filter-row">
+          <div class="filter-group search-group">
+            <Input
+              type="text"
+              bind:value={searchQuery}
+              on:input={handleSearch}
+              placeholder="搜索用户名..."
+            />
+          </div>
+          
+          <div class="filter-group">
+            <label for="api-key-filter-status">状态:</label>
+            <select id="api-key-filter-status" class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
+              <option value="all">全部</option>
+              <option value="active">已启用</option>
+              <option value="inactive">已禁用</option>
+            </select>
+          </div>
+          
+          <Button variant="secondary" size="sm" on:click={clearFilters} title="清除筛选" class="clear-button">
+            清除
+          </Button>
+        </div>
+      </div>
+
+      {#if loadingKeys}
+        <div class="loading-keys">
+          <p>加载中...</p>
+        </div>
+      {:else if !apiKeys || apiKeys.length === 0}
+        <div class="empty">
+          <p>暂无 API Key</p>
+        </div>
+      {:else}
+        <div class="table-container">
+          <table class="api-keys-table">
+            <thead>
+              <tr>
+                <th>用户</th>
+                <th>Key</th>
+                <th style="text-align: center;">状态</th>
+                <th>创建时间</th>
+                <th>最后使用</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each apiKeys as key}
               <tr class={!key.is_active ? 'disabled-row' : ''}>
                 <td class="name-cell">
                   {#if editingKey?.id === key.id}
                     <Input
                       type="text"
                       bind:value={editForm.name}
-                      placeholder="用户名"
+                      placeholder="用户"
                     />
                   {:else}
                     <span class="key-name">{key.name}</span>
                   {/if}
                 </td>
                 <td class="prefix-cell">
-                  <code class="key-prefix">{key.key_prefix}</code>
-                </td>
-                <td class="email-cell">
-                  {#if editingKey?.id === key.id}
-                    <Input
-                      type="email"
-                      bind:value={editForm.email}
-                      placeholder="邮箱（可选）"
-                    />
-                  {:else}
-                    <span class="email-text">{key.email || '-'}</span>
-                  {/if}
+                  <div class="key-display-wrapper">
+                    <code class="key-prefix">{key.key_prefix}</code>
+                    {#if hasFullApiKey(key.id)}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        on:click={() => copyFullKey(key)}
+                        title="复制完整 Key"
+                        class="icon-button copy-button"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </Button>
+                    {:else}
+                      <span class="key-unavailable" title="完整 Key 不可用，如果 Key 已丢失，请删除后重新创建">⚠️</span>
+                    {/if}
+                  </div>
                 </td>
                 <td class="status-cell">
                   {#if editingKey?.id === key.id}
@@ -277,9 +482,14 @@
                       <span class="toggle-slider"></span>
                     </label>
                   {:else}
-                    <Badge type={key.is_active ? 'success' : 'secondary'}>
-                      {key.is_active ? '已启用' : '已禁用'}
-                    </Badge>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={key.is_active}
+                        on:change={() => handleToggleActive(key)}
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
                   {/if}
                 </td>
                 <td class="date-cell">
@@ -324,24 +534,6 @@
                       <Button
                         variant="secondary"
                         size="sm"
-                        on:click={() => handleToggleActive(key)}
-                        title={key.is_active ? '禁用' : '启用'}
-                        class="icon-button toggle-active-button {key.is_active ? 'toggle-active' : 'toggle-inactive'}"
-                      >
-                        {#if key.is_active}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                          </svg>
-                        {:else}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                          </svg>
-                        {/if}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
                         on:click={() => handleEdit(key)}
                         title="编辑"
                         class="icon-button"
@@ -373,6 +565,43 @@
           </tbody>
         </table>
       </div>
+      {/if}
+
+      <!-- 分页控件 -->
+      {#if !loadingKeys && apiKeys && apiKeys.length > 0 && totalPages > 1}
+        <div class="pagination">
+          <div class="pagination-info">
+            共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页
+          </div>
+          <div class="pagination-controls">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              disabled={currentPage === 1 || loadingKeys}
+              on:click={() => handlePageChange(currentPage - 1)}
+              title="上一页"
+              class="icon-button"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </Button>
+            <span class="page-info">{currentPage} / {totalPages}</span>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              disabled={currentPage === totalPages || loadingKeys}
+              on:click={() => handlePageChange(currentPage + 1)}
+              title="下一页"
+              class="icon-button"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </Button>
+          </div>
+        </div>
+      {/if}
     </Card>
   {/if}
 </div>
@@ -391,9 +620,9 @@
             <p style="margin-top: 0.5rem; font-size: 0.8125rem;">关闭此窗口后，您将无法再次查看此 Key。如果丢失，需要删除后重新创建。</p>
           </div>
           <div class="key-display">
-            <label>API Key：</label>
+            <label for="created-api-key">API Key：</label>
             <div class="key-input-wrapper">
-              <code class="full-key">{createdApiKey}</code>
+              <code id="created-api-key" class="full-key">{createdApiKey}</code>
               <Button
                 variant="secondary"
                 size="sm"
@@ -446,7 +675,7 @@
 
           <div class="form-group">
             <label for="key-name">
-              用户名 <span class="required">*</span>
+              用户 <span class="required">*</span>
             </label>
             <Input
               id="key-name"
@@ -456,17 +685,6 @@
               required
             />
             <p class="form-hint">用于标识此 API Key 所属用户</p>
-          </div>
-
-          <div class="form-group">
-            <label for="key-email">邮箱（可选）</label>
-            <Input
-              id="key-email"
-              type="email"
-              bind:value={newKey.email}
-              placeholder="user@example.com"
-            />
-            <p class="form-hint">用于标识和管理此 API Key</p>
           </div>
 
           <div class="modal-actions">
@@ -503,28 +721,16 @@
 {/if}
 
 <style>
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-  }
-
   .page-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     margin-bottom: 2rem;
   }
 
-  .page-title {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--text-primary, #1a1a1a);
-  }
-
   .loading,
-  .empty {
+  .empty,
+  .loading-keys {
     text-align: center;
     padding: 4rem;
     background: var(--card-bg, white);
@@ -537,12 +743,108 @@
     margin-bottom: 1rem;
   }
 
+  .filters {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .filter-group.search-group {
+    min-width: 250px;
+    flex: 1;
+  }
+  
+  .filter-group.search-group :global(input) {
+    width: 100%;
+    height: 2.5rem;
+  }
+
+  .filter-group label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-width: 150px;
+    height: 2.5rem;
+  }
+
+  .filter-select:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  .clear-button {
+    margin-left: auto;
+    align-self: center;
+    height: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .page-info {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    min-width: 60px;
+    text-align: center;
+  }
+
   .table-container {
     overflow-x: auto;
   }
 
   .api-keys-table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
     font-size: 0.875rem;
   }
@@ -576,6 +878,7 @@
   .api-keys-table td {
     padding: 1rem;
     vertical-align: middle;
+    white-space: nowrap;
   }
 
   .name-cell {
@@ -589,6 +892,13 @@
 
   .prefix-cell {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    min-width: 300px;
+  }
+
+  .key-display-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .key-prefix {
@@ -597,14 +907,22 @@
     border-radius: 0.25rem;
     font-size: 0.8125rem;
     color: var(--text-primary, #495057);
+    flex: 1;
+    min-width: 0;
   }
 
-  .email-cell {
-    min-width: 180px;
+  .copy-button {
+    padding: 0.375rem;
+    min-width: auto;
+    width: auto;
+    height: auto;
+    flex-shrink: 0;
   }
 
-  .email-text {
+  .key-unavailable {
     color: var(--text-secondary, #6c757d);
+    font-size: 0.875rem;
+    cursor: help;
   }
 
   .status-cell {
@@ -956,12 +1274,6 @@
   @media (max-width: 768px) {
     .container {
       padding: 1rem;
-    }
-
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
     }
 
     .api-keys-table {

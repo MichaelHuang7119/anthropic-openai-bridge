@@ -1,54 +1,344 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
+  import Input from '$components/ui/Input.svelte';
   import { statsService } from '$services/stats';
+  import { providerService } from '$services/providers';
   import type { PerformanceSummary, RequestLog, TokenUsage } from '$services/stats';
+  import type { Provider } from '$types/provider';
   import { toast } from '$stores/toast';
 
   let loading = true;
   let summary: PerformanceSummary | null = null;
   let requests: RequestLog[] = [];
   let tokenUsage: TokenUsage[] = [];
-  let showRequests = false;
   let dateFilter = '7d'; // 7d, 30d, all
+  
+  // 请求日志数据（存储所有已加载的数据）
+  let allRequestsData: RequestLog[] = [];
+  
+  // 请求日志分页相关
+  let currentPage = 1;
+  const pageSize = 5;
+  let totalPages = 1;
+  let totalCount = 0;
+  let loadingRequests = false;
+  
+  // 请求日志显示数据（响应式，根据分页切片）
+  $: requests = (() => {
+    if (allRequestsData.length === 0) return [];
+    
+    // 客户端分页切片
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return allRequestsData.slice(start, end);
+  })();
+  
+  // Token使用详情分页相关
+  let tokenUsagePage = 1;
+  const tokenUsagePageSize = 5;
+  let tokenUsageTotalPages = 1;
+  let tokenUsageTotalCount = 0;
+  
+  // 供应商统计筛选相关
+  let providerStatsSearch = '';
+  
+  // 供应商统计分页相关
+  let providerStatsPage = 1;
+  const providerStatsPageSize = 5;
+  let providerStatsTotalPages = 1;
+  let providerStatsTotalCount = 0;
+  
+  // Token使用详情筛选相关
+  let tokenUsageProviderFilter = '';
+  let tokenUsageModelFilter = '';
+  
+  // 请求日志筛选相关
+  let filterProvider = '';
+  let filterModel = '';
+  let filterStatus: 'all' | 'success' | 'failed' = 'all';
+  let providers: Provider[] = [];
+  let availableModels: string[] = [];
+  
+  // 防抖定时器
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  // 请求取消控制器（用于组件卸载时取消请求）
+  let abortController: AbortController | null = null;
 
   onMount(async () => {
-    await loadData();
+    abortController = new AbortController();
+    try {
+      await Promise.all([loadData(), loadProviders()]);
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      throw error;
+    }
   });
 
+  onDestroy(() => {
+    // 取消所有进行中的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
+    
+    // 清理防抖定时器
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  });
+
+  async function loadProviders() {
+    if (!abortController) return;
+    try {
+      providers = await providerService.getAll();
+      // 提取所有模型
+      const modelSet = new Set<string>();
+      providers.forEach(p => {
+        Object.values(p.models).flat().forEach(m => modelSet.add(m));
+      });
+      availableModels = Array.from(modelSet).sort();
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to load providers:', error);
+    }
+  }
+
   async function loadData() {
+    if (!abortController) return;
     try {
       loading = true;
-      const startTime = Date.now();
       
-      // 加载性能摘要
-      summary = await statsService.getSummary();
-      
-      // 加载请求日志（最近100条）
-      requests = await statsService.getRequests({ limit: 100 });
-      
-      // 加载 Token 使用统计
       const dateRange = getDateRange();
-      const usageData = await statsService.getTokenUsage({
-        date_from: dateRange.from,
-        date_to: dateRange.to
-      });
-      tokenUsage = usageData.summary;
+      const signal = abortController.signal;
       
-      // 确保至少显示 300ms 的加载动画
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 300) {
-        await new Promise(resolve => setTimeout(resolve, 300 - elapsed));
-      }
+      // 并行加载所有数据以提高性能
+      const [summaryData, usageData] = await Promise.all([
+        statsService.getSummary({ signal }),
+        statsService.getTokenUsage({
+          date_from: dateRange.from,
+          date_to: dateRange.to
+        }, { signal }),
+        loadRequests() // 并行加载但不使用返回值
+      ]);
+      
+      // 检查是否已被取消
+      if (signal.aborted) return;
+      
+      summary = summaryData;
+      tokenUsage = usageData.summary;
+      tokenUsageTotalCount = tokenUsage.length;
+      tokenUsageTotalPages = Math.ceil(tokenUsageTotalCount / tokenUsagePageSize);
     } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to load stats:', error);
       toast.error('加载性能数据失败');
     } finally {
-      loading = false;
+      if (!abortController?.signal.aborted) {
+        loading = false;
+      }
     }
   }
+
+  // 供应商统计过滤和分页（响应式）
+  $: filteredProviderStats = (() => {
+    if (!summary) return [];
+    const entries = Object.entries(summary.provider_stats);
+    let filtered = entries;
+    
+    if (providerStatsSearch.trim()) {
+      const searchLower = providerStatsSearch.toLowerCase();
+      filtered = entries.filter(([provider]) => provider.toLowerCase().includes(searchLower));
+    }
+    
+    // 更新分页信息
+    providerStatsTotalCount = filtered.length;
+    providerStatsTotalPages = Math.ceil(providerStatsTotalCount / providerStatsPageSize);
+    
+    // 如果当前页超出范围或没有数据，重置到第一页
+    if (providerStatsTotalPages === 0 || (providerStatsPage > providerStatsTotalPages && providerStatsTotalPages > 0)) {
+      providerStatsPage = 1;
+    }
+    
+    // 分页切片
+    const start = (providerStatsPage - 1) * providerStatsPageSize;
+    const end = start + providerStatsPageSize;
+    return filtered.slice(start, end);
+  })();
+
+  function handleProviderStatsSearchChange() {
+    providerStatsPage = 1;
+  }
+  
+  function handleProviderStatsPageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= providerStatsTotalPages && newPage !== providerStatsPage) {
+      providerStatsPage = newPage;
+    }
+  }
+  
+  function clearProviderStatsFilters() {
+    providerStatsSearch = '';
+    providerStatsPage = 1;
+  }
+
+  // Token使用详情过滤和分页（响应式）
+  $: filteredTokenUsage = (() => {
+    let filtered = tokenUsage;
+    
+    if (tokenUsageProviderFilter.trim()) {
+      const filterLower = tokenUsageProviderFilter.toLowerCase().trim();
+      filtered = filtered.filter(u => 
+        u.provider_name.toLowerCase().includes(filterLower)
+      );
+    }
+    
+    if (tokenUsageModelFilter.trim()) {
+      const filterLower = tokenUsageModelFilter.toLowerCase().trim();
+      filtered = filtered.filter(u => 
+        u.model.toLowerCase().includes(filterLower)
+      );
+    }
+    
+    tokenUsageTotalCount = filtered.length;
+    tokenUsageTotalPages = Math.ceil(tokenUsageTotalCount / tokenUsagePageSize);
+    
+    // 如果当前页超出范围或没有数据，重置到第一页
+    if (tokenUsageTotalPages === 0 || (tokenUsagePage > tokenUsageTotalPages && tokenUsageTotalPages > 0)) {
+      tokenUsagePage = 1;
+    }
+    
+    const start = (tokenUsagePage - 1) * tokenUsagePageSize;
+    const end = start + tokenUsagePageSize;
+    return filtered.slice(start, end);
+  })();
+  
+  function handleTokenUsageFilterChange() {
+    // 客户端过滤，实时搜索，不需要防抖
+    tokenUsagePage = 1;
+  }
+
+  function handleTokenUsagePageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= tokenUsageTotalPages && newPage !== tokenUsagePage) {
+      tokenUsagePage = newPage;
+    }
+  }
+
+  function clearTokenUsageFilters() {
+    tokenUsageProviderFilter = '';
+    tokenUsageModelFilter = '';
+    tokenUsagePage = 1;
+  }
+
+  async function loadRequests() {
+    if (!abortController) return;
+    try {
+      loadingRequests = true;
+      const dateRange = getDateRange();
+      
+      const params: any = {
+        // 为了支持客户端搜索，加载更多数据
+        limit: 1000, // 增加限制以支持客户端搜索
+        offset: 0,
+        date_from: dateRange.from,
+        date_to: dateRange.to
+      };
+      
+      // 状态筛选仍然发送到服务器
+      if (filterStatus === 'success') {
+        params.status_code = 200;
+      } else if (filterStatus === 'failed') {
+        // 失败状态：400+ 的状态码（使用范围查询）
+        params.status_min = 400;
+      }
+      
+      // 注意：不发送 provider_name 和 model 参数，改为客户端搜索
+      const result = await statsService.getRequests(params, { signal: abortController.signal });
+      
+      // 检查是否已被取消
+      if (abortController.signal.aborted) return;
+      
+      let allRequests = result.data;
+      
+      // 客户端模糊搜索过滤
+      if (filterProvider.trim()) {
+        const filterLower = filterProvider.toLowerCase().trim();
+        allRequests = allRequests.filter(r => 
+          r.provider_name.toLowerCase().includes(filterLower)
+        );
+      }
+      
+      if (filterModel.trim()) {
+        const filterLower = filterModel.toLowerCase().trim();
+        allRequests = allRequests.filter(r => 
+          r.model.toLowerCase().includes(filterLower)
+        );
+      }
+      
+      // 保存所有过滤后的数据
+      allRequestsData = allRequests;
+      
+      // 客户端分页计算
+      totalCount = allRequests.length;
+      totalPages = Math.ceil(totalCount / pageSize);
+      
+      // 确保当前页在有效范围内
+      if (totalPages === 0) {
+        // 没有数据时，设置为第1页
+        currentPage = 1;
+      } else if (totalPages > 0 && currentPage > totalPages) {
+        currentPage = totalPages;
+      } else if (currentPage < 1) {
+        currentPage = 1;
+      }
+      
+      // requests 会通过响应式语句自动更新
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to load requests:', error);
+      toast.error('加载请求日志失败');
+    } finally {
+      if (!abortController?.signal.aborted) {
+        loadingRequests = false;
+      }
+    }
+  }
+
+
+  function handleFilterChange() {
+    // 防抖：300ms 后执行
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      currentPage = 1;
+      loadRequests();
+    }, 300);
+  }
+
+  function handlePageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+      currentPage = newPage;
+      // 不需要重新加载数据，响应式语句会自动更新 requests
+    }
+  }
+  
 
   function getDateRange(): { from: string; to: string } {
     const to = new Date();
@@ -78,7 +368,67 @@
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString('zh-CN');
+    try {
+      // SQLite 返回的时间格式通常是 "YYYY-MM-DD HH:MM:SS"，没有时区信息
+      // 假设它是 UTC 时间，添加 'Z' 后缀以确保正确解析
+      let dateStrToParse = dateStr;
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+        // 格式为 "YYYY-MM-DD HH:MM:SS"，假设是 UTC 时间
+        dateStrToParse = dateStr.replace(' ', 'T') + 'Z';
+      } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
+        // 格式为 "YYYY-MM-DDTHH:MM:SS"，假设是 UTC 时间
+        dateStrToParse = dateStr + 'Z';
+      }
+      
+      const date = new Date(dateStrToParse);
+      const now = new Date();
+      
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        return dateStr; // 如果日期无效，返回原始字符串
+      }
+      
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      // 如果是今天，显示相对时间
+      if (diffMins < 1) {
+        return '刚刚';
+      } else if (diffMins < 60) {
+        return `${diffMins}分钟前`;
+      } else if (diffHours < 24) {
+        // 检查是否是同一天（使用本地时区）
+        const dateDay = date.getDate();
+        const nowDay = now.getDate();
+        const dateMonth = date.getMonth();
+        const nowMonth = now.getMonth();
+        const dateYear = date.getFullYear();
+        const nowYear = now.getFullYear();
+        
+        if (dateYear === nowYear && dateMonth === nowMonth && dateDay === nowDay) {
+          return `${diffHours}小时前`;
+        }
+      }
+      
+      // 如果大于等于1天且小于7天，显示天数
+      if (diffDays >= 1 && diffDays < 7) {
+        return `${diffDays}天前`;
+      }
+      
+      // 否则显示完整时间，使用明确的时区选项
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+    } catch {
+      return dateStr;
+    }
   }
 
   function getStatusBadge(statusCode: number) {
@@ -91,11 +441,18 @@
     }
     return { type: 'info' as const, text: `HTTP ${statusCode}` };
   }
+
+  function clearFilters() {
+    filterProvider = '';
+    filterModel = '';
+    filterStatus = 'all';
+    currentPage = 1;
+    handleFilterChange();
+  }
 </script>
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">性能监控</h1>
     <div class="actions">
       <select class="date-filter" bind:value={dateFilter} on:change={loadData}>
         <option value="7d">最近7天</option>
@@ -169,118 +526,335 @@
     <!-- 供应商统计 -->
     {#if Object.keys(summary.provider_stats).length > 0}
       <Card title="供应商统计" subtitle="各供应商性能指标">
-        <div class="table-container">
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>供应商</th>
-                <th>总请求</th>
-                <th>成功</th>
-                <th>失败</th>
-                <th>成功率</th>
-                <th>Token 消耗</th>
-                <th>成本估算</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each Object.entries(summary.provider_stats) as [provider, stats]}
-                <tr>
-                  <td class="provider-name">{provider}</td>
-                  <td>{formatNumber(stats.total)}</td>
-                  <td class="success">{formatNumber(stats.success)}</td>
-                  <td class="danger">{formatNumber(stats.failed)}</td>
-                  <td>{stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(2) : 0}%</td>
-                  <td>{formatNumber(stats.total_tokens)}</td>
-                  <td>{formatCurrency(stats.total_cost)}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
+        <div class="filters">
+            <div class="filter-row">
+              <div class="filter-group search-group">
+                <Input
+                  type="text"
+                  bind:value={providerStatsSearch}
+                  on:input={handleProviderStatsSearchChange}
+                  placeholder="搜索供应商名称..."
+                />
+              </div>
+              
+              <Button variant="secondary" size="sm" on:click={clearProviderStatsFilters} title="清除筛选" class="clear-button">
+                清除
+              </Button>
+            </div>
+          </div>
+          
+          {#if filteredProviderStats.length > 0}
+            <div class="table-container">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>供应商</th>
+                    <th>总请求</th>
+                    <th>成功</th>
+                    <th>失败</th>
+                    <th>成功率</th>
+                    <th>Token 消耗</th>
+                    <th>成本估算</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredProviderStats as [provider, stats]}
+                    <tr>
+                      <td class="provider-name">{provider}</td>
+                      <td>{formatNumber(stats.total)}</td>
+                      <td class="success">{formatNumber(stats.success)}</td>
+                      <td class="danger">{formatNumber(stats.failed)}</td>
+                      <td>{stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(2) : 0}%</td>
+                      <td>{formatNumber(stats.total_tokens)}</td>
+                      <td>{formatCurrency(stats.total_cost)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- 供应商统计分页控件 -->
+            {#if providerStatsTotalPages > 1}
+              <div class="pagination">
+                <div class="pagination-info">
+                  共 {providerStatsTotalCount} 条记录，第 {providerStatsPage} / {providerStatsTotalPages} 页
+                </div>
+                <div class="pagination-controls">
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    disabled={providerStatsPage === 1}
+                    on:click={() => handleProviderStatsPageChange(providerStatsPage - 1)}
+                    title="上一页"
+                    class="icon-button"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </Button>
+                  <span class="page-info">{providerStatsPage} / {providerStatsTotalPages}</span>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    disabled={providerStatsPage === providerStatsTotalPages}
+                    on:click={() => handleProviderStatsPageChange(providerStatsPage + 1)}
+                    title="下一页"
+                    class="icon-button"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+            {/if}
+          {:else}
+            <div class="empty">
+              <p>没有匹配的供应商</p>
+            </div>
+          {/if}
       </Card>
     {/if}
 
     <!-- Token 使用详情 -->
     {#if tokenUsage.length > 0}
       <Card title="Token 使用详情" subtitle="按日期和供应商统计">
-        <div class="table-container">
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>日期</th>
-                <th>供应商</th>
-                <th>模型</th>
-                <th>请求数</th>
-                <th>输入 Token</th>
-                <th>输出 Token</th>
-                <th>总 Token</th>
-                <th>成本估算</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each tokenUsage as usage}
-                <tr>
-                  <td>{usage.date}</td>
-                  <td class="provider-name">{usage.provider_name}</td>
-                  <td>{usage.model}</td>
-                  <td>{formatNumber(usage.request_count)}</td>
-                  <td>{formatNumber(usage.total_input_tokens)}</td>
-                  <td>{formatNumber(usage.total_output_tokens)}</td>
-                  <td>{formatNumber(usage.total_input_tokens + usage.total_output_tokens)}</td>
-                  <td>{formatCurrency(usage.total_cost_estimate)}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
+        <div class="filters">
+            <div class="filter-row">
+              <div class="filter-group">
+                <label>供应商:</label>
+                <Input
+                  type="text"
+                  placeholder="搜索供应商..."
+                  bind:value={tokenUsageProviderFilter}
+                  on:input={handleTokenUsageFilterChange}
+                  class="filter-input"
+                />
+              </div>
+              
+              <div class="filter-group">
+                <label>模型:</label>
+                <Input
+                  type="text"
+                  placeholder="搜索模型..."
+                  bind:value={tokenUsageModelFilter}
+                  on:input={handleTokenUsageFilterChange}
+                  class="filter-input"
+                />
+              </div>
+              
+              <Button variant="secondary" size="sm" on:click={clearTokenUsageFilters} title="清除筛选" class="clear-button">
+                清除
+              </Button>
+            </div>
+          </div>
+          
+          {#if filteredTokenUsage.length > 0}
+            <div class="table-container">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>供应商</th>
+                    <th>模型</th>
+                    <th>请求数</th>
+                    <th>输入 Token</th>
+                    <th>输出 Token</th>
+                    <th>总 Token</th>
+                    <th>成本估算</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredTokenUsage as usage}
+                    <tr>
+                      <td>{usage.date}</td>
+                      <td class="provider-name">{usage.provider_name}</td>
+                      <td>{usage.model}</td>
+                      <td>{formatNumber(usage.request_count)}</td>
+                      <td>{formatNumber(usage.total_input_tokens)}</td>
+                      <td>{formatNumber(usage.total_output_tokens)}</td>
+                      <td>{formatNumber(usage.total_input_tokens + usage.total_output_tokens)}</td>
+                      <td>{formatCurrency(usage.total_cost_estimate)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Token使用详情分页控件 -->
+            {#if tokenUsageTotalPages > 1}
+              <div class="pagination">
+                <div class="pagination-info">
+                  共 {tokenUsageTotalCount} 条记录，第 {tokenUsagePage} / {tokenUsageTotalPages} 页
+                </div>
+                <div class="pagination-controls">
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    disabled={tokenUsagePage === 1}
+                    on:click={() => handleTokenUsagePageChange(tokenUsagePage - 1)}
+                    title="上一页"
+                    class="icon-button"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </Button>
+                  <span class="page-info">{tokenUsagePage} / {tokenUsageTotalPages}</span>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    disabled={tokenUsagePage === tokenUsageTotalPages}
+                    on:click={() => handleTokenUsagePageChange(tokenUsagePage + 1)}
+                    title="下一页"
+                    class="icon-button"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+            {/if}
+          {:else}
+            <div class="empty">
+              <p>没有匹配的记录</p>
+            </div>
+          {/if}
       </Card>
     {/if}
 
     <!-- 请求日志 -->
-    <Card title="请求日志" subtitle="最近的API请求记录">
-      <div class="request-controls">
-        <Button variant="secondary" on:click={() => showRequests = !showRequests}>
-          {showRequests ? '隐藏日志' : '显示日志'}
-        </Button>
-      </div>
-      
-      {#if showRequests}
-        <div class="table-container">
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>供应商</th>
-                <th>模型</th>
-                <th>状态</th>
-                <th>响应时间</th>
-                <th>输入 Token</th>
-                <th>输出 Token</th>
-                <th>错误</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each requests as request}
-                {@const badge = getStatusBadge(request.status_code)}
-                <tr>
-                  <td>{formatDate(request.created_at)}</td>
-                  <td class="provider-name">{request.provider_name}</td>
-                  <td>{request.model}</td>
-                  <td>
-                    <Badge type={badge.type}>{badge.text}</Badge>
-                  </td>
-                  <td>{request.response_time_ms ? `${request.response_time_ms.toFixed(0)}ms` : '-'}</td>
-                  <td>{request.input_tokens ? formatNumber(request.input_tokens) : '-'}</td>
-                  <td>{request.output_tokens ? formatNumber(request.output_tokens) : '-'}</td>
-                  <td class="error-cell">{request.error_message || '-'}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+    <Card title="请求日志" subtitle="API请求记录">
+      <!-- 筛选器 -->
+      <div class="filters">
+          <div class="filter-row">
+            <div class="filter-group">
+              <label>供应商:</label>
+              <Input
+                type="text"
+                placeholder="搜索供应商..."
+                bind:value={filterProvider}
+                on:input={handleFilterChange}
+                class="filter-input"
+              />
+            </div>
+            
+            <div class="filter-group">
+              <label>模型:</label>
+              <Input
+                type="text"
+                placeholder="搜索模型..."
+                bind:value={filterModel}
+                on:input={handleFilterChange}
+                class="filter-input"
+              />
+            </div>
+            
+            <div class="filter-group">
+              <label>状态:</label>
+              <select class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
+                <option value="all">全部</option>
+                <option value="success">成功</option>
+                <option value="failed">失败</option>
+              </select>
+            </div>
+            
+            <Button variant="secondary" size="sm" on:click={clearFilters} title="清除筛选" class="clear-button">
+              清除
+            </Button>
+          </div>
         </div>
-      {:else}
-        <p class="info-text">点击"显示日志"查看详细的请求记录</p>
-      {/if}
+
+        {#if loadingRequests}
+          <div class="loading-requests">
+            <p>加载中...</p>
+          </div>
+        {:else if requests.length > 0}
+          <div class="table-container">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>供应商</th>
+                  <th>模型</th>
+                  <th>状态</th>
+                  <th>响应时间</th>
+                  <th>输入 Token</th>
+                  <th>输出 Token</th>
+                  <th>错误</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each requests as request (request.id)}
+                  {@const badge = getStatusBadge(request.status_code)}
+                  <tr>
+                    <td class="time-cell">{formatDate(request.created_at)}</td>
+                    <td class="provider-name">{request.provider_name}</td>
+                    <td class="model-cell">{request.model}</td>
+                    <td>
+                      <Badge type={badge.type}>{badge.text}</Badge>
+                    </td>
+                    <td>{request.response_time_ms ? `${request.response_time_ms.toFixed(0)}ms` : '-'}</td>
+                    <td>{request.input_tokens ? formatNumber(request.input_tokens) : '-'}</td>
+                    <td>{request.output_tokens ? formatNumber(request.output_tokens) : '-'}</td>
+                    <td class="error-cell">
+                      {#if request.error_message}
+                        <div class="error-content">
+                          <span class="error-preview">
+                            {request.error_message}
+                          </span>
+                        </div>
+                      {:else}
+                        <span class="no-error">-</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 分页控件 -->
+          {#if totalPages > 1}
+            <div class="pagination">
+              <div class="pagination-info">
+                共 {formatNumber(totalCount)} 条记录，第 {currentPage} / {totalPages} 页
+              </div>
+              <div class="pagination-controls">
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  disabled={currentPage === 1 || loadingRequests}
+                  on:click={() => handlePageChange(currentPage - 1)}
+                  title="上一页"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </Button>
+                <span class="page-info">{currentPage} / {totalPages}</span>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  disabled={currentPage === totalPages || loadingRequests}
+                  on:click={() => handlePageChange(currentPage + 1)}
+                  title="下一页"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </Button>
+              </div>
+            </div>
+          {/if}
+        {:else}
+          <div class="empty-requests">
+            <p>暂无请求记录</p>
+          </div>
+        {/if}
     </Card>
   {:else}
     <div class="empty">
@@ -290,6 +864,13 @@
 </div>
 
 <style>
+  .page-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
   .actions {
     display: flex;
     gap: 0.75rem;
@@ -362,6 +943,7 @@
 
   .stats-table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
     background: var(--bg-primary);
   }
@@ -380,6 +962,7 @@
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-secondary);
+    white-space: nowrap;
   }
 
   .stats-table tbody tr:hover {
@@ -399,16 +982,165 @@
     color: var(--danger-color);
   }
 
-  .error-cell {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .time-cell {
     white-space: nowrap;
     font-size: 0.8125rem;
   }
 
-  .request-controls {
+  .model-cell {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 0.8125rem;
+  }
+
+  .error-cell {
+    max-width: 300px;
+    font-size: 0.8125rem;
+  }
+
+  .error-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .error-preview {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .no-error {
+    color: var(--text-tertiary);
+  }
+
+
+  .filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
     margin-bottom: 1rem;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .filter-group.search-group {
+    min-width: 250px;
+    flex: 1;
+  }
+  
+  .filter-group.search-group :global(input) {
+    width: 100%;
+    height: 2.5rem;
+  }
+
+  .filter-input {
+    height: 2.5rem;
+    min-width: 180px;
+  }
+
+  .filter-group label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-width: 150px;
+    height: 2.5rem;
+  }
+
+  .filter-select:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  .clear-button {
+    margin-left: auto;
+    align-self: center;
+    height: 2.5rem;
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+
+  .filter-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color, #e9ecef);
+  }
+
+  .icon-button {
+    padding: 0.5rem;
+    min-width: auto;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-button :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .page-info {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .loading-requests,
+  .empty-requests {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
   }
 
   .info-text {
@@ -443,6 +1175,24 @@
     .stats-table td {
       padding: 0.5rem 0.75rem;
     }
+
+    .filters {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .filter-group {
+      width: 100%;
+    }
+
+    .filter-select {
+      flex: 1;
+    }
+
+    .pagination {
+      flex-direction: column;
+      gap: 1rem;
+    }
   }
 
   @media (max-width: 480px) {
@@ -456,4 +1206,3 @@
     }
   }
 </style>
-

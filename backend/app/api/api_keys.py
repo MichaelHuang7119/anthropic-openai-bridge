@@ -1,5 +1,5 @@
 """API Key管理API端点"""
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 
@@ -45,17 +45,39 @@ class APIKeyResponse(BaseModel):
     user_id: Optional[int] = None
 
 
-@router.get("", response_model=List[APIKeyResponse])
+class APIKeyListResponse(BaseModel):
+    """API Key列表响应（包含分页信息）"""
+    data: List[APIKeyResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+@router.get("", response_model=APIKeyListResponse)
 async def get_api_keys(
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(10, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    name_filter: Optional[str] = Query(None, description="Filter by name (partial match)"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
     current_user: dict = Depends(require_admin())
 ):
     """获取所有API Key列表（需要管理员权限）"""
     db = get_database()
-    api_keys = await db.get_api_keys(limit=limit, offset=offset)
+    api_keys = await db.get_api_keys(
+        limit=limit,
+        offset=offset,
+        name_filter=name_filter,
+        is_active=is_active
+    )
     
-    return [
+    # 获取总数（用于分页）
+    total_count = await db.get_api_keys_count(
+        name_filter=name_filter,
+        is_active=is_active
+    )
+    
+    result = [
         APIKeyResponse(
             id=key["id"],
             key_prefix=key["key_prefix"],
@@ -69,6 +91,14 @@ async def get_api_keys(
         )
         for key in api_keys
     ]
+    
+    return APIKeyListResponse(
+        data=result,
+        total=total_count,
+        page=(offset // limit) + 1 if limit > 0 else 1,
+        page_size=limit,
+        total_pages=(total_count + limit - 1) // limit if limit > 0 else 1
+    )
 
 
 @router.get("/{api_key_id}", response_model=APIKeyResponse)

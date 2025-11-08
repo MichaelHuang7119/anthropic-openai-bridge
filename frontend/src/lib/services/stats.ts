@@ -1,4 +1,5 @@
 import { apiClient as api } from './api';
+import type { RequestOptions } from './api';
 
 export interface RequestLog {
   id: number;
@@ -52,24 +53,43 @@ class StatsService {
     limit?: number;
     offset?: number;
     provider_name?: string;
+    model?: string;
+    status_code?: number;
+    status_min?: number;
     date_from?: string;
     date_to?: string;
-  }): Promise<RequestLog[]> {
+  }, options?: RequestOptions): Promise<{
+    data: RequestLog[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.provider_name) queryParams.append('provider_name', params.provider_name);
+    if (params?.model) queryParams.append('model', params.model);
+    if (params?.status_code !== undefined) queryParams.append('status_code', params.status_code.toString());
+    if (params?.status_min !== undefined) queryParams.append('status_min', params.status_min.toString());
     if (params?.date_from) queryParams.append('date_from', params.date_from);
     if (params?.date_to) queryParams.append('date_to', params.date_to);
 
-    const response = await api.get(`/api/stats/requests?${queryParams.toString()}`);
-    return response.data?.data || response.data || [];
+    const response = await api.get(`/api/stats/requests?${queryParams.toString()}`, options);
+    const data = response.data?.data || response.data || [];
+    return {
+      data: Array.isArray(data) ? data : [],
+      total: response.data?.total || data.length || 0,
+      page: response.data?.page || 1,
+      page_size: response.data?.page_size || params?.limit || 10,
+      total_pages: response.data?.total_pages || 1
+    };
   }
 
   async getTokenUsage(params?: {
     date_from?: string;
     date_to?: string;
-  }): Promise<{
+  }, options?: RequestOptions): Promise<{
     summary: TokenUsage[];
     total_requests: number;
     total_input_tokens: number;
@@ -80,7 +100,7 @@ class StatsService {
     if (params?.date_from) queryParams.append('date_from', params.date_from);
     if (params?.date_to) queryParams.append('date_to', params.date_to);
 
-    const response = await api.get(`/api/stats/token-usage?${queryParams.toString()}`);
+    const response = await api.get(`/api/stats/token-usage?${queryParams.toString()}`, options);
     const data = response.data?.data || response.data;
     return data || {
       summary: [],
@@ -91,8 +111,8 @@ class StatsService {
     };
   }
 
-  async getSummary(): Promise<PerformanceSummary> {
-    const response = await api.get('/api/stats/summary');
+  async getSummary(options?: RequestOptions): Promise<PerformanceSummary> {
+    const response = await api.get('/api/stats/summary', options);
     const data = response.data?.data || response.data;
     return data || {
       total_requests: 0,

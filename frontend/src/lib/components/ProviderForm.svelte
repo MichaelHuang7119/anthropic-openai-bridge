@@ -292,19 +292,6 @@
           <span class="error">{errors.priority}</span>
         {/if}
       </div>
-
-      <div class="form-group toggle-group">
-        <label class="toggle-label">
-          <span>启用提供商</span>
-          <label class="toggle-switch">
-            <input
-              type="checkbox"
-              bind:checked={formData.enabled}
-            />
-            <span class="toggle-slider"></span>
-          </label>
-        </label>
-      </div>
     </div>
   </div>
 
@@ -551,93 +538,6 @@
 
   .required {
     color: var(--danger-color, #dc3545);
-  }
-
-  .toggle-group {
-    display: flex;
-    align-items: end;
-  }
-
-  .toggle-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    cursor: pointer;
-    width: 100%;
-  }
-
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--bg-tertiary, #ccc);
-    transition: 0.3s;
-    border-radius: 24px;
-    border: 1px solid var(--border-color, transparent);
-  }
-
-  :global([data-theme="dark"]) .toggle-slider {
-    background-color: #21262d;
-    border-color: #30363d;
-  }
-
-  .toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: 0.3s;
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-
-  :global([data-theme="dark"]) .toggle-slider:before {
-    background-color: #c9d1d9;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
-  .toggle-switch input:checked + .toggle-slider {
-    background-color: var(--success-color, #28a745);
-    border-color: var(--success-color, #28a745);
-  }
-
-  :global([data-theme="dark"]) .toggle-switch input:checked + .toggle-slider {
-    background-color: #238636;
-    border-color: #238636;
-  }
-
-  .toggle-switch input:checked + .toggle-slider:before {
-    transform: translateX(20px);
-  }
-
-  .toggle-switch:hover .toggle-slider {
-    opacity: 0.9;
-  }
-
-  .toggle-switch input:disabled + .toggle-slider {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .error {

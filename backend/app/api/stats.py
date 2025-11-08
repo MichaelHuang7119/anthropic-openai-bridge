@@ -10,9 +10,12 @@ router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 @router.get("/requests")
 async def get_request_stats(
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(10, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     provider_name: Optional[str] = None,
+    model: Optional[str] = None,
+    status_code: Optional[int] = Query(None, description="Filter by status code (200 for success, 400+ for errors)"),
+    status_min: Optional[int] = Query(None, description="Minimum status code (for range queries)"),
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     user: dict = Depends(require_admin())
@@ -20,10 +23,30 @@ async def get_request_stats(
     """获取请求日志统计"""
     try:
         db = get_database()
+        
+        # 如果指定了status_code，使用精确匹配
+        # 如果指定了status_min（用于失败状态查询），使用范围查询
+        actual_status_code = None
+        if status_code is not None:
+            actual_status_code = status_code
+        
         logs = await db.get_request_logs(
             limit=limit,
             offset=offset,
             provider_name=provider_name,
+            model=model,
+            status_code=actual_status_code,
+            status_min=status_min,
+            date_from=date_from,
+            date_to=date_to
+        )
+        
+        # 获取总数（用于分页）
+        total_count = await db.get_request_logs_count(
+            provider_name=provider_name,
+            model=model,
+            status_code=actual_status_code,
+            status_min=status_min,
             date_from=date_from,
             date_to=date_to
         )
@@ -46,7 +69,11 @@ async def get_request_stats(
         return {
             "success": True,
             "data": logs,
-            "count": len(logs)
+            "count": len(logs),
+            "total": total_count,
+            "page": (offset // limit) + 1 if limit > 0 else 1,
+            "page_size": limit,
+            "total_pages": (total_count + limit - 1) // limit if limit > 0 else 1
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get request stats: {str(e)}")

@@ -1,13 +1,14 @@
 import { apiClient } from './api';
-import type { Provider, ProviderFormData } from '$types/provider';
+import type { RequestOptions } from './api';
+import type { Provider, ProviderFormData, ProviderTestResponse } from '$types/provider';
 
 export const providerService = {
-  async getAll(): Promise<Provider[]> {
-    return apiClient.get<Provider[]>('/api/providers');
+  async getAll(options?: RequestOptions): Promise<Provider[]> {
+    return apiClient.get<Provider[]>('/api/providers', options);
   },
 
-  async getAllForEdit(): Promise<Provider[]> {
-    return apiClient.get<Provider[]>('/api/providers?include_secrets=true');
+  async getAllForEdit(options?: RequestOptions): Promise<Provider[]> {
+    return apiClient.get<Provider[]>('/api/providers?include_secrets=true', options);
   },
 
   async create(data: ProviderFormData): Promise<{ success: boolean; message: string }> {
@@ -22,13 +23,11 @@ export const providerService = {
     return apiClient.delete(`/api/providers/${encodeURIComponent(name)}`);
   },
 
-  async test(name: string): Promise<{
-    success: boolean;
-    healthy: boolean;
-    responseTime: number | null;
-    message: string;
-    error?: string;
-  }> {
+  async test(name: string): Promise<ProviderTestResponse> {
     return apiClient.post(`/api/providers/${encodeURIComponent(name)}/test`);
+  },
+
+  async toggleEnabled(name: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
+    return apiClient.patch(`/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}`);
   }
 };

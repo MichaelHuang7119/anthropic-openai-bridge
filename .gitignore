@@ -1,18 +1,22 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *$py.class
 *.so
 .Python
 *.egg-info/
 .installed.cfg
 *.egg
+*.whl
 
 # Python 虚拟环境
 env/
 venv/
 ENV/
 backend/venv/
+.venv/
 
 # Python 构建和分发
 build/
@@ -26,13 +30,19 @@ parts/
 sdist/
 var/
 wheels/
+*.manifest
+*.spec
 
 # Python 测试和覆盖率
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
 .hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # 配置文件（包含敏感信息）
 provider.json
@@ -41,13 +51,17 @@ backend/provider.json
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 
 # 数据库文件
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
 backend/data/
 **/data/
+!backend/data/.gitkeep
 
 # 加密密钥文件
 .encryption_key
@@ -58,6 +72,8 @@ backend/.encryption_key
 *.log
 logs/
 backend/logs/
+**/logs/
+!backend/logs/.gitkeep
 
 # 操作系统文件
 .DS_Store
@@ -67,6 +83,7 @@ backend/logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # IDE 配置
 .vscode/
@@ -75,6 +92,8 @@ Thumbs.db
 *.swo
 *~
 .claude/
+*.sublime-project
+*.sublime-workspace
 
 # Node.js
 node_modules/
@@ -83,16 +102,40 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.npm
+.eslintcache
+.stylelintcache
+.yarn/
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.js
 
-# SvelteKit
+# SvelteKit / 前端构建
 .svelte-kit/
 frontend/.svelte-kit/
 frontend/build/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
 # Docker
 docker-compose.override.yml
+.dockerignore
+*.dockerfile.local
 
 # 临时文件
 *.tmp
 *.temp
 .cache/
+.temp/
+*.bak
+*.backup
+
+# 其他
+*.pid
+*.seed
+*.pid.lock

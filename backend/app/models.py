@@ -123,6 +123,7 @@ class MessagesRequest(BaseModel):
     mcp_servers: Optional[List[Dict[str, Any]]] = None  # Optional per spec
     service_tier: Optional[Literal["auto", "standard_only"]] = None  # Optional per spec
     thinking: Optional[Dict[str, Any]] = None  # Optional per spec
+    provider: Optional[str] = None  # Optional: specify provider name to use
 
     model_config = ConfigDict(extra="allow")
 

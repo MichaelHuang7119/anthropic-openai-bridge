@@ -42,9 +42,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-width: 300px;
-    max-width: 500px;
-    padding: 1rem 1.25rem;
+    min-width: auto;
+    max-width: 350px;
+    width: fit-content;
+    padding: 0.875rem 1rem;
     background: white;
     border-radius: 0.5rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -81,7 +82,8 @@
   }
 
   .toast-content {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .toast-message {

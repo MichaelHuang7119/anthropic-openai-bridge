@@ -334,6 +334,9 @@ class DatabaseManager:
         limit: int = 100,
         offset: int = 0,
         provider_name: Optional[str] = None,
+        model: Optional[str] = None,
+        status_code: Optional[int] = None,
+        status_min: Optional[int] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None
     ) -> List[Dict[str, Any]]:
@@ -348,6 +351,17 @@ class DatabaseManager:
             if provider_name:
                 query += " AND provider_name = ?"
                 params.append(provider_name)
+
+            if model:
+                query += " AND model = ?"
+                params.append(model)
+
+            if status_code is not None:
+                query += " AND status_code = ?"
+                params.append(status_code)
+            elif status_min is not None:
+                query += " AND status_code >= ?"
+                params.append(status_min)
 
             if date_from:
                 query += " AND date(created_at) >= ?"
@@ -369,6 +383,56 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to get request logs: {e}")
             return []
+
+    async def get_request_logs_count(
+        self,
+        provider_name: Optional[str] = None,
+        model: Optional[str] = None,
+        status_code: Optional[int] = None,
+        status_min: Optional[int] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> int:
+        """Get total count of request logs matching filters."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            query = "SELECT COUNT(*) as count FROM request_logs WHERE 1=1"
+            params = []
+
+            if provider_name:
+                query += " AND provider_name = ?"
+                params.append(provider_name)
+
+            if model:
+                query += " AND model = ?"
+                params.append(model)
+
+            if status_code is not None:
+                query += " AND status_code = ?"
+                params.append(status_code)
+            elif status_min is not None:
+                query += " AND status_code >= ?"
+                params.append(status_min)
+
+            if date_from:
+                query += " AND date(created_at) >= ?"
+                params.append(date_from)
+
+            if date_to:
+                query += " AND date(created_at) <= ?"
+                params.append(date_to)
+
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+
+            conn.close()
+
+            return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"Failed to get request logs count: {e}")
+            return 0
 
     async def get_token_usage_summary(
         self,
@@ -601,7 +665,9 @@ class DatabaseManager:
         self,
         user_id: Optional[int] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
+        name_filter: Optional[str] = None,
+        is_active: Optional[bool] = None
     ) -> List[Dict[str, Any]]:
         """Get API keys with optional filters."""
         try:
@@ -615,6 +681,14 @@ class DatabaseManager:
                 query += " AND user_id = ?"
                 params.append(user_id)
 
+            if name_filter:
+                query += " AND name LIKE ?"
+                params.append(f"%{name_filter}%")
+
+            if is_active is not None:
+                query += " AND is_active = ?"
+                params.append(1 if is_active else 0)
+
             query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
@@ -627,6 +701,42 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to get API keys: {e}")
             return []
+
+    async def get_api_keys_count(
+        self,
+        user_id: Optional[int] = None,
+        name_filter: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> int:
+        """Get total count of API keys matching filters."""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            query = "SELECT COUNT(*) as count FROM api_keys WHERE 1=1"
+            params = []
+
+            if user_id:
+                query += " AND user_id = ?"
+                params.append(user_id)
+
+            if name_filter:
+                query += " AND name LIKE ?"
+                params.append(f"%{name_filter}%")
+
+            if is_active is not None:
+                query += " AND is_active = ?"
+                params.append(1 if is_active else 0)
+
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+
+            conn.close()
+
+            return result["count"] if result else 0
+        except Exception as e:
+            logger.error(f"Failed to get API keys count: {e}")
+            return 0
 
     async def update_api_key(
         self,

@@ -1,8 +1,13 @@
 /**
  * 基础API客户端
  * 使用相对路径，通过 nginx 代理访问后端 API
+ * 支持请求取消（AbortController）以应对高并发场景
  */
 import { authService } from './auth';
+
+export type RequestOptions = RequestInit & {
+  signal?: AbortSignal;
+};
 
 export class ApiClient {
   private baseUrl: string;
@@ -28,7 +33,7 @@ export class ApiClient {
 
   private async request<T>(
     url: string,
-    options: RequestInit = {}
+    options: RequestOptions = {}
   ): Promise<T> {
     const fullUrl = this.baseUrl + url;
     
@@ -60,8 +65,15 @@ export class ApiClient {
     try {
       const response = await fetch(fullUrl, {
         headers,
-        ...options
+        ...options,
+        // 确保 signal 被传递
+        signal: options.signal
       });
+
+      // 如果请求被取消，抛出 AbortError
+      if (options.signal?.aborted) {
+        throw new DOMException('Request aborted', 'AbortError');
+      }
 
       // Handle 401 Unauthorized - redirect to login
       if (response.status === 401 && url.startsWith('/api/auth/') === false) {
@@ -113,6 +125,10 @@ export class ApiClient {
 
       return response.json();
     } catch (error) {
+      // 处理请求取消错误（不显示错误提示）
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error;
+      }
       // 处理网络错误
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error(`网络错误: 无法连接到服务器。请检查后端服务是否正常运行。`);
@@ -122,26 +138,36 @@ export class ApiClient {
     }
   }
 
-  async get<T>(url: string): Promise<T> {
-    return this.request<T>(url, { method: 'GET' });
+  async get<T>(url: string, options?: RequestOptions): Promise<T> {
+    return this.request<T>(url, { ...options, method: 'GET' });
   }
 
-  async post<T>(url: string, data?: unknown): Promise<T> {
+  async post<T>(url: string, data?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>(url, {
+      ...options,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined
     });
   }
 
-  async put<T>(url: string, data?: unknown): Promise<T> {
+  async put<T>(url: string, data?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>(url, {
+      ...options,
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined
     });
   }
 
-  async delete<T>(url: string): Promise<T> {
-    return this.request<T>(url, { method: 'DELETE' });
+  async delete<T>(url: string, options?: RequestOptions): Promise<T> {
+    return this.request<T>(url, { ...options, method: 'DELETE' });
+  }
+
+  async patch<T>(url: string, data?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(url, {
+      ...options,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined
+    });
   }
 }
 

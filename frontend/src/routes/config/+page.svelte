@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import Card from '$components/ui/Card.svelte';
   import Button from '$components/ui/Button.svelte';
   import { configService } from '$services/config';
@@ -16,19 +17,49 @@
     }
   };
 
+  // 请求取消控制器（用于组件卸载时取消请求）
+  let abortController: AbortController | null = null;
+
   onMount(async () => {
-    await loadConfig();
+    abortController = new AbortController();
+    try {
+      await loadConfig();
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      throw error;
+    }
+  });
+
+  onDestroy(() => {
+    // 取消所有进行中的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
+    }
   });
 
   async function loadConfig() {
+    if (!abortController) return;
     loading = true;
     try {
-      config = await configService.get();
+      config = await configService.get({ signal: abortController.signal });
+      
+      // 检查是否已被取消
+      if (abortController.signal.aborted) return;
     } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to load config:', error);
       toast.error('加载配置失败');
     } finally {
-      loading = false;
+      if (!abortController?.signal.aborted) {
+        loading = false;
+      }
     }
   }
 
@@ -55,7 +86,6 @@
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">全局配置</h1>
     <div class="actions">
       <Button variant="secondary" on:click={handleReset} disabled={loading || saving} title="重置配置" class="icon-button">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -131,8 +161,11 @@
 </div>
 
 <style>
-  .container {
-    max-width: 800px;
+  .page-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 2rem;
   }
 
   .actions {

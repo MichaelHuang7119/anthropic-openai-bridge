@@ -8,10 +8,15 @@ WORKDIR /app
 RUN sed -i 's@deb.debian.org@mirrors.aliyun.com@g' /etc/apt/sources.list.d/debian.sources || \
     sed -i 's@deb.debian.org@mirrors.aliyun.com@g' /etc/apt/sources.list || true
 
-# 安装系统依赖
+# 安装系统依赖（包括时区数据）
 RUN apt-get update && apt-get install -y \
     curl \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置时区为 Asia/Shanghai（中国标准时间 UTC+8）
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 配置 pip 镜像源（使用清华镜像加速）
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \

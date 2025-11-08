@@ -31,3 +31,24 @@ export interface ProviderFormData {
     small: string[];
   };
 }
+
+export interface CategoryHealthStatus {
+  healthy: boolean;
+  responseTime: number | null;
+  testedModels: string[];
+  workingModel: string | null;
+  error: string | null;
+}
+
+export interface ProviderTestResponse {
+  success: boolean;
+  healthy: boolean;
+  categories: {
+    big?: CategoryHealthStatus;
+    middle?: CategoryHealthStatus;
+    small?: CategoryHealthStatus;
+  };
+  responseTime: number | null;
+  message: string;
+  error?: string;
+}

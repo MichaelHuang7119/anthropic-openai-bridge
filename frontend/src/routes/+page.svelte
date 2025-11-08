@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
@@ -9,10 +10,53 @@
   import { providerService } from '$services/providers';
   import { authService } from '$services/auth';
   import { toast } from '$stores/toast';
+  import Input from '$components/ui/Input.svelte';
 
   let loading = true;
   let currentUrl = '';
   let copySuccess = false;
+  
+  // 请求取消控制器（用于组件卸载时取消请求）
+  let abortController: AbortController | null = null;
+  
+  // 供应商概览搜索和筛选
+  let providerSearchQuery = '';
+  let providerFilterEnabled: 'all' | 'enabled' | 'disabled' = 'all';
+  const maxDisplayProviders = 5; // 首页最多显示5个
+  
+  // 客户端过滤
+  $: filteredProvidersForPreview = $providers.filter(p => {
+    // 搜索过滤
+    if (providerSearchQuery.trim()) {
+      const query = providerSearchQuery.toLowerCase();
+      if (!p.name.toLowerCase().includes(query) && 
+          !p.base_url.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    
+    // 状态过滤
+    if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
+    if (providerFilterEnabled === 'disabled' && p.enabled) return false;
+    
+    return true;
+  }).slice(0, maxDisplayProviders);
+  
+  // 计算是否有更多供应商（优化：复用过滤逻辑）
+  $: allFilteredProviders = $providers.filter(p => {
+    if (providerSearchQuery.trim()) {
+      const query = providerSearchQuery.toLowerCase();
+      if (!p.name.toLowerCase().includes(query) && 
+          !p.base_url.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
+    if (providerFilterEnabled === 'disabled' && p.enabled) return false;
+    return true;
+  });
+  
+  $: hasMoreProviders = filteredProvidersForPreview.length < allFilteredProviders.length;
 
   onMount(async () => {
     // 确保已认证后再加载数据
@@ -20,6 +64,7 @@
       return;
     }
 
+    abortController = new AbortController();
     try {
       // 获取当前 URL
       if (browser) {
@@ -27,17 +72,35 @@
       }
 
       // 加载供应商
-      const providersData = await providerService.getAll();
+      const providersData = await providerService.getAll({ signal: abortController.signal });
+      
+      // 检查是否已被取消
+      if (abortController.signal.aborted) return;
+      
       providers.set(providersData);
 
       // 不自动加载健康状态 - 仅在用户手动刷新时加载
       // 健康状态检查会消耗API调用和token
       // 但如果store中已有健康数据，则显示
     } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to load dashboard data:', error);
       toast.error('加载数据失败');
     } finally {
-      loading = false;
+      if (!abortController?.signal.aborted) {
+        loading = false;
+      }
+    }
+  });
+
+  onDestroy(() => {
+    // 取消所有进行中的请求
+    if (abortController) {
+      abortController.abort();
+      abortController = null;
     }
   });
 
@@ -112,9 +175,6 @@
 </script>
 
 <div class="container">
-  <div class="page-header">
-    <h1 class="page-title">仪表盘</h1>
-  </div>
 
   {#if loading}
     <div class="loading">
@@ -172,7 +232,23 @@
           </div>
           <div class="info-item">
             <span class="label">最后检查</span>
-            <span class="value">{$lastHealthCheck ? $lastHealthCheck.toLocaleString() : '未检查'}</span>
+            <span class="value">{$lastHealthCheck ? (() => {
+              try {
+                const date = $lastHealthCheck instanceof Date ? $lastHealthCheck : new Date($lastHealthCheck);
+                if (isNaN(date.getTime())) return '未检查';
+                return date.toLocaleString('zh-CN', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                });
+              } catch {
+                return '未检查';
+              }
+            })() : '未检查'}</span>
           </div>
           <div class="info-item">
             <span class="label">检查模式</span>
@@ -225,62 +301,91 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     </div>
 
     <div class="providers-preview">
-      <div class="preview-header">
-        <h2>供应商概览</h2>
-        {#if $providers.length > 0}
-          <a href="/providers" class="view-all">查看全部 →</a>
-        {/if}
-      </div>
-
-      {#if $providers.length === 0}
-        <div class="empty-state">
-          <p>暂无供应商配置</p>
-          <a href="/providers" class="add-link">立即添加 →</a>
+      <Card title="供应商概览" subtitle={$providers.length > 0 ? `共 ${$providers.length} 个供应商` : '暂无供应商配置'}>
+        <div slot="titleActions">
+          {#if $providers.length > 0}
+            <a href="/providers" class="view-all">查看全部 →</a>
+          {/if}
         </div>
-      {:else}
-        <div class="table-container">
-          <table class="providers-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>状态</th>
-                <th>Base URL</th>
-                <th>模型数量</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each $providers.slice(0, 5) as provider}
-                <tr class={!provider.enabled ? 'disabled-row' : ''}>
-                  <td class="name-cell">
-                    <span class="provider-name">{provider.name}</span>
-                  </td>
-                  <td>
-              <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                {provider.enabled ? '已启用' : '已禁用'}
-              </Badge>
-                  </td>
-                  <td class="url-cell">
-                    <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
-                  </td>
-                  <td class="models-cell">
-                    <div class="models-badge">
-                      <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
-                      <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
-                      <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
-            </div>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-              </div>
 
-        {#if $providers.length > 5}
-          <div class="view-more">
-            <a href="/providers" class="btn-link">查看全部 {$providers.length} 个供应商 →</a>
+        {#if $providers.length === 0}
+          <div class="empty-state">
+            <p>暂无供应商配置</p>
+            <a href="/providers" class="add-link">立即添加 →</a>
           </div>
+        {:else}
+          <!-- 搜索和筛选 -->
+          <div class="filters">
+            <div class="filter-row">
+              <div class="filter-group search-group">
+                <Input
+                  type="text"
+                  bind:value={providerSearchQuery}
+                  placeholder="搜索供应商名称或URL..."
+                />
+              </div>
+              
+              <div class="filter-group">
+                <label for="provider-filter-status">状态:</label>
+                <select id="provider-filter-status" class="filter-select" bind:value={providerFilterEnabled}>
+                  <option value="all">全部</option>
+                  <option value="enabled">已启用</option>
+                  <option value="disabled">已禁用</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          {#if filteredProvidersForPreview.length > 0}
+            <div class="table-container">
+              <table class="providers-table">
+                <thead>
+                  <tr>
+                    <th>名称</th>
+                    <th>状态</th>
+                    <th>Base URL</th>
+                    <th>模型数量</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredProvidersForPreview as provider}
+                    <tr class={!provider.enabled ? 'disabled-row' : ''}>
+                      <td class="name-cell">
+                        <span class="provider-name">{provider.name}</span>
+                      </td>
+                      <td>
+                        <Badge type={provider.enabled ? 'success' : 'secondary'}>
+                          {provider.enabled ? '已启用' : '已禁用'}
+                        </Badge>
+                      </td>
+                      <td class="url-cell">
+                        <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
+                      </td>
+                      <td class="models-cell">
+                        <div class="models-badge">
+                          <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
+                          <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
+                          <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
+                        </div>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+
+            {#if hasMoreProviders}
+              <div class="view-more">
+                <a href="/providers" class="btn-link">查看全部 {$providers.length} 个供应商 →</a>
+              </div>
+            {/if}
+          {:else}
+            <div class="empty-state">
+              <p>没有匹配的供应商</p>
+            </div>
+          {/if}
         {/if}
-      {/if}
+      </Card>
     </div>
   {/if}
 </div>
@@ -380,18 +485,64 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     margin-top: 2rem;
   }
 
-  .preview-header {
+  .filters {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
   }
 
-  .providers-preview h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
+  .filter-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .filter-group.search-group {
+    min-width: 250px;
+    flex: 1;
+  }
+  
+  .filter-group.search-group :global(input) {
+    width: 100%;
+    height: 2.5rem;
+  }
+
+  .filter-group label {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+    white-space: nowrap;
+    font-weight: 500;
     margin: 0;
-    color: var(--text-primary, #1a1a1a);
+  }
+
+  .filter-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background: var(--bg-primary, white);
+    color: var(--text-primary, #495057);
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-width: 150px;
+    height: 2.5rem;
+  }
+
+  .filter-select:focus {
+    outline: 2px solid var(--primary-color, #007bff);
+    outline-offset: 2px;
   }
 
   .view-all {
@@ -453,7 +604,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     border-radius: 0.5rem;
     border: 1px solid var(--border-color, #e0e0e0);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    overflow-x: auto;
   }
 
   :global([data-theme="dark"]) .table-container {
@@ -462,6 +613,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
   .providers-table {
     width: 100%;
+    min-width: max-content;
     border-collapse: collapse;
     font-size: 0.875rem;
   }
@@ -511,6 +663,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   .providers-table td {
     padding: 1rem;
     vertical-align: middle;
+    white-space: nowrap;
   }
 
   .name-cell {
