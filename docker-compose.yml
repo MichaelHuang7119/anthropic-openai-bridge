@@ -1,0 +1,56 @@
+# 全局变量
+x-common-variables: &common-variables
+  # 前端暴露端口，默认5173
+  EXPOSE_PORT: ${EXPOSE_PORT:-5173}
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: anthropic-openai-bridge-backend
+    # 不映射端口到宿主机，仅在内部网络可用
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=info
+      - PROVIDER_CONFIG_PATH=/app/provider.json
+    volumes:
+      - ./backend/provider.json:/app/provider.json
+      - backend-logs:/app/logs
+    networks:
+      - anthropic-openai-bridge-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: anthropic-openai-bridge-frontend
+    ports:
+      # 使用 EXPOSE_PORT 动态映射端口（默认5173）
+      - "${EXPOSE_PORT:-5173}:80"
+    environment:
+      # 继承全局变量
+      - EXPOSE_PORT=${EXPOSE_PORT:-5173}
+    networks:
+      - anthropic-openai-bridge-network
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-logs:
+    driver: local
+
+networks:
+  anthropic-openai-bridge-network:
+    driver: bridge
+
