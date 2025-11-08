@@ -106,7 +106,7 @@
 </script>
 
 <div class="container">
-  <h1 class="page-title">仪表板</h1>
+  <h1 class="page-title">仪表盘</h1>
 
   {#if loading}
     <div class="loading">
@@ -200,31 +200,61 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     </div>
 
     <div class="providers-preview">
-      <h2>供应商概览</h2>
-      <div class="providers-grid">
-        {#each $providers.slice(0, 6) as provider}
-          <div class="provider-card">
-            <div class="provider-header">
-              <h3>{provider.name}</h3>
-              <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                {provider.enabled ? '已启用' : '已禁用'}
-              </Badge>
-            </div>
-            <div class="provider-body">
-              <p class="base-url">{provider.base_url}</p>
-              <div class="models-count">
-                <span>大: {provider.models.big?.length || 0}</span>
-                <span>中: {provider.models.middle?.length || 0}</span>
-                <span>小: {provider.models.small?.length || 0}</span>
-              </div>
-            </div>
-          </div>
-        {/each}
+      <div class="preview-header">
+        <h2>供应商概览</h2>
+        {#if $providers.length > 0}
+          <a href="/providers" class="view-all">查看全部 →</a>
+        {/if}
       </div>
-      {#if $providers.length > 6}
-        <div class="view-more">
-          <a href="/providers" class="btn-link">查看全部供应商 →</a>
+
+      {#if $providers.length === 0}
+        <div class="empty-state">
+          <p>暂无供应商配置</p>
+          <a href="/providers" class="add-link">立即添加 →</a>
         </div>
+      {:else}
+        <div class="table-container">
+          <table class="providers-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>状态</th>
+                <th>Base URL</th>
+                <th>模型数量</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each $providers.slice(0, 5) as provider}
+                <tr class={!provider.enabled ? 'disabled-row' : ''}>
+                  <td class="name-cell">
+                    <span class="provider-name">{provider.name}</span>
+                  </td>
+                  <td>
+                    <Badge type={provider.enabled ? 'success' : 'secondary'}>
+                      {provider.enabled ? '已启用' : '已禁用'}
+                    </Badge>
+                  </td>
+                  <td class="url-cell">
+                    <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
+                  </td>
+                  <td class="models-cell">
+                    <div class="models-badge">
+                      <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
+                      <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
+                      <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
+                    </div>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        {#if $providers.length > 5}
+          <div class="view-more">
+            <a href="/providers" class="btn-link">查看全部 {$providers.length} 个供应商 →</a>
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}
@@ -320,52 +350,148 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     margin-top: 2rem;
   }
 
-  .providers-preview h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0 0 1.5rem 0;
-  }
-
-  .providers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-  }
-
-  .provider-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 0.5rem;
-    padding: 1rem;
-  }
-
-  .provider-header {
+  .preview-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
   }
 
-  .provider-header h3 {
+  .providers-preview h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
     margin: 0;
-    font-size: 1rem;
-    color: #1a1a1a;
   }
 
-  .base-url {
-    font-size: 0.75rem;
+  .view-all {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .view-all:hover {
+    text-decoration: underline;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 0.5rem;
+  }
+
+  .empty-state p {
     color: #666;
-    margin: 0 0 0.5rem 0;
+    margin-bottom: 1rem;
+  }
+
+  .add-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .add-link:hover {
+    text-decoration: underline;
+  }
+
+  .table-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .providers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .providers-table thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  .providers-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
     white-space: nowrap;
   }
 
-  .models-count {
+  .providers-table th:first-child {
+    width: 150px;
+  }
+
+  .providers-table th:nth-child(2) {
+    width: 100px;
+  }
+
+  .providers-table th:nth-child(3) {
+    width: 250px;
+  }
+
+  .providers-table th:last-child {
+    width: 180px;
+  }
+
+  .providers-table tbody tr {
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+  }
+
+  .providers-table tbody tr:hover {
+    background: #f8f9fa;
+  }
+
+  .providers-table tbody tr.disabled-row {
+    opacity: 0.6;
+  }
+
+  .providers-table td {
+    padding: 1rem;
+    vertical-align: middle;
+  }
+
+  .name-cell {
+    padding: 1rem 0.75rem;
+  }
+
+  .provider-name {
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .url-cell {
+    max-width: 250px;
+  }
+
+  .url-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #6c757d;
+    font-size: 0.8125rem;
+  }
+
+  .models-cell {
+    padding: 0.75rem 1rem;
+  }
+
+  .models-badge {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  .models-badge :global(.badge) {
     font-size: 0.75rem;
-    color: #666;
+    padding: 0.25rem 0.5rem;
   }
 
   .view-more {

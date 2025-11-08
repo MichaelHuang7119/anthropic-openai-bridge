@@ -2,8 +2,13 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <!-- Favicon - 优先使用 SVG（现代浏览器），PNG 作为后备 -->
+    <link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
+    <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Anthropic OpenAI Bridge - AI 模型代理服务管理界面" />
+    <meta name="theme-color" content="#007bff" />
     <title>Anthropic OpenAI Bridge 管理界面</title>
     %sveltekit.head%
   </head>

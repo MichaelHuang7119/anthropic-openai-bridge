@@ -71,49 +71,54 @@
       <p>加载中...</p>
     </div>
   {:else}
-    <Card title="回退策略">
-      <div class="form-group">
-        <label for="fallback-strategy">回退策略:</label>
-        <select
-          id="fallback-strategy"
-          bind:value={config.fallback_strategy}
-          class="form-control"
-        >
-          <option value="priority">优先级（按优先级顺序尝试）</option>
-          <option value="random">随机（随机选择可用供应商）</option>
-        </select>
-        <p class="help-text">当主供应商不可用时，使用的回退策略</p>
-      </div>
-    </Card>
+    <div class="config-grid">
+      <Card title="回退策略">
+        <div class="form-section">
+          <div class="form-group">
+            <label for="fallback-strategy">回退策略:</label>
+            <select
+              id="fallback-strategy"
+              bind:value={config.fallback_strategy}
+              class="form-control"
+            >
+              <option value="priority">优先级（按优先级顺序尝试）</option>
+              <option value="random">随机（随机选择可用供应商）</option>
+            </select>
+            <p class="help-text">当主供应商不可用时，使用的回退策略</p>
+          </div>
+        </div>
+      </Card>
 
+      <Card title="熔断器配置">
+        <div class="form-section">
+          <div class="form-group">
+            <label for="failure-threshold">失败阈值:</label>
+            <input
+              id="failure-threshold"
+              type="number"
+              min="1"
+              max="20"
+              bind:value={config.circuit_breaker.failure_threshold}
+              class="form-control"
+            />
+            <p class="help-text">连续失败多少次后触发熔断（1-20次）</p>
+          </div>
 
-    <Card title="熔断器配置">
-      <div class="form-group">
-        <label for="failure-threshold">失败阈值:</label>
-        <input
-          id="failure-threshold"
-          type="number"
-          min="1"
-          max="20"
-          bind:value={config.circuit_breaker.failure_threshold}
-          class="form-control"
-        />
-        <p class="help-text">连续失败多少次后触发熔断（1-20次）</p>
-      </div>
-
-      <div class="form-group">
-        <label for="recovery-timeout">恢复超时（秒）:</label>
-        <input
-          id="recovery-timeout"
-          type="number"
-          min="10"
-          max="600"
-          bind:value={config.circuit_breaker.recovery_timeout}
-          class="form-control"
-        />
-        <p class="help-text">熔断后等待多长时间再尝试恢复（10-600秒）</p>
-      </div>
-    </Card>
+          <div class="form-group">
+            <label for="recovery-timeout">恢复超时（秒）:</label>
+            <input
+              id="recovery-timeout"
+              type="number"
+              min="10"
+              max="600"
+              bind:value={config.circuit_breaker.recovery_timeout}
+              class="form-control"
+            />
+            <p class="help-text">熔断后等待多长时间再尝试恢复（10-600秒）</p>
+          </div>
+        </div>
+      </Card>
+    </div>
   {/if}
 </div>
 
@@ -143,11 +148,19 @@
     gap: 1rem;
   }
 
-  .form-group {
-    margin-bottom: 1.5rem;
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
   }
 
-  .form-group:last-child {
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
     margin-bottom: 0;
   }
 

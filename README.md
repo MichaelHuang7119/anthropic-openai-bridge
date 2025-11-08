@@ -9,16 +9,18 @@ Anthropic OpenAI Bridge 是一个高性能的 API 代理服务，它实现了 An
 本项目提供：
 - **Web 管理界面** - 基于 Svelte 5 的现代化管理界面
 - **多供应商支持** - 支持多个 AI 供应商，支持优先级回退机制
-- **实时监控** - 供应商健康状态实时监控
+- **实时监控** - 供应商健康状态实时监控（支持健康、部分健康、不健康、未检查四种状态）
 - **可视化配置** - 通过 Web 界面轻松配置供应商和模型
-- **流式响应** - 支持 Server-Sent Events (SSE) 流式输出
+- **流式响应** - 支持 Server-Sent Events (SSE) 流式输出，实时显示 Token 消耗
 - **工具调用** - 完整的工具调用（Function Calling）支持
 - **多模态输入** - 支持文本和图片输入
 - **Token 计数** - 提供 token 计数端点
 - **自动模型映射** - 智能模型映射（haiku→small, sonnet→middle, opus→big）
 - **全局 Token 限制** - 可配置的全局 max_tokens 限制
-- **健康检查** - 内置健康检查端点
+- **健康检查** - 内置健康检查端点，支持手动检查模式
 - **错误处理** - 完善的错误处理和日志记录
+- **自动重试** - 支持超时和连接错误的自动重试机制
+- **Toast 消息提示** - 友好的操作反馈提示
 
 ## 快速开始
 
@@ -34,7 +36,15 @@ Anthropic OpenAI Bridge 是一个高性能的 API 代理服务，它实现了 An
 
 ```bash
 # 在项目根目录运行
-bash start-all.sh
+# 注意：需要分别启动后端和前端服务
+
+# 终端 1：启动后端
+cd backend
+bash start.sh
+
+# 终端 2：启动前端
+cd frontend
+bash start.sh
 ```
 
 #### 方式二：分别启动
@@ -344,50 +354,67 @@ anthropic-openai-bridge/
 │   │   │   ├── config.py      # 配置管理 API
 │   │   │   ├── health.py      # 健康检查 API
 │   │   │   └── providers.py   # 供应商管理 API
-│   │   ├── core/              # 核心功能
-│   │   │   ├── config.py      # 配置管理
-│   │   │   ├── proxy.py       # 代理逻辑
-│   │   │   └── provider_manager.py
 │   │   ├── main.py            # FastAPI 应用入口
 │   │   ├── converter.py       # Anthropic ↔ OpenAI 格式转换
 │   │   ├── client.py          # OpenAI 客户端封装
-│   │   └── model_manager.py   # 模型选择和供应商管理
+│   │   ├── model_manager.py   # 模型选择和供应商管理
+│   │   ├── config.py          # 配置管理
+│   │   ├── models.py          # 数据模型定义
+│   │   ├── retry.py           # 重试机制
+│   │   └── utils.py           # 工具函数
 │   ├── requirements.txt       # Python 依赖
-│   ├── provider.json          # 供应商配置文件
-│   └── start_proxy.py         # 代理服务启动脚本
+│   ├── provider.json          # 供应商配置文件（需自行创建）
+│   ├── start_proxy.py         # 代理服务启动脚本
+│   └── start.sh               # 后端启动脚本
 │
 ├── frontend/                   # 前端管理界面
 │   ├── src/
 │   │   ├── lib/
-│   │   │   ├── components/ui/ # 基础 UI 组件
-│   │   │   │   ├── Button.svelte
-│   │   │   │   ├── Card.svelte
-│   │   │   │   ├── Badge.svelte
-│   │   │   │   └── Input.svelte
+│   │   │   ├── components/    # 组件
+│   │   │   │   ├── ui/        # 基础 UI 组件
+│   │   │   │   │   ├── Button.svelte
+│   │   │   │   │   ├── Card.svelte
+│   │   │   │   │   ├── Badge.svelte
+│   │   │   │   │   ├── Input.svelte
+│   │   │   │   │   └── Toast.svelte
+│   │   │   │   └── ProviderForm.svelte
 │   │   │   ├── services/      # API 服务层
+│   │   │   │   ├── api.ts
 │   │   │   │   ├── providers.ts
 │   │   │   │   ├── health.ts
 │   │   │   │   └── config.ts
 │   │   │   ├── stores/        # Svelte 状态管理
-│   │   │   │   └── providers.ts
-│   │   │   └── types/         # TypeScript 类型定义
-│   │   │       └── provider.ts
+│   │   │   │   ├── providers.ts
+│   │   │   │   ├── health.ts
+│   │   │   │   ├── config.ts
+│   │   │   │   └── toast.ts
+│   │   │   ├── types/         # TypeScript 类型定义
+│   │   │   │   ├── provider.ts
+│   │   │   │   ├── health.ts
+│   │   │   │   └── config.ts
+│   │   │   └── styles/        # 全局样式
 │   │   └── routes/            # SvelteKit 路由
 │   │       ├── +layout.svelte
-│   │       ├── +page.svelte
-│   │       └── providers/
+│   │       ├── +page.svelte   # 首页（仪表板）
+│   │       ├── providers/     # 供应商管理页面
+│   │       │   └── +page.svelte
+│   │       ├── health/         # 健康监控页面
+│   │       │   └── +page.svelte
+│   │       └── config/        # 配置页面
 │   │           └── +page.svelte
 │   ├── package.json           # Node.js 依赖
 │   ├── svelte.config.js       # SvelteKit 配置
 │   ├── vite.config.ts         # Vite 配置
-│   └── tsconfig.json          # TypeScript 配置
-│
-├── start-all.sh               # 一键启动所有服务（指导脚本）
-├── backend/
-│   └── start.sh               # 后端启动脚本
-├── frontend/
+│   ├── tsconfig.json          # TypeScript 配置
+│   ├── nginx.conf             # Nginx 配置（用于 Docker）
+│   ├── Dockerfile             # 前端 Dockerfile
 │   └── start.sh               # 前端启动脚本
-└── README.md                  # 项目说明文档
+│
+├── docker-compose.yml         # Docker Compose 配置
+├── LICENSE                    # MIT 许可证
+├── pytest.ini                 # pytest 配置
+├── tests/                      # 测试文件
+└── README.md                   # 项目说明文档
 ```
 
 ## 功能特性
@@ -402,9 +429,8 @@ anthropic-openai-bridge/
 - `DELETE /api/providers/{name}` - 删除供应商
 
 #### 健康检查 API
-- `GET /api/health` - 获取系统健康状态
-- `GET /api/health/providers` - 获取所有供应商健康状态
-- `GET /api/health/providers/{name}` - 获取指定供应商健康状态
+- `GET /api/health` - 获取所有供应商健康状态（返回总体状态：健康、部分健康、不健康、未检查）
+- `GET /api/health/{name}` - 获取指定供应商健康状态
 
 #### 配置管理 API
 - `GET /api/config` - 获取全局配置
@@ -414,16 +440,27 @@ anthropic-openai-bridge/
 
 #### 供应商管理页面
 - 查看所有供应商列表
-- 查看供应商健康状态
+- 查看供应商健康状态（健康、部分健康、不健康、未检查）
 - 添加新供应商
 - 编辑现有供应商
 - 删除供应商
-- 测试供应商连接
+- 测试供应商连接（显示响应时间）
 
-#### 模型分类管理
-- 大模型 (big)
-- 中等模型 (middle)
-- 小模型 (small)
+#### 健康监控页面
+- 手动刷新健康状态（零自动请求，节省 API 调用和 Token）
+- 查看总体健康状态
+- 查看每个供应商的详细健康信息
+- 显示最后检查时间和响应时间
+
+#### 配置页面
+- 配置全局回退策略（优先级/随机）
+- 配置熔断器参数（失败阈值、恢复超时）
+
+#### 首页仪表板
+- 供应商统计概览
+- 健康状态总览
+- 系统信息
+- Claude Code 配置说明（自动显示当前服务地址）
 
 ## 技术栈
 
@@ -558,7 +595,7 @@ A: 系统根据 `priority` 字段选择供应商，优先级越高（数字越�
 
 ### Q: 如何监控供应商健康状态？
 
-A: 访问 `/api/health/providers` 端点，或在前端管理界面查看实时状态。
+A: 访问前端管理界面的"健康监控"页面，点击"刷新状态"按钮进行手动检查。系统会显示总体状态（健康、部分健康、不健康、未检查）和每个供应商的详细信息。健康检查仅在手动点击时进行，不会自动请求，最大化节省 API 调用和 Token 消耗。
 
 ## 部署
 
@@ -572,8 +609,20 @@ docker-compose up -d
 ```
 
 这将自动构建并启动：
-- 后端服务：http://localhost:8000
-- 前端管理界面：http://localhost:5173
+- 后端服务：http://localhost:8000（仅内部网络，不暴露到宿主机）
+- 前端管理界面：http://localhost:5173（默认端口，可通过 EXPOSE_PORT 环境变量修改）
+
+#### 自定义前端端口
+
+```bash
+# 设置环境变量
+export EXPOSE_PORT=5175
+
+# 启动服务
+docker-compose up -d
+```
+
+前端将在 http://localhost:5175 启动。
 
 #### 2. 查看服务状态
 
@@ -651,11 +700,14 @@ npm run build
 
 ## 注意事项
 
-1. **API 密钥安全**：建议使用环境变量存储 API 密钥，不要将密钥直接写入配置文件
+1. **API 密钥安全**：建议使用环境变量存储 API 密钥，不要将密钥直接写入配置文件。`provider.json` 文件已添加到 `.gitignore`，避免意外提交敏感信息
 2. **Token 限制**：所有请求的 `max_tokens` 都会被限制在全局配置的范围内
 3. **供应商兼容性**：某些供应商可能不支持所有 OpenAI 参数（如 `tool_choice`），系统会自动过滤不支持的参数
-4. **流式响应**：流式响应使用 SSE 格式，客户端需要正确处理 `data: ` 前缀
+4. **流式响应**：流式响应使用 SSE 格式，客户端需要正确处理 `data: ` 前缀。系统支持实时 Token 消耗显示
 5. **生产环境**：生产环境部署时建议禁用自动重载（`--no-reload`）并配置适当的日志级别
+6. **健康检查**：健康检查采用手动模式，不会自动请求，避免不必要的 API 调用和 Token 消耗
+7. **Docker 部署**：后端服务默认不暴露端口到宿主机，仅通过前端 Nginx 代理访问，提高安全性
+8. **Claude Code 配置**：前端管理界面会自动显示当前服务地址，方便配置 `ANTHROPIC_BASE_URL`
 
 ## 许可证
 

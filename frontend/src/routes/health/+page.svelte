@@ -57,7 +57,6 @@
   <div class="header">
     <div class="title-section">
       <h1 class="page-title">健康监控</h1>
-      <p class="subtitle">仅在手动点击时检查，零自动请求，最大化节省API调用和token消耗</p>
     </div>
     <div class="actions">
       <Button variant="primary" on:click={loadHealth} disabled={loading}>
@@ -82,25 +81,25 @@
       <p>刷新中...</p>
     </div>
   {:else if hasData}
-    <div class="info-card">
+    <div class="summary-card">
       <Card title="监控信息">
-        <div class="info-items">
-          <div class="info-item">
+        <div class="summary-items">
+          <div class="summary-item">
             <span class="label">最后检查时间:</span>
             <span class="value">{$lastHealthCheck ? $lastHealthCheck.toLocaleString('zh-CN') : '从未检查'}</span>
           </div>
-          <div class="info-item">
+          <div class="summary-item">
             <span class="label">总体状态:</span>
             <Badge type={
-              $healthStatus.status === 'healthy' ? 'success' : 
-              $healthStatus.status === 'partial' ? 'warning' : 
-              $healthStatus.status === 'unhealthy' ? 'danger' : 
+              $healthStatus.status === 'healthy' ? 'success' :
+              $healthStatus.status === 'partial' ? 'warning' :
+              $healthStatus.status === 'unhealthy' ? 'danger' :
               'info'
             }>
               {
-                $healthStatus.status === 'healthy' ? '健康' : 
-                $healthStatus.status === 'partial' ? '部分健康' : 
-                $healthStatus.status === 'unhealthy' ? '不健康' : 
+                $healthStatus.status === 'healthy' ? '健康' :
+                $healthStatus.status === 'partial' ? '部分健康' :
+                $healthStatus.status === 'unhealthy' ? '不健康' :
                 '未检查'
               }
             </Badge>
@@ -109,47 +108,58 @@
       </Card>
     </div>
 
-    <div class="providers-list">
-      {#each $healthStatus.providers as provider}
-        {@const status = getStatusBadge(provider)}
-        <Card>
-          <div slot="title">
-            <div class="provider-header">
-              <h3>{provider.name}</h3>
-              <Badge type={status.type}>{status.text}</Badge>
-            </div>
-          </div>
-
-          <div class="provider-details">
-            <div class="detail-item">
-              <span class="label">优先级:</span>
-              <span class="value">{provider.priority}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">状态:</span>
-              <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                {provider.enabled ? '已启用' : '已禁用'}
-              </Badge>
-            </div>
-            <div class="detail-item">
-              <span class="label">最后检查:</span>
-              <span class="value">{formatTime(provider.lastCheck)}</span>
-            </div>
-            {#if provider.responseTime !== null}
-              <div class="detail-item">
-                <span class="label">响应时间:</span>
-                <span class="value">{provider.responseTime}ms</span>
-              </div>
-            {/if}
-            {#if provider.error}
-              <div class="detail-item error">
-                <span class="label">错误信息:</span>
-                <span class="value">{provider.error}</span>
-              </div>
-            {/if}
-          </div>
-        </Card>
-      {/each}
+    <div class="table-container">
+      <table class="health-table">
+        <thead>
+          <tr>
+            <th>供应商名称</th>
+            <th>健康状态</th>
+            <th>启用状态</th>
+            <th>优先级</th>
+            <th>响应时间</th>
+            <th>最后检查</th>
+            <th>错误信息</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each $healthStatus.providers as provider}
+            {@const status = getStatusBadge(provider)}
+            <tr class={!provider.enabled ? 'disabled-row' : ''}>
+              <td class="name-cell">
+                <span class="provider-name">{provider.name}</span>
+              </td>
+              <td>
+                <Badge type={status.type}>{status.text}</Badge>
+              </td>
+              <td>
+                <Badge type={provider.enabled ? 'success' : 'secondary'}>
+                  {provider.enabled ? '已启用' : '已禁用'}
+                </Badge>
+              </td>
+              <td class="priority-cell">
+                <span class="priority-value">{provider.priority}</span>
+              </td>
+              <td class="response-time-cell">
+                {#if provider.responseTime !== null}
+                  <span class="response-time-value">{provider.responseTime}ms</span>
+                {:else}
+                  <span class="response-time-na">-</span>
+                {/if}
+              </td>
+              <td class="last-check-cell">
+                <span class="last-check-value">{formatTime(provider.lastCheck)}</span>
+              </td>
+              <td class="error-cell">
+                {#if provider.error}
+                  <span class="error-value" title={provider.error}>{provider.error}</span>
+                {:else}
+                  <span class="error-na">-</span>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
 
     {#if $healthStatus.providers.length === 0}
@@ -218,20 +228,19 @@
     flex-shrink: 0;
   }
 
-  .info-card {
+  .summary-card {
     margin-bottom: 2rem;
   }
 
-  .info-items {
+  .summary-items {
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    gap: 2rem;
   }
 
-  .info-item {
+  .summary-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
   }
 
   .label {
@@ -243,44 +252,141 @@
     color: #1a1a1a;
   }
 
-  .providers-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+  .table-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
   }
 
-  .provider-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .health-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
   }
 
-  .provider-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
+  .health-table thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  .health-table th {
+    padding: 1rem;
+    text-align: left;
     font-weight: 600;
+    color: #495057;
+    white-space: nowrap;
   }
 
-  .provider-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
+  .health-table th:first-child {
+    width: 180px;
   }
 
-  .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+  .health-table th:nth-child(2) {
+    width: 120px;
   }
 
-  .detail-item.error {
-    grid-column: 1 / -1;
+  .health-table th:nth-child(3) {
+    width: 100px;
   }
 
-  .detail-item.error .value {
+  .health-table th:nth-child(4) {
+    width: 80px;
+  }
+
+  .health-table th:nth-child(5) {
+    width: 100px;
+  }
+
+  .health-table th:nth-child(6) {
+    width: 180px;
+  }
+
+  .health-table th:last-child {
+    width: 250px;
+  }
+
+  .health-table tbody tr {
+    border-bottom: 1px solid #dee2e6;
+    transition: background-color 0.2s;
+  }
+
+  .health-table tbody tr:hover {
+    background: #f8f9fa;
+  }
+
+  .health-table tbody tr.disabled-row {
+    opacity: 0.6;
+  }
+
+  .health-table td {
+    padding: 1rem;
+    vertical-align: middle;
+  }
+
+  .name-cell {
+    padding: 1rem 0.75rem;
+  }
+
+  .provider-name {
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .priority-cell {
+    text-align: center;
+  }
+
+  .priority-value {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #e9ecef;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    color: #495057;
+  }
+
+  .response-time-cell {
+    text-align: center;
+  }
+
+  .response-time-value {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #d1ecf1;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    color: #0c5460;
+  }
+
+  .response-time-na {
+    color: #adb5bd;
+    font-style: italic;
+  }
+
+  .last-check-cell {
+    color: #6c757d;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .error-cell {
+    max-width: 250px;
+  }
+
+  .error-value {
+    display: inline-block;
+    max-width: 100%;
     color: #dc3545;
-    word-break: break-word;
+    font-size: 0.8125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .error-na {
+    color: #adb5bd;
+    font-style: italic;
   }
 
   .loading,
@@ -294,6 +400,88 @@
   .empty p {
     margin: 0;
     font-size: 1.125rem;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1200px) {
+    .health-table th:last-child {
+      width: 200px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .summary-items {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .health-table th:nth-child(6) {
+      width: 150px;
+    }
+
+    .health-table th:last-child {
+      width: 180px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .health-table {
+      min-width: 900px;
+    }
+
+    .health-table th,
+    .health-table td {
+      padding: 0.75rem 0.5rem;
+      font-size: 0.8125rem;
+    }
+
+    .health-table th:last-child {
+      width: 160px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .container {
+      padding: 0 0.75rem;
+    }
+
+    .health-table th,
+    .health-table td {
+      padding: 0.5rem 0.375rem;
+      font-size: 0.75rem;
+    }
+
+    .health-table th:first-child {
+      width: 120px;
+    }
+
+    .health-table th:nth-child(2) {
+      width: 100px;
+    }
+
+    .health-table th:nth-child(3) {
+      width: 80px;
+    }
+
+    .health-table th:nth-child(4) {
+      width: 60px;
+    }
+
+    .health-table th:nth-child(5) {
+      width: 80px;
+    }
+
+    .health-table th:nth-child(6) {
+      width: 120px;
+    }
+
+    .health-table th:last-child {
+      width: 140px;
+    }
   }
 </style>
 
