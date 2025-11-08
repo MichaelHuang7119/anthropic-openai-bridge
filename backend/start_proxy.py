@@ -96,8 +96,8 @@ Examples:
     parser.add_argument(
         '--reload',
         action='store_true',
-        default=os.environ.get('RELOAD', 'true').lower() in ('true', '1', 'yes'),
-        help='Enable auto-reload on code changes (default: True)'
+        default=os.environ.get('RELOAD', 'false').lower() in ('true', '1', 'yes'),
+        help='Enable auto-reload on code changes (default: False, set RELOAD=true to enable)'
     )
     parser.add_argument(
         '--no-reload',

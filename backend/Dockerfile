@@ -32,5 +32,8 @@ RUN mkdir -p /app/logs
 # 暴露端口
 EXPOSE 8000
 
+# 设置环境变量：禁用自动重载（生产环境）
+ENV RELOAD=false
+
 # 启动命令
-CMD ["python", "start_proxy.py"]
+CMD ["python", "start_proxy.py", "--no-reload"]
