@@ -248,15 +248,27 @@ async def messages(request: Union[MessagesRequest, dict]):
                             # Success, break out of retry loop
                             break
                             
-                        except (httpx.ReadTimeout, httpx.TimeoutException, APIConnectionError) as e:
+                        except (httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, APIConnectionError) as e:
                             retry_count += 1
                             
                             if retry_count <= max_retries:
                                 # Calculate delay with exponential backoff
                                 delay = min(1.0 * (2.0 ** (retry_count - 1)), 60.0)
+                                
+                                # Determine error type for better messaging
+                                if isinstance(e, (httpx.ConnectTimeout, httpx.PoolTimeout)):
+                                    error_type = "connection_timeout"
+                                    error_msg = f"Unable to connect to provider '{provider_config.name}'. Connection timeout. Retrying in {delay:.0f}s... (attempt {retry_count}/{max_retries + 1})"
+                                elif isinstance(e, (httpx.ReadTimeout, httpx.TimeoutException)):
+                                    error_type = "read_timeout"
+                                    error_msg = f"Request timeout for provider '{provider_config.name}'. Retrying in {delay:.0f}s... (attempt {retry_count}/{max_retries + 1})"
+                                else:
+                                    error_type = "connection_error"
+                                    error_msg = f"Connection error to provider '{provider_config.name}'. Retrying in {delay:.0f}s... (attempt {retry_count}/{max_retries + 1})"
+                                
                                 logger.warning(
                                     f"Streaming error for provider '{provider_config.name}' "
-                                    f"(attempt {retry_count}/{max_retries + 1}): {type(e).__name__}. "
+                                    f"(attempt {retry_count}/{max_retries + 1}): {type(e).__name__}: {e}. "
                                     f"Retrying in {delay:.2f}s..."
                                 )
                                 
@@ -264,11 +276,12 @@ async def messages(request: Union[MessagesRequest, dict]):
                                 retry_notification = {
                                     "type": "error",
                                     "error": {
-                                        "type": "retry_notification",
-                                        "message": f"Connection error, retrying... (attempt {retry_count}/{max_retries + 1})",
+                                        "type": error_type,
+                                        "message": error_msg,
                                         "provider": provider_config.name,
                                         "retry_count": retry_count,
-                                        "max_retries": max_retries + 1
+                                        "max_retries": max_retries + 1,
+                                        "retry_delay": delay
                                     }
                                 }
                                 yield f"data: {json.dumps(retry_notification)}\n\n"
@@ -281,6 +294,36 @@ async def messages(request: Union[MessagesRequest, dict]):
                                     f"All retry attempts exhausted for provider '{provider_config.name}'. "
                                     f"Last error: {type(e).__name__}: {e}"
                                 )
+                                
+                                # Send final error to client
+                                if isinstance(e, (httpx.ConnectTimeout, httpx.PoolTimeout)):
+                                    final_error = {
+                                        "type": "error",
+                                        "error": {
+                                            "type": "connection_timeout",
+                                            "message": f"Unable to connect to provider '{provider_config.name}' after {max_retries + 1} attempts. Please check your network connection and provider configuration.",
+                                            "provider": provider_config.name
+                                        }
+                                    }
+                                elif isinstance(e, (httpx.ReadTimeout, httpx.TimeoutException)):
+                                    final_error = {
+                                        "type": "error",
+                                        "error": {
+                                            "type": "timeout_error",
+                                            "message": f"Request timeout for provider '{provider_config.name}' after {max_retries + 1} attempts. The request took too long to respond.",
+                                            "provider": provider_config.name
+                                        }
+                                    }
+                                else:
+                                    final_error = {
+                                        "type": "error",
+                                        "error": {
+                                            "type": "connection_error",
+                                            "message": f"Connection error to provider '{provider_config.name}' after {max_retries + 1} attempts: {str(e)}",
+                                            "provider": provider_config.name
+                                        }
+                                    }
+                                yield f"data: {json.dumps(final_error)}\n\n"
                                 raise
                         except Exception as e:
                             # For other exceptions, check if retryable
@@ -304,6 +347,17 @@ async def messages(request: Union[MessagesRequest, dict]):
                         "error": {
                             "type": "rate_limit_error",
                             "message": f"Rate limit exceeded for provider '{provider_config.name}'. Please try again later.",
+                            "provider": provider_config.name
+                        }
+                    }
+                    yield f"data: {json.dumps(error_response)}\n\n"
+                except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+                    logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
+                    error_response = {
+                        "type": "error",
+                        "error": {
+                            "type": "connection_timeout",
+                            "message": f"Unable to connect to provider '{provider_config.name}'. Connection timeout. Please check your network connection and provider configuration.",
                             "provider": provider_config.name
                         }
                     }
@@ -426,7 +480,7 @@ async def messages(request: Union[MessagesRequest, dict]):
                     initial_delay=1.0,
                     max_delay=60.0,
                     exponential_base=2.0,
-                    retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, APIConnectionError),
+                    retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, APIConnectionError),
                     provider_name=provider_config.name
                 )
             except RateLimitError as e:
@@ -436,6 +490,16 @@ async def messages(request: Union[MessagesRequest, dict]):
                     detail={
                         "type": "rate_limit_error",
                         "message": f"Rate limit exceeded for provider '{provider_config.name}'. Please try again later.",
+                        "provider": provider_config.name
+                    }
+                )
+            except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+                logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "type": "connection_timeout",
+                        "message": f"Unable to connect to provider '{provider_config.name}'. Connection timeout. Please check your network connection and provider configuration.",
                         "provider": provider_config.name
                     }
                 )
