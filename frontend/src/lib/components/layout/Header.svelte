@@ -86,8 +86,6 @@
   }
 
   .theme-toggle {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
     padding: 0.5rem;
     border-radius: 0.375rem;
     cursor: pointer;
@@ -97,11 +95,17 @@
     min-width: 2.5rem;
     height: 2.5rem;
     transition: all 0.2s;
+    background: transparent;
+    border: none;
   }
 
   .theme-toggle:hover {
-    background: var(--bg-secondary);
+    background: rgba(127, 127, 127, 0.1);
     transform: scale(1.05);
+  }
+
+  :global([data-theme="dark"]) .theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .theme-icon {
