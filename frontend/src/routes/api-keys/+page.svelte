@@ -1,16 +1,26 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { onDestroy } from 'svelte';
-  import { browser } from '$app/environment';
-  import Button from '$components/ui/Button.svelte';
-  import Card from '$components/ui/Card.svelte';
-  import Badge from '$components/ui/Badge.svelte';
-  import Input from '$components/ui/Input.svelte';
-  import { apiKeysService } from '$services/apiKeys';
-  import { toast } from '$stores/toast';
-  import { saveFullApiKey, getFullApiKey, hasFullApiKey, removeFullApiKey } from '$services/apiKeyStorage';
-  import type { APIKey, CreateAPIKeyRequest, UpdateAPIKeyRequest } from '$types/apiKey';
-  import type { APIKeyListResponse } from '$services/apiKeys';
+  import { onMount } from "svelte";
+  import { onDestroy } from "svelte";
+  import { browser } from "$app/environment";
+  import { tick } from "svelte";
+  import Button from "$components/ui/Button.svelte";
+  import Card from "$components/ui/Card.svelte";
+  import Badge from "$components/ui/Badge.svelte";
+  import Input from "$components/ui/Input.svelte";
+  import { apiKeysService } from "$services/apiKeys";
+  import { toast } from "$stores/toast";
+  import {
+    saveFullApiKey,
+    getFullApiKey,
+    hasFullApiKey,
+    removeFullApiKey,
+  } from "$services/apiKeyStorage";
+  import type {
+    APIKey,
+    CreateAPIKeyRequest,
+    UpdateAPIKeyRequest,
+  } from "$types/apiKey";
+  import type { APIKeyListResponse } from "$services/apiKeys";
 
   let loading = true;
   let apiKeys: APIKey[] = [];
@@ -18,35 +28,35 @@
   let showCreateForm = false;
   let editingKey: APIKey | null = null;
   let saving = false;
-  let newKey: CreateAPIKeyRequest = { name: '' };
+  let newKey: CreateAPIKeyRequest = { name: "" };
   let editForm: UpdateAPIKeyRequest = {};
-  let createdApiKey: string | null = null; // 存储新创建的完整 API Key
-  let copySuccess = false;
-  
-  
+  let expandedKeyIds: Set<string> = new Set(); // 存储已展开显示完整Key的ID
+  let fullApiKeysCache: Record<number, string> = {}; // 缓存完整 API Key（使用对象而不是Map）
+  let loadingFullKeys: Set<number> = new Set(); // 正在加载完整 Key 的 ID 集合
+
   // 筛选和分页（响应式）
   $: filteredAPIKeys = (() => {
     let filtered = allAPIKeysData;
-    
+
     // 搜索过滤
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(key => 
-        key.name.toLowerCase().includes(query)
+      filtered = filtered.filter((key) =>
+        key.name.toLowerCase().includes(query),
       );
     }
-    
+
     // 状态过滤
-    if (filterStatus === 'active') {
-      filtered = filtered.filter(key => key.is_active);
-    } else if (filterStatus === 'inactive') {
-      filtered = filtered.filter(key => !key.is_active);
+    if (filterStatus === "active") {
+      filtered = filtered.filter((key) => key.is_active);
+    } else if (filterStatus === "inactive") {
+      filtered = filtered.filter((key) => !key.is_active);
     }
-    
+
     // 更新分页信息
     totalCount = filtered.length;
     totalPages = Math.ceil(totalCount / pageSize);
-    
+
     // 确保当前页在有效范围内
     if (totalPages === 0) {
       currentPage = 1;
@@ -55,30 +65,30 @@
     } else if (currentPage < 1) {
       currentPage = 1;
     }
-    
+
     // 分页切片
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
     return filtered.slice(start, end);
   })();
-  
+
   // 当前页显示的数据（响应式）
   $: apiKeys = filteredAPIKeys;
-  
+
   // 分页相关
   let currentPage = 1;
   const pageSize = 5;
   let totalPages = 1;
   let totalCount = 0;
   let loadingKeys = false;
-  
+
   // 筛选相关
-  let searchQuery = '';
-  let filterStatus: 'all' | 'active' | 'inactive' = 'all';
-  
+  let searchQuery = "";
+  let filterStatus: "all" | "active" | "inactive" = "all";
+
   // 防抖定时器
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  
+
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
 
@@ -88,7 +98,7 @@
       abortController.abort();
       abortController = null;
     }
-    
+
     // 清理防抖定时器
     if (debounceTimer) {
       clearTimeout(debounceTimer);
@@ -102,7 +112,7 @@
       await loadAPIKeys();
     } catch (error) {
       // 忽略取消错误
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
       throw error;
@@ -116,30 +126,32 @@
       // 加载所有数据（使用较大的 limit）
       const params: any = {
         limit: 1000, // 加载更多数据以支持客户端分页
-        offset: 0
+        offset: 0,
       };
-      
+
       // 注意：搜索和状态筛选改为客户端处理，不发送到服务器
       // 这样可以支持客户端实时搜索和分页
-      
-      const result = await apiKeysService.getAll(params, { signal: abortController.signal });
-      
+
+      const result = await apiKeysService.getAll(params, {
+        signal: abortController.signal,
+      });
+
       // 检查是否已被取消
       if (abortController.signal.aborted) return;
-      
-      console.debug('[API Keys] Response:', result);
+
+      console.debug("[API Keys] Response:", result);
       allAPIKeysData = Array.isArray(result?.data) ? result.data : [];
-      
-      console.debug('[API Keys] Loaded:', allAPIKeysData.length, 'keys');
-      
+
+      console.debug("[API Keys] Loaded:", allAPIKeysData.length, "keys");
+
       // 响应式语句会自动更新 filteredAPIKeys、totalCount、totalPages 和 apiKeys
     } catch (error) {
       // 忽略取消错误
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
-      console.error('Failed to load API keys:', error);
-      toast.error('加载 API Key 列表失败');
+      console.error("Failed to load API keys:", error);
+      toast.error("加载 API Key 列表失败");
       // 确保 allAPIKeysData 始终是数组
       allAPIKeysData = [];
     } finally {
@@ -174,21 +186,20 @@
   }
 
   function clearFilters() {
-    searchQuery = '';
-    filterStatus = 'all';
+    searchQuery = "";
+    filterStatus = "all";
     currentPage = 1;
     // 不需要重新加载数据，响应式语句会自动更新
   }
 
   function handleCreate() {
-    newKey = { name: '' };
-    createdApiKey = null;
+    newKey = { name: "" };
     showCreateForm = true;
   }
 
   async function handleSaveCreate() {
     if (!newKey.name.trim()) {
-      toast.error('请输入用户名');
+      toast.error("请输入用户名");
       return;
     }
 
@@ -196,21 +207,21 @@
     try {
       // 构建请求数据
       const requestData: CreateAPIKeyRequest = {
-        name: newKey.name.trim()
+        name: newKey.name.trim(),
       };
-      
-      console.log('Sending request:', requestData);
+
+      console.log("Sending request:", requestData);
       const response = await apiKeysService.create(requestData);
-      createdApiKey = response.api_key; // 保存完整 Key（只在创建时显示）
       // 保存完整 key 到 localStorage
       saveFullApiKey(response.id, response.api_key);
-      toast.success('API Key 创建成功');
+      toast.success("API Key 创建成功");
       await loadAPIKeys();
-      // 不关闭表单，让用户复制 Key
+      handleCloseCreateForm();
     } catch (error) {
-      console.error('Failed to create API key:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error('创建失败: ' + errorMessage);
+      console.error("Failed to create API key:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      toast.error("创建失败: " + errorMessage);
     } finally {
       saving = false;
     }
@@ -218,15 +229,14 @@
 
   function handleCloseCreateForm() {
     showCreateForm = false;
-    createdApiKey = null;
-    newKey = { name: '' };
+    newKey = { name: "" };
   }
 
   function handleEdit(key: APIKey) {
     editingKey = key;
     editForm = {
       name: key.name,
-      is_active: key.is_active
+      is_active: key.is_active,
     };
   }
 
@@ -243,26 +253,27 @@
       // 构建请求数据
       const requestData: UpdateAPIKeyRequest = {
         name: editForm.name,
-        is_active: editForm.is_active
+        is_active: editForm.is_active,
       };
-      
+
       await apiKeysService.update(editingKey.id, requestData);
-      toast.success('更新成功');
+      toast.success("更新成功");
       await loadAPIKeys();
       handleCancelEdit();
     } catch (error) {
-      console.error('Failed to update API key:', error);
-      toast.error('更新失败: ' + (error as Error).message);
+      console.error("Failed to update API key:", error);
+      toast.error("更新失败: " + (error as Error).message);
     } finally {
       saving = false;
     }
   }
 
   async function handleDelete(key: APIKey) {
-    const message = `确定要删除 API Key "${key.name}" 吗？\n\n` +
+    const message =
+      `确定要删除 API Key "${key.name}" 吗？\n\n` +
       `删除后该 Key 将立即失效，且无法恢复。\n` +
       `如果 Key 已丢失，删除后可以重新创建。`;
-    
+
     if (!confirm(message)) {
       return;
     }
@@ -271,56 +282,48 @@
       await apiKeysService.delete(key.id);
       // 删除 localStorage 中保存的完整 key
       removeFullApiKey(key.id);
-      toast.success('删除成功');
+      toast.success("删除成功");
       await loadAPIKeys();
     } catch (error) {
-      console.error('Failed to delete API key:', error);
-      toast.error('删除失败: ' + (error as Error).message);
+      console.error("Failed to delete API key:", error);
+      toast.error("删除失败: " + (error as Error).message);
     }
   }
 
   async function handleToggleActive(key: APIKey) {
     try {
       await apiKeysService.update(key.id, { is_active: !key.is_active });
-      toast.success(key.is_active ? '已禁用' : '已启用');
+      toast.success(key.is_active ? "已禁用" : "已启用");
       await loadAPIKeys();
     } catch (error) {
-      console.error('Failed to toggle API key status:', error);
-      toast.error('操作失败: ' + (error as Error).message);
+      console.error("Failed to toggle API key status:", error);
+      toast.error("操作失败: " + (error as Error).message);
     }
   }
 
   async function copyToClipboard(text: string) {
     if (!browser) return;
-    
+
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        copySuccess = true;
-        toast.success('已复制到剪贴板');
-        setTimeout(() => {
-          copySuccess = false;
-        }, 2000);
+        toast.success("已复制到剪贴板");
       } else {
         // 降级方案
-        const textArea = document.createElement('textarea');
+        const textArea = document.createElement("textarea");
         textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        document.execCommand('copy');
+        document.execCommand("copy");
         document.body.removeChild(textArea);
-        copySuccess = true;
-        toast.success('已复制到剪贴板');
-        setTimeout(() => {
-          copySuccess = false;
-        }, 2000);
+        toast.success("已复制到剪贴板");
       }
     } catch (error) {
-      console.error('Failed to copy:', error);
-      toast.error('复制失败，请手动复制');
+      console.error("Failed to copy:", error);
+      toast.error("复制失败，请手动复制");
     }
   }
 
@@ -328,44 +331,140 @@
    * 复制完整 API Key
    */
   async function copyFullKey(key: APIKey) {
-    const fullKey = getFullApiKey(key.id);
+    const fullKey = await ensureFullApiKey(key.id);
     if (!fullKey) {
-      toast.error('无法获取完整 Key。如果 Key 已丢失，请删除后重新创建。');
+      toast.error("无法获取完整 Key。如果 Key 已丢失，请删除后重新创建。");
       return;
     }
     await copyToClipboard(fullKey);
   }
 
+  /**
+   * 确保获取完整的 API Key（优先使用缓存，否则从后端获取）
+   * @param keyId API Key ID
+   * @returns 完整的 API Key
+   */
+  async function ensureFullApiKey(keyId: number): Promise<string | null> {
+    // 优先使用内存缓存
+    if (fullApiKeysCache[keyId]) {
+      return fullApiKeysCache[keyId];
+    }
+
+    // 尝试从 localStorage 或后端获取
+    const fullKey = await getFullApiKey(keyId);
+    if (fullKey) {
+      // 保存到内存缓存
+      fullApiKeysCache[keyId] = fullKey;
+      // 创建新对象以触发响应式更新
+      fullApiKeysCache = { ...fullApiKeysCache };
+      // 等待 DOM 更新
+      await tick();
+    }
+    return fullKey;
+  }
+
+  /**
+   * 检查是否有完整 API Key（使用本地检查）
+   * @param keyId API Key ID
+   * @returns 是否有完整 API Key
+   */
+  function hasFullKeyLocal(keyId: number): boolean {
+    return !!fullApiKeysCache[keyId] || hasFullApiKey(keyId);
+  }
+
+  /**
+   * 切换展开/收起完整 Key 显示
+   */
+  async function toggleExpanded(keyId: string) {
+    const keyIdNum = parseInt(keyId);
+
+    if (expandedKeyIds.has(keyId)) {
+      // 收起
+      expandedKeyIds.delete(keyId);
+    } else {
+      // 展开
+      expandedKeyIds.add(keyId);
+
+      // 如果没有完整 Key，则异步获取
+      if (!fullApiKeysCache[keyIdNum]) {
+        loadingFullKeys.add(keyIdNum);
+        loadingFullKeys = new Set(loadingFullKeys); // 触发响应式更新
+
+        try {
+          await ensureFullApiKey(keyIdNum);
+        } finally {
+          loadingFullKeys.delete(keyIdNum);
+          loadingFullKeys = new Set(loadingFullKeys); // 触发响应式更新
+        }
+      }
+    }
+    // 强制更新
+    expandedKeyIds = new Set(expandedKeyIds);
+  }
+
+  /**
+   * 获取显示的 API Key 文本（完整或前缀）
+   * 响应式函数，当依赖项变化时会自动重新计算
+   */
+  $: getDisplayKeyText = (keyId: number, keyPrefix: string) => {
+    const keyIdStr = keyId.toString();
+
+    if (expandedKeyIds.has(keyIdStr)) {
+      // 如果正在加载，显示加载状态
+      if (loadingFullKeys.has(keyId)) {
+        return "正在加载...";
+      }
+
+      // 如果已展开，优先使用内存缓存
+      const cachedKey = fullApiKeysCache[keyId];
+      if (cachedKey) {
+        return cachedKey;
+      }
+
+      // 如果内存缓存中没有，尝试从 localStorage 获取
+      if (typeof localStorage !== "undefined") {
+        const localKey = localStorage.getItem(`api_key_full_${keyId}`);
+        if (localKey) {
+          return localKey;
+        }
+      }
+
+      // 如果都没有，返回前缀（稍后会通过异步加载更新）
+      return keyPrefix + "...";
+    }
+    return keyPrefix + "...";
+  };
+
   function formatDate(dateStr?: string): string {
-    if (!dateStr) return '-';
+    if (!dateStr) return "-";
     try {
       // SQLite 返回的时间格式通常是 "YYYY-MM-DD HH:MM:SS"，没有时区信息
       // 假设它是 UTC 时间，添加 'Z' 后缀以确保正确解析
       let dateStrToParse = dateStr;
       if (dateStr.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
         // 格式为 "YYYY-MM-DD HH:MM:SS"，假设是 UTC 时间
-        dateStrToParse = dateStr.replace(' ', 'T') + 'Z';
+        dateStrToParse = dateStr.replace(" ", "T") + "Z";
       } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
         // 格式为 "YYYY-MM-DDTHH:MM:SS"，假设是 UTC 时间
-        dateStrToParse = dateStr + 'Z';
+        dateStrToParse = dateStr + "Z";
       }
-      
+
       const date = new Date(dateStrToParse);
-      
+
       // 检查日期是否有效
       if (isNaN(date.getTime())) {
         return dateStr; // 如果日期无效，返回原始字符串
       }
-      
+
       // 使用明确的时区和格式选项
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      return date.toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
     } catch {
       return dateStr;
@@ -376,7 +475,17 @@
 <div class="container">
   <div class="page-header">
     <Button on:click={handleCreate} title="创建 API Key" class="icon-button">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
         <line x1="12" y1="5" x2="12" y2="19"></line>
         <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>
@@ -400,17 +509,28 @@
               placeholder="搜索用户名..."
             />
           </div>
-          
+
           <div class="filter-group">
             <label for="api-key-filter-status">状态:</label>
-            <select id="api-key-filter-status" class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
+            <select
+              id="api-key-filter-status"
+              class="filter-select"
+              bind:value={filterStatus}
+              on:change={handleFilterChange}
+            >
               <option value="all">全部</option>
               <option value="active">已启用</option>
               <option value="inactive">已禁用</option>
             </select>
           </div>
-          
-          <Button variant="secondary" size="sm" on:click={clearFilters} title="清除筛选" class="clear-button">
+
+          <Button
+            variant="secondary"
+            size="sm"
+            on:click={clearFilters}
+            title="清除筛选"
+            class="clear-button"
+          >
             清除
           </Button>
         </div>
@@ -439,132 +559,265 @@
             </thead>
             <tbody>
               {#each apiKeys as key}
-              <tr class={!key.is_active ? 'disabled-row' : ''}>
-                <td class="name-cell">
-                  {#if editingKey?.id === key.id}
-                    <Input
-                      type="text"
-                      bind:value={editForm.name}
-                      placeholder="用户"
-                    />
-                  {:else}
-                    <span class="key-name">{key.name}</span>
-                  {/if}
-                </td>
-                <td class="prefix-cell">
-                  <div class="key-display-wrapper">
-                    <code class="key-prefix">{key.key_prefix}</code>
-                    {#if hasFullApiKey(key.id)}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        on:click={() => copyFullKey(key)}
-                        title="复制完整 Key"
-                        class="icon-button copy-button"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </Button>
+                <tr class={!key.is_active ? "disabled-row" : ""}>
+                  <td class="name-cell">
+                    {#if editingKey?.id === key.id}
+                      <Input
+                        type="text"
+                        bind:value={editForm.name}
+                        placeholder="用户"
+                      />
                     {:else}
-                      <span class="key-unavailable" title="完整 Key 不可用，如果 Key 已丢失，请删除后重新创建">⚠️</span>
+                      <span class="key-name">{key.name}</span>
                     {/if}
-                  </div>
-                </td>
-                <td class="status-cell">
-                  {#if editingKey?.id === key.id}
-                    <label class="toggle-switch">
-                      <input
-                        type="checkbox"
-                        bind:checked={editForm.is_active}
-                      />
-                      <span class="toggle-slider"></span>
-                    </label>
-                  {:else}
-                    <label class="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={key.is_active}
-                        on:change={() => handleToggleActive(key)}
-                      />
-                      <span class="toggle-slider"></span>
-                    </label>
-                  {/if}
-                </td>
-                <td class="date-cell">
-                  <span class="date-text">{formatDate(key.created_at)}</span>
-                </td>
-                <td class="date-cell">
-                  <span class="date-text">{formatDate(key.last_used_at)}</span>
-                </td>
-                <td class="actions-cell">
-                  {#if editingKey?.id === key.id}
-                    <div class="edit-actions">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={saving}
-                        on:click={handleSaveEdit}
-                        title={saving ? '保存中...' : '保存'}
-                        class="icon-button"
+                  </td>
+                  <td class="prefix-cell">
+                    <div class="key-display-wrapper">
+                      <div
+                        class="key-prefix-container"
+                        title={expandedKeyIds.has(key.id.toString())
+                          ? "可使用左右方向键或鼠标拖动查看完整 Key"
+                          : ""}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                          <polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={saving}
-                        on:click={handleCancelEdit}
-                        title="取消"
-                        class="icon-button"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </Button>
+                        <code
+                          class="key-prefix {expandedKeyIds.has(
+                            key.id.toString(),
+                          )
+                            ? 'expanded'
+                            : ''}"
+                          tabindex="0"
+                        >
+                          {getDisplayKeyText(key.id, key.key_prefix)}
+                        </code>
+                      </div>
+                      {#if hasFullKeyLocal(key.id)}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          on:click={() => toggleExpanded(key.id.toString())}
+                          title={expandedKeyIds.has(key.id.toString())
+                            ? "收起"
+                            : "查看完整 Key"}
+                          class="icon-button eye-button"
+                        >
+                          {#if expandedKeyIds.has(key.id.toString())}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path
+                                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                              ></path>
+                              <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                          {:else}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path
+                                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                              ></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          {/if}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          on:click={() => copyFullKey(key)}
+                          title="复制完整 Key"
+                          class="icon-button copy-button"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <rect
+                              x="9"
+                              y="9"
+                              width="13"
+                              height="13"
+                              rx="2"
+                              ry="2"
+                            ></rect>
+                            <path
+                              d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                            ></path>
+                          </svg>
+                        </Button>
+                      {:else}
+                        <span
+                          class="key-unavailable"
+                          title="完整 Key 不可用，如果 Key 已丢失，请删除后重新创建"
+                          >⚠️</span
+                        >
+                      {/if}
                     </div>
-                  {:else}
-                    <div class="actions-wrapper">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        on:click={() => handleEdit(key)}
-                        title="编辑"
-                        class="icon-button"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        on:click={() => handleDelete(key)}
-                        title="删除"
-                        class="icon-button"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          <line x1="10" y1="11" x2="10" y2="17"></line>
-                          <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                      </Button>
-                    </div>
-                  {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+                  </td>
+                  <td class="status-cell">
+                    {#if editingKey?.id === key.id}
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          bind:checked={editForm.is_active}
+                        />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    {:else}
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={key.is_active}
+                          on:change={() => handleToggleActive(key)}
+                        />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    {/if}
+                  </td>
+                  <td class="date-cell">
+                    <span class="date-text">{formatDate(key.created_at)}</span>
+                  </td>
+                  <td class="date-cell">
+                    <span class="date-text">{formatDate(key.last_used_at)}</span
+                    >
+                  </td>
+                  <td class="actions-cell">
+                    {#if editingKey?.id === key.id}
+                      <div class="edit-actions">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={saving}
+                          on:click={handleSaveEdit}
+                          title={saving ? "保存中..." : "保存"}
+                          class="icon-button"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                            ></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                          </svg>
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={saving}
+                          on:click={handleCancelEdit}
+                          title="取消"
+                          class="icon-button"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </Button>
+                      </div>
+                    {:else}
+                      <div class="actions-wrapper">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          on:click={() => handleEdit(key)}
+                          title="编辑"
+                          class="icon-button"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                            ></path>
+                            <path
+                              d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                            ></path>
+                          </svg>
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          on:click={() => handleDelete(key)}
+                          title="删除"
+                          class="icon-button"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path
+                              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                            ></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                        </Button>
+                      </div>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       {/if}
 
       <!-- 分页控件 -->
@@ -574,28 +827,48 @@
             共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页
           </div>
           <div class="pagination-controls">
-            <Button 
-              variant="secondary" 
-              size="sm" 
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={currentPage === 1 || loadingKeys}
               on:click={() => handlePageChange(currentPage - 1)}
               title="上一页"
               class="icon-button"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </Button>
             <span class="page-info">{currentPage} / {totalPages}</span>
-            <Button 
-              variant="secondary" 
-              size="sm" 
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={currentPage === totalPages || loadingKeys}
               on:click={() => handlePageChange(currentPage + 1)}
               title="下一页"
               class="icon-button"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </Button>
@@ -611,111 +884,78 @@
   <div class="modal-overlay" on:click={handleCloseCreateForm}>
     <div class="modal-content" on:click|stopPropagation>
       <h2>创建 API Key</h2>
-      
-      {#if createdApiKey}
-        <div class="created-key-section">
-          <div class="warning-box">
-            <p><strong>⚠️ 重要提示</strong></p>
-            <p>API Key 创建后无法再次查看完整 Key，请立即复制并妥善保管！</p>
-            <p style="margin-top: 0.5rem; font-size: 0.8125rem;">关闭此窗口后，您将无法再次查看此 Key。如果丢失，需要删除后重新创建。</p>
-          </div>
-          <div class="key-display">
-            <label for="created-api-key">API Key：</label>
-            <div class="key-input-wrapper">
-              <code id="created-api-key" class="full-key">{createdApiKey}</code>
-              <Button
-                variant="secondary"
-                size="sm"
-                on:click={() => copyToClipboard(createdApiKey!)}
-                title={copySuccess ? '已复制' : '复制'}
-                class="icon-button"
-              >
-                {#if copySuccess}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                {:else}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                {/if}
-              </Button>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <Button 
-              variant="secondary" 
-              on:click={() => {
-                if (confirm('确定要关闭吗？关闭后将无法再次查看此 API Key。')) {
-                  handleCloseCreateForm();
-                }
-              }}
-              title="我已复制，关闭"
-              class="icon-button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </Button>
-            <Button variant="primary" on:click={handleCloseCreateForm} title="完成" class="icon-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            </Button>
-          </div>
+
+      <form on:submit|preventDefault={handleSaveCreate} class="create-form">
+        <div class="info-box">
+          <p><strong>💡 提示</strong></p>
+          <p>
+            API Key 将由系统自动生成（格式：sk-前缀 + 64个字符），您只需为此 Key
+            起个用户名即可。
+          </p>
         </div>
-      {:else}
-        <form on:submit|preventDefault={handleSaveCreate} class="create-form">
-          <div class="info-box">
-            <p><strong>💡 提示</strong></p>
-            <p>API Key 将由系统自动生成（格式：sk-前缀 + 64个字符），您只需为此 Key 起个用户名即可。</p>
-          </div>
 
-          <div class="form-group">
-            <label for="key-name">
-              用户 <span class="required">*</span>
-            </label>
-            <Input
-              id="key-name"
-              type="text"
-              bind:value={newKey.name}
-              placeholder="例如：Alice"
-              required
-            />
-            <p class="form-hint">用于标识此 API Key 所属用户</p>
-          </div>
+        <div class="form-group">
+          <label for="key-name">
+            用户 <span class="required">*</span>
+          </label>
+          <Input
+            id="key-name"
+            type="text"
+            bind:value={newKey.name}
+            placeholder="例如：Alice"
+            required
+          />
+          <p class="form-hint">用于标识此 API Key 所属用户</p>
+        </div>
 
-          <div class="modal-actions">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={saving}
-              title={saving ? '创建中...' : '创建'}
-              class="icon-button"
+        <div class="modal-actions">
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={saving}
+            title={saving ? "创建中..." : "创建"}
+            class="icon-button"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={saving}
-              on:click={handleCloseCreateForm}
-              title="取消"
-              class="icon-button"
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving}
+            on:click={handleCloseCreateForm}
+            title="取消"
+            class="icon-button"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </Button>
-          </div>
-        </form>
-      {/if}
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </Button>
+        </div>
+      </form>
     </div>
   </div>
 {/if}
@@ -772,7 +1012,7 @@
     min-width: 250px;
     flex: 1;
   }
-  
+
   .filter-group.search-group :global(input) {
     width: 100%;
     height: 2.5rem;
@@ -891,14 +1131,35 @@
   }
 
   .prefix-cell {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-    min-width: 300px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", "Consolas", monospace;
+    min-width: 280px;
+    width: 280px; /* 固定宽度，刚好容纳前缀 + 省略号 */
   }
 
   .key-display-wrapper {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    width: 100%;
+  }
+
+  .key-prefix-container {
+    /* 固定宽度容器 */
+    width: 180px;
+    /* 隐藏溢出内容 */
+    overflow: hidden;
+    /* 支持水平滚动 */
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* 隐藏滚动条（Firefox） */
+    scrollbar-width: none;
+    /* 隐藏滚动条（IE 和 Edge） */
+    -ms-overflow-style: none;
+  }
+
+  /* 隐藏滚动条（Chrome、Safari） */
+  .key-prefix-container::-webkit-scrollbar {
+    display: none;
   }
 
   .key-prefix {
@@ -907,16 +1168,19 @@
     border-radius: 0.25rem;
     font-size: 0.8125rem;
     color: var(--text-primary, #495057);
-    flex: 1;
-    min-width: 0;
+    /* 始终单行显示，隐藏时使用省略号 */
+    white-space: nowrap;
+    /* 未展开时显示省略号 */
+    text-overflow: ellipsis;
+    /* 强制固定宽度，与容器保持一致 */
+    width: 100%;
+    display: inline-block;
+    box-sizing: border-box;
   }
 
-  .copy-button {
-    padding: 0.375rem;
-    min-width: auto;
-    width: auto;
-    height: auto;
-    flex-shrink: 0;
+  /* 当 key 被展开时，不使用省略号，但仍然单行显示 */
+  .key-prefix.expanded {
+    text-overflow: clip; /* 移除省略号，显示完整内容 */
   }
 
   .key-unavailable {
@@ -961,26 +1225,6 @@
     gap: 0.25rem;
   }
 
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  /* 隐藏图标按钮中的文字节点 */
-  .icon-button :global(span),
-  .icon-button :global(text) {
-    display: none !important;
-  }
-
   /* 启用/禁用按钮特殊样式 */
   :global(.toggle-active-button.toggle-active) {
     background: var(--danger-color, #dc3545) !important;
@@ -998,7 +1242,8 @@
     opacity: 0.9;
   }
 
-  :global([data-theme="dark"]) :global(.toggle-active-button.toggle-active:hover:not(:disabled)) {
+  :global([data-theme="dark"])
+    :global(.toggle-active-button.toggle-active:hover:not(:disabled)) {
     background: #f85149 !important;
   }
 
@@ -1023,7 +1268,8 @@
     border: 1px solid var(--success-color, #28a745) !important;
   }
 
-  :global([data-theme="dark"]) :global(.toggle-active-button.toggle-inactive:hover:not(:disabled)) {
+  :global([data-theme="dark"])
+    :global(.toggle-active-button.toggle-inactive:hover:not(:disabled)) {
     background: #238636 !important;
     border-color: #238636 !important;
     border: 1px solid #238636 !important;
@@ -1206,71 +1452,6 @@
     margin-top: 1rem;
   }
 
-  .created-key-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .warning-box {
-    padding: 1rem;
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    border-radius: 0.5rem;
-    border-left: 4px solid #ffc107;
-  }
-
-  :global([data-theme="dark"]) .warning-box {
-    background: rgba(210, 153, 34, 0.15);
-    border-color: rgba(210, 153, 34, 0.4);
-    border-left-color: #d29922;
-  }
-
-  .warning-box p {
-    margin: 0.5rem 0;
-    font-size: 0.875rem;
-    color: #856404;
-  }
-
-  :global([data-theme="dark"]) .warning-box p {
-    color: var(--text-primary);
-  }
-
-  .warning-box p:first-child {
-    margin-top: 0;
-    font-weight: 600;
-  }
-
-  .key-display {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .key-display label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-primary, #1a1a1a);
-  }
-
-  .key-input-wrapper {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .full-key {
-    flex: 1;
-    background: var(--bg-tertiary, #f8f9fa);
-    padding: 0.75rem;
-    border-radius: 0.25rem;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-    font-size: 0.875rem;
-    word-break: break-all;
-    border: 1px solid var(--border-color, #dee2e6);
-    color: var(--text-primary, #1a1a1a);
-  }
-
   @media (max-width: 768px) {
     .container {
       padding: 1rem;
@@ -1285,9 +1466,24 @@
       gap: 0.25rem;
     }
 
-    .key-input-wrapper {
-      flex-direction: column;
-      align-items: stretch;
+    .prefix-cell {
+      min-width: 260px;
+      width: 260px; /* 移动端稍微缩小 */
+    }
+
+    .key-prefix-container {
+      width: 260px;
+      min-width: 260px;
+      max-width: 260px;
+    }
+
+    .key-prefix {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      /* 强制固定宽度，与容器保持一致 */
+      width: 100%;
+      display: inline-block;
+      box-sizing: border-box;
     }
   }
 </style>

@@ -9,6 +9,7 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pathlib import Path
+from cryptography.fernet import Fernet
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ class DatabaseManager:
             os.makedirs(db_dir, exist_ok=True)
 
         self.db_path = db_path
+        # 初始化加密器
+        self._init_encryption()
         self._init_database()
 
     def _get_connection(self):
@@ -39,6 +42,32 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row  # Enable column access by name
         return conn
+
+    def _init_encryption(self):
+        """初始化加密功能"""
+        # 获取或创建加密密钥
+        key_file = Path(__file__).parent.parent / "data" / ".key"
+        if key_file.exists():
+            # 读取现有密钥
+            with open(key_file, 'rb') as f:
+                self.encryption_key = f.read()
+        else:
+            # 生成新密钥
+            self.encryption_key = Fernet.generate_key()
+            # 保存密钥文件（可选，如果设置了环境变量则使用环境变量）
+            env_key = os.getenv("ENCRYPTION_KEY")
+            if env_key:
+                self.encryption_key = env_key.encode()
+            else:
+                # 确保目录存在
+                key_file.parent.mkdir(parents=True, exist_ok=True)
+                # 保存密钥文件
+                with open(key_file, 'wb') as f:
+                    f.write(self.encryption_key)
+                # 设置文件权限（仅所有者可读写）
+                os.chmod(key_file, 0o600)
+
+        self.fernet = Fernet(self.encryption_key)
 
     def _init_database(self):
         """Initialize database schema."""
@@ -168,6 +197,7 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key_hash TEXT NOT NULL UNIQUE,
                 key_prefix TEXT NOT NULL,
+                encrypted_key TEXT,
                 name TEXT NOT NULL,
                 email TEXT,
                 user_id INTEGER,
@@ -178,6 +208,13 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
             )
         """)
+
+        # 检查并添加 encrypted_key 字段（如果不存在）
+        cursor.execute("PRAGMA table_info(api_keys)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'encrypted_key' not in columns:
+            cursor.execute("ALTER TABLE api_keys ADD COLUMN encrypted_key TEXT")
+            logger.info("Added encrypted_key column to api_keys table")
 
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash
@@ -619,6 +656,7 @@ class DatabaseManager:
         key_hash: str,
         key_prefix: str,
         name: str,
+        encrypted_key: Optional[str] = None,
         email: Optional[str] = None,
         user_id: Optional[int] = None
     ) -> Optional[int]:
@@ -628,9 +666,9 @@ class DatabaseManager:
             cursor = conn.cursor()
 
             cursor.execute("""
-                INSERT INTO api_keys (key_hash, key_prefix, name, email, user_id)
-                VALUES (?, ?, ?, ?, ?)
-            """, (key_hash, key_prefix, name, email, user_id))
+                INSERT INTO api_keys (key_hash, key_prefix, encrypted_key, name, email, user_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (key_hash, key_prefix, encrypted_key, name, email, user_id))
 
             api_key_id = cursor.lastrowid
             conn.commit()
@@ -812,6 +850,28 @@ class DatabaseManager:
             conn.close()
         except Exception as e:
             logger.error(f"Failed to update API key last used: {e}")
+
+    async def get_api_key_encrypted(self, api_key_id: int) -> Optional[Dict[str, Any]]:
+        """获取包含加密完整key的API Key信息"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT *
+                FROM api_keys
+                WHERE id = ?
+            """, (api_key_id,))
+
+            row = cursor.fetchone()
+            conn.close()
+
+            if row:
+                return dict(row)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get encrypted API key: {e}")
+            return None
 
 
 # Global database instance

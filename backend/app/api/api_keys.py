@@ -2,10 +2,12 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
+import logging
 
 from ..auth import require_admin, generate_api_key, hash_api_key, get_api_key_prefix
 from ..database import get_database
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/api-keys", tags=["api-keys"])
 
 
@@ -139,27 +141,38 @@ async def create_api_key(
 ):
     """创建新API Key（需要管理员权限）"""
     db = get_database()
-    
+
     # 生成新的API Key
     api_key = generate_api_key()
     key_hash = hash_api_key(api_key)
     key_prefix = get_api_key_prefix(api_key)
-    
+
+    # 加密完整 API Key
+    try:
+        encrypted_key = db.fernet.encrypt(api_key.encode()).decode()
+    except Exception as e:
+        logger.error(f"Failed to encrypt API key: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="加密 API Key 失败"
+        )
+
     # 创建API Key
     api_key_id = await db.create_api_key(
         key_hash=key_hash,
         key_prefix=key_prefix,
+        encrypted_key=encrypted_key,
         name=request.name,
         email=request.email.lower() if request.email else None,
         user_id=current_user.get("user_id")
     )
-    
+
     if not api_key_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create API key"
         )
-    
+
     return CreateAPIKeyResponse(
         id=api_key_id,
         api_key=api_key,  # 只在创建时返回完整Key
@@ -227,24 +240,67 @@ async def delete_api_key(
 ):
     """删除API Key（需要管理员权限）"""
     db = get_database()
-    
+
     # 检查API Key是否存在
     api_keys = await db.get_api_keys(limit=1000, offset=0)
     api_key = next((k for k in api_keys if k["id"] == api_key_id), None)
-    
+
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found"
         )
-    
+
     # 删除API Key
     success = await db.delete_api_key(api_key_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete API key"
         )
-    
+
     return {"message": "API key deleted successfully"}
+
+
+@router.get("/{api_key_id}/full", response_model=dict)
+async def get_full_api_key(
+    api_key_id: int,
+    current_user: dict = Depends(require_admin())
+):
+    """获取完整API Key（需要管理员权限，仅在需要时调用）"""
+    from ..database import get_database
+
+    db = get_database()
+
+    # 获取包含加密 key 的 API Key 信息
+    api_key = await db.get_api_key_encrypted(api_key_id)
+
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="API key not found"
+        )
+
+    # 检查是否存储了加密的完整 key
+    encrypted_key = api_key.get('encrypted_key')
+    if not encrypted_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="完整 API Key 不可用（可能是在更新前创建的）。如需要完整 Key，请删除后重新创建。"
+        )
+
+    try:
+        # 解密 API Key
+        decrypted_key = db.fernet.decrypt(encrypted_key.encode()).decode()
+        return {
+            "id": api_key_id,
+            "api_key": decrypted_key,
+            "key_prefix": api_key["key_prefix"]
+        }
+    except Exception as e:
+        logger.error(f"Failed to decrypt API key: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="解密 API Key 失败"
+        )
