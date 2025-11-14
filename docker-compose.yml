@@ -18,7 +18,7 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       # 配置文件（包含供应商配置）
-      - ./backend/provider.json:/app/provider.json:ro
+      - ./backend/provider.json:/app/provider.json
       
       # 数据目录（数据库文件）
       # 包含：app.db (SQLite 数据库)
