@@ -939,11 +939,13 @@
   .table-container {
     overflow-x: auto;
     margin-top: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
   }
 
   .stats-table {
     width: 100%;
-    min-width: max-content;
+    min-width: 900px;
     border-collapse: collapse;
     background: var(--bg-primary);
   }
@@ -993,8 +995,10 @@
   }
 
   .error-cell {
-    max-width: 300px;
+    min-width: 350px;
     font-size: 0.8125rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .error-content {
@@ -1006,7 +1010,7 @@
   .error-preview {
     font-size: 0.875rem;
     color: var(--text-secondary);
-    white-space: nowrap;
+    line-height: 1.4;
   }
 
   .no-error {
