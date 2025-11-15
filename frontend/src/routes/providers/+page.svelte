@@ -126,31 +126,34 @@
   }
 
   async function handleEdit(provider: Provider) {
-    // 检查是否已有编辑数据，如果没有则获取
-    if (providersForEdit.length === 0) {
-      if (!abortController) return;
-      try {
-        const editData = await providerService.getAllForEdit({ signal: abortController.signal });
-        
-        // 检查是否已被取消
-        if (abortController.signal.aborted) return;
-        
-        providersForEdit = editData;
-      } catch (error) {
-        // 忽略取消错误
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return;
-        }
-        console.error('Failed to load provider data for editing:', error);
-        toast.error('加载编辑数据失败');
+    if (!abortController) return;
+    try {
+      // 每次编辑都重新获取最新的完整数据，确保显示最新的配置
+      const editData = await providerService.getAllForEdit({ signal: abortController.signal });
+
+      // 检查是否已被取消
+      if (abortController.signal.aborted) return;
+
+      // 更新缓存
+      providersForEdit = editData;
+
+      // 从最新数据中找到对应的供应商
+      const fullProvider = providersForEdit.find(p => p.name === provider.name);
+      if (!fullProvider) {
+        toast.error('找不到该供应商的配置数据');
         return;
       }
-    }
 
-    // 从编辑数据中找到对应的供应商
-    const fullProvider = providersForEdit.find(p => p.name === provider.name);
-    editingProvider = fullProvider || provider;
-    showForm = true;
+      editingProvider = fullProvider;
+      showForm = true;
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to load provider data for editing:', error);
+      toast.error('加载编辑数据失败: ' + (error as Error).message);
+    }
   }
 
   async function handleToggleEnabled(provider: Provider) {
@@ -172,6 +175,8 @@
 
     try {
       await providerService.delete(provider.name);
+      // 清空编辑数据缓存
+      providersForEdit = [];
       await loadProviders();
       toast.success('删除成功');
     } catch (error) {
@@ -225,6 +230,9 @@
       }
       showForm = false;
       editingProvider = null;
+      // 清空编辑数据缓存，强制下次编辑时重新加载最新数据
+      providersForEdit = [];
+      // 刷新供应商列表
       await loadProviders();
       toast.success('保存成功');
     } catch (error) {
@@ -891,26 +899,6 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-  }
-
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  /* 隐藏图标按钮中的文字节点 */
-  .icon-button :global(span),
-  .icon-button :global(text) {
-    display: none !important;
   }
 
   /* Responsive Design */

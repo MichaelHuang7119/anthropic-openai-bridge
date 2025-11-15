@@ -541,20 +541,6 @@
     text-align: center;
   }
 
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
   .table-container {
     background: var(--card-bg, white);
     border-radius: 0.5rem;

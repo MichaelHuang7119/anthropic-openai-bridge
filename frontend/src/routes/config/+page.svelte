@@ -173,26 +173,6 @@
     gap: 1rem;
   }
 
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  /* 隐藏图标按钮中的文字节点 */
-  .icon-button :global(span),
-  .icon-button :global(text) {
-    display: none !important;
-  }
-
   .config-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));

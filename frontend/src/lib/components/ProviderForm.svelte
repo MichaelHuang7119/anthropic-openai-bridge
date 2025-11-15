@@ -139,6 +139,13 @@
     formData.models[category][index] = value;
   }
 
+  function moveModelUp(category: 'big' | 'middle' | 'small', index: number) {
+    if (index <= 0) return;
+    const models = [...formData.models[category]];
+    [models[index], models[index - 1]] = [models[index - 1], models[index]];
+    formData.models[category] = models;
+  }
+
   // Custom headers management
   let newHeaderKey = '';
   let newHeaderValue = '';
@@ -322,20 +329,34 @@
               bind:value={formData.models.big[index]}
               placeholder="模型名称或ID"
             />
-            <Button
-              variant="danger"
-              size="sm"
-              on:click={() => removeModel('big', index)}
-              title="删除"
-              class="icon-button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-            </Button>
+            <div class="model-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                on:click={() => moveModelUp('big', index)}
+                disabled={index === 0}
+                title="上移"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                on:click={() => removeModel('big', index)}
+                title="删除"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </Button>
+            </div>
           </div>
         {/each}
         {#if formData.models.big.length === 0}
@@ -363,20 +384,34 @@
               bind:value={formData.models.middle[index]}
               placeholder="模型名称或ID"
             />
-            <Button
-              variant="danger"
-              size="sm"
-              on:click={() => removeModel('middle', index)}
-              title="删除"
-              class="icon-button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-            </Button>
+            <div class="model-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                on:click={() => moveModelUp('middle', index)}
+                disabled={index === 0}
+                title="上移"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                on:click={() => removeModel('middle', index)}
+                title="删除"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </Button>
+            </div>
           </div>
         {/each}
         {#if formData.models.middle.length === 0}
@@ -404,20 +439,34 @@
               bind:value={formData.models.small[index]}
               placeholder="模型名称或ID"
             />
-            <Button
-              variant="danger"
-              size="sm"
-              on:click={() => removeModel('small', index)}
-              title="删除"
-              class="icon-button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-            </Button>
+            <div class="model-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                on:click={() => moveModelUp('small', index)}
+                disabled={index === 0}
+                title="上移"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                on:click={() => removeModel('small', index)}
+                title="删除"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </Button>
+            </div>
           </div>
         {/each}
         {#if formData.models.small.length === 0}
@@ -572,10 +621,17 @@
   .model-item {
     display: flex;
     gap: 0.5rem;
+    align-items: flex-start;
   }
 
-  .model-item :global(.btn) {
-    white-space: nowrap;
+  .model-item :global(.input) {
+    flex: 1;
+  }
+
+  .model-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
   }
 
   .empty-models {
@@ -626,26 +682,6 @@
     gap: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color, #dee2e6);
-  }
-
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
-  /* 隐藏图标按钮中的文字节点 */
-  .icon-button :global(span),
-  .icon-button :global(text) {
-    display: none !important;
   }
 
   .password-input {

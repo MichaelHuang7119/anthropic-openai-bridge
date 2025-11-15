@@ -1098,20 +1098,6 @@
     border-top: 1px solid var(--border-color, #e9ecef);
   }
 
-  .icon-button {
-    padding: 0.5rem;
-    min-width: auto;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .icon-button :global(svg) {
-    display: block;
-    flex-shrink: 0;
-  }
-
   .pagination {
     display: flex;
     justify-content: space-between;

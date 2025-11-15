@@ -16,6 +16,13 @@
   --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --box-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
 
+  /* 图标尺寸变量 */
+  --icon-size-xs: 12px;
+  --icon-size-sm: 14px;
+  --icon-size-md: 16px;
+  --icon-size-lg: 20px;
+  --icon-size-xl: 24px;
+
   /* Light theme colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -322,38 +329,81 @@ pre code {
   background: var(--bg-tertiary);
 }
 
-/* Icon Button Styles - 图标按钮样式 */
+/* Icon Button Styles - 图标按钮样式优化 */
 .icon-button {
-  padding: 0.5rem !important;
-  min-width: auto !important;
-  width: auto !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  padding: 0.5rem;
+  min-width: auto;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: inherit;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .icon-button :global(svg) {
-  display: block !important;
-  flex-shrink: 0 !important;
+  display: block;
+  flex-shrink: 0;
+  width: var(--icon-size-md, 16px);
+  height: var(--icon-size-md, 16px);
 }
 
-/* 隐藏图标按钮中的文字节点 */
-.icon-button :global(span),
-.icon-button :global(text) {
-  display: none !important;
+/* 图标尺寸变体 */
+.icon-button--xs :global(svg) {
+  width: var(--icon-size-xs, 12px);
+  height: var(--icon-size-xs, 12px);
 }
 
-/* 确保图标按钮中的文本节点也被隐藏 */
-.icon-button {
-  font-size: 0 !important;
-  line-height: 0 !important;
+.icon-button--sm :global(svg) {
+  width: var(--icon-size-sm, 14px);
+  height: var(--icon-size-sm, 14px);
 }
 
-.icon-button :global(svg) {
-  font-size: inherit !important;
+.icon-button--md :global(svg) {
+  width: var(--icon-size-md, 16px);
+  height: var(--icon-size-md, 16px);
 }
 
-/* 刷新图标旋转动画 - 当按钮有 spinning 类时，内部的 SVG 会旋转 */
+.icon-button--lg :global(svg) {
+  width: var(--icon-size-lg, 20px);
+  height: var(--icon-size-lg, 20px);
+}
+
+.icon-button--xl :global(svg) {
+  width: var(--icon-size-xl, 24px);
+  height: var(--icon-size-xl, 24px);
+}
+
+/* 隐藏图标按钮中的文字节点（仅用于图标按钮场景） */
+.icon-button > :global(span:not(.icon-slot)),
+.icon-button > :global(text) {
+  display: none;
+}
+
+/* 为需要同时显示图标和文字的按钮提供插槽 */
+.icon-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* 旋转动画 */
 .icon-button.spinning :global(svg) {
   animation: spin 1s linear infinite;
 }
