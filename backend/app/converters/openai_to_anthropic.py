@@ -84,11 +84,85 @@ def convert_openai_response_to_anthropic(
         return stream_generator()
     else:
         # Handle non-streaming response
-        choices = openai_response.get('choices', [])
-        if not choices:
-            raise ValueError("Invalid OpenAI response: no choices")
+        choices = openai_response.get('choices')
+        
+        # Handle None, empty list, or missing choices
+        if choices is None:
+            error = openai_response.get('error', {})
+            if error:
+                error_msg = error.get('message', 'Unknown error')
+                error_type = error.get('type', 'api_error')
+                raise ValueError(f"OpenAI API error ({error_type}): {error_msg}")
+            raise ValueError("Invalid OpenAI response: choices is None. This usually indicates the API request failed or was rejected.")
+        
+        if not isinstance(choices, list) or len(choices) == 0:
+            error = openai_response.get('error', {})
+            if error:
+                error_msg = error.get('message', 'Unknown error')
+                error_type = error.get('type', 'api_error')
+                raise ValueError(f"OpenAI API error ({error_type}): {error_msg}")
+            raise ValueError("Invalid OpenAI response: no choices in response. Response may be empty or malformed.")
         
         choice = choices[0]
+        
+        # Handle both dict and Pydantic object - convert to dict
+        if not isinstance(choice, dict):
+            # Pydantic object - convert to dict
+            if hasattr(choice, 'model_dump'):
+                choice = choice.model_dump()
+            elif hasattr(choice, 'dict'):
+                choice = choice.dict()
+            elif hasattr(choice, '__dict__'):
+                # Manual conversion
+                choice_dict = {
+                    'message': {},
+                    'finish_reason': getattr(choice, 'finish_reason', None)
+                }
+                if hasattr(choice, 'message'):
+                    msg = choice.message
+                    if hasattr(msg, 'model_dump'):
+                        choice_dict['message'] = msg.model_dump()
+                    elif hasattr(msg, 'dict'):
+                        choice_dict['message'] = msg.dict()
+                    elif hasattr(msg, '__dict__'):
+                        choice_dict['message'] = {
+                            'role': getattr(msg, 'role', 'assistant'),
+                            'content': getattr(msg, 'content', None) or "",
+                            'tool_calls': []
+                        }
+                        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                tc_dict = {
+                                    'id': getattr(tc, 'id', ''),
+                                    'type': getattr(tc, 'type', 'function'),
+                                    'function': {}
+                                }
+                                if hasattr(tc, 'function'):
+                                    func = tc.function
+                                    tc_dict['function'] = {
+                                        'name': getattr(func, 'name', ''),
+                                        'arguments': getattr(func, 'arguments', '{}')
+                                    }
+                                choice_dict['message']['tool_calls'].append(tc_dict)
+                    else:
+                        choice_dict['message'] = {}
+                choice = choice_dict
+            else:
+                # Fallback: try to access attributes directly and create dict
+                original_choice = choice  # Save reference
+                choice = {
+                    'message': {},
+                    'finish_reason': getattr(original_choice, 'finish_reason', 'stop')
+                }
+                if hasattr(original_choice, 'message'):
+                    msg = original_choice.message
+                    choice['message'] = {
+                        'role': getattr(msg, 'role', 'assistant'),
+                        'content': getattr(msg, 'content', None) or "",
+                        'tool_calls': []
+                    }
+        
+        # Now choice is guaranteed to be a dict
         message = choice.get('message', {})
         
         # Build content blocks

@@ -73,7 +73,7 @@
 
   onMount(async () => {
     abortController = new AbortController();
-    // 健康状态不会自动加载，仅在用户点击"刷新状态"时加载
+    // 健康状态不会自动加载，仅在用户点击"重新测试"时加载
     // 数据会自动从localStorage恢复
   });
 
@@ -195,11 +195,9 @@
 <div class="container">
   <div class="page-header">
     <div class="actions">
-      <Button variant="primary" on:click={loadHealth} disabled={loading} title="刷新状态" class="icon-button {loading ? 'spinning' : ''}">
+      <Button variant="primary" on:click={loadHealth} disabled={loading} title="重新测试" class="icon-button {loading ? 'spinning' : ''}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"></polyline>
-          <polyline points="1 20 1 14 7 14"></polyline>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
         </svg>
       </Button>
     </div>
@@ -207,7 +205,7 @@
 
   {#if loading}
     <div class="loading">
-      <p>刷新中...</p>
+      <p>测试中...</p>
     </div>
   {:else if hasData}
     <div class="summary-card">
@@ -521,13 +519,6 @@
     align-self: center;
     height: 2.5rem;
     flex-shrink: 0;
-  }
-
-  .filter-info {
-    font-size: 0.875rem;
-    color: var(--text-secondary, #666);
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border-color, #e9ecef);
   }
 
   .pagination {

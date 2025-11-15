@@ -22,10 +22,17 @@ logger = logging.getLogger(__name__)
 # Security schemes
 security = HTTPBearer(auto_error=False)
 
-# Secret key for JWT (in production, use environment variable)
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
+# Secret key for JWT - MUST be set via environment variable in production
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    import secrets
+    SECRET_KEY = secrets.token_urlsafe(32)
+    logger.warning(
+        "JWT_SECRET_KEY not set! Generated a random key for this session. "
+        "This key will change on restart. Set JWT_SECRET_KEY environment variable for production."
+    )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours default
 
 # Development mode flag (set via environment variable or command line argument)
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "yes")
@@ -109,7 +116,14 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
             "type": "jwt"
         }
     except JWTError as e:
-        logger.warning(f"JWT verification error: {e}")
+        # Log more specific error information for debugging
+        error_type = type(e).__name__
+        if "Signature verification failed" in str(e):
+            logger.warning(f"JWT signature verification failed. This may indicate JWT_SECRET_KEY was changed or token is from a different instance.")
+        elif "Expired" in str(e) or "expired" in str(e).lower():
+            logger.debug(f"JWT token expired: {e}")
+        else:
+            logger.warning(f"JWT verification error ({error_type}): {e}")
         return None
 
 

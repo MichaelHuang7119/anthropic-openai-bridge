@@ -1,4 +1,5 @@
 """Main FastAPI application for Anthropic OpenAI Bridge"""
+import os
 import logging
 from fastapi import FastAPI
 
@@ -20,6 +21,22 @@ from .services.provider_service import ProviderService
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize OpenTelemetry if enabled
+_telemetry_enabled = os.getenv("ENABLE_TELEMETRY", "true").lower() in ("true", "1", "yes")
+if _telemetry_enabled:
+    try:
+        from .infrastructure.telemetry import initialize_telemetry, instrument_fastapi, instrument_httpx
+        initialize_telemetry(
+            service_name="anthropic-openai-bridge",
+            otlp_endpoint=os.getenv("OTLP_ENDPOINT"),
+            enable_tracing=True,
+            enable_metrics=True
+        )
+        instrument_httpx()
+        logger.info("OpenTelemetry enabled")
+    except Exception as e:
+        logger.warning(f"Failed to initialize OpenTelemetry: {e}")
 
 # Suppress verbose httpx/httpcore logging from OpenAI SDK
 # This prevents logging every HTTP request, reducing noise in logs
@@ -46,6 +63,14 @@ app = FastAPI(
     """,
     version="1.0.0"
 )
+
+# Instrument FastAPI with OpenTelemetry if enabled
+if _telemetry_enabled:
+    try:
+        from .infrastructure.telemetry import instrument_fastapi
+        instrument_fastapi(app)
+    except Exception as e:
+        logger.warning(f"Failed to instrument FastAPI: {e}")
 
 model_manager = ModelManager(config)
 

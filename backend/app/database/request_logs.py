@@ -33,10 +33,10 @@ class RequestLogsManager:
     ):
         """Log a request to the database."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 INSERT INTO request_logs (
                     request_id, provider_name, model, request_params, response_data,
                     status_code, error_message, input_tokens, output_tokens, response_time_ms
@@ -54,8 +54,7 @@ class RequestLogsManager:
                 response_time_ms
             ))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
         except Exception as e:
             logger.error(f"Failed to log request: {e}")
 
@@ -72,8 +71,8 @@ class RequestLogsManager:
     ) -> List[Dict[str, Any]]:
         """Get request logs with optional filters."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT * FROM request_logs WHERE 1=1"
             params = []
@@ -104,10 +103,8 @@ class RequestLogsManager:
             query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-            conn.close()
+            await cursor.execute(query, params)
+            rows = await cursor.fetchall()
 
             return [dict(row) for row in rows]
         except Exception as e:
@@ -125,8 +122,8 @@ class RequestLogsManager:
     ) -> int:
         """Get total count of request logs matching filters."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT COUNT(*) as count FROM request_logs WHERE 1=1"
             params = []
@@ -154,13 +151,10 @@ class RequestLogsManager:
                 query += " AND date(created_at) <= ?"
                 params.append(date_to)
 
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-
-            conn.close()
+            await cursor.execute(query, params)
+            result = await cursor.fetchone()
 
             return result["count"] if result else 0
         except Exception as e:
             logger.error(f"Failed to get request logs count: {e}")
             return 0
-

@@ -22,9 +22,7 @@ class DatabaseManager:
         """
         self.core = DatabaseCore(db_path)
         self.encryption = EncryptionManager()
-        
-        # Initialize database schema
-        self.core.init_database()
+        self._initialized = False
         
         # Initialize managers
         self.request_logs = RequestLogsManager(self.core)
@@ -33,6 +31,16 @@ class DatabaseManager:
         self.token_usage = TokenUsageManager(self.core)
         self.users = UsersManager(self.core)
         self.api_keys = APIKeysManager(self.core)
+    
+    async def initialize(self):
+        """Initialize database schema asynchronously."""
+        if not self._initialized:
+            await self.core.init_database()
+            self._initialized = True
+    
+    async def close(self):
+        """Close database connections."""
+        await self.core.close()
 
     def _get_connection(self):
         """Get database connection (for backward compatibility)."""
@@ -154,6 +162,19 @@ def get_database() -> DatabaseManager:
     if _db_instance is None:
         _db_instance = DatabaseManager()
     return _db_instance
+
+async def initialize_database():
+    """Initialize database asynchronously."""
+    db = get_database()
+    await db.initialize()
+    return db
+
+async def close_database():
+    """Close database connections."""
+    global _db_instance
+    if _db_instance:
+        await _db_instance.close()
+        _db_instance = None
 
 
 __all__ = [

@@ -4,12 +4,18 @@ import os
 import httpx
 from openai import OpenAI, AsyncOpenAI
 from ..config import ProviderConfig
+from ..constants import (
+    DEFAULT_MAX_KEEPALIVE_CONNECTIONS,
+    DEFAULT_MAX_CONNECTIONS,
+    DEFAULT_KEEPALIVE_EXPIRY
+)
 
 # Configure httpx limits for connection pooling
+# Optimized for high concurrency (10k QPS target)
 DEFAULT_LIMITS = httpx.Limits(
-    max_keepalive_connections=20,
-    max_connections=100,
-    keepalive_expiry=30
+    max_keepalive_connections=int(os.getenv("HTTP_MAX_KEEPALIVE_CONNECTIONS", str(DEFAULT_MAX_KEEPALIVE_CONNECTIONS))),
+    max_connections=int(os.getenv("HTTP_MAX_CONNECTIONS", str(DEFAULT_MAX_CONNECTIONS))),
+    keepalive_expiry=int(os.getenv("HTTP_KEEPALIVE_EXPIRY", str(DEFAULT_KEEPALIVE_EXPIRY)))
 )
 
 
@@ -90,6 +96,15 @@ class OpenAIClient:
             if "tool_choice" not in params and "tool_choice" not in kwargs:
                 params["tool_choice"] = "auto"
         
+        # Filter out enable_thinking for non-streaming calls (modelscope requirement)
+        # modelscope API requires enable_thinking to be false (or absent) for non-streaming calls
+        if not stream and "enable_thinking" in kwargs:
+            enable_thinking_val = kwargs.pop("enable_thinking")
+            if enable_thinking_val:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Removed enable_thinking={enable_thinking_val} for non-streaming call")
+        
         params.update(kwargs)
         
         return self.client.chat.completions.create(**params)
@@ -118,6 +133,15 @@ class OpenAIClient:
             # Only set tool_choice if not already provided (allow it to be filtered by main.py)
             if "tool_choice" not in params and "tool_choice" not in kwargs:
                 params["tool_choice"] = "auto"
+        
+        # Filter out enable_thinking for non-streaming calls (modelscope requirement)
+        # modelscope API requires enable_thinking to be false (or absent) for non-streaming calls
+        if not stream and "enable_thinking" in kwargs:
+            enable_thinking_val = kwargs.pop("enable_thinking")
+            if enable_thinking_val:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Removed enable_thinking={enable_thinking_val} for non-streaming call")
         
         # For streaming requests, include usage data in response
         if stream:

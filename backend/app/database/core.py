@@ -1,6 +1,6 @@
 """Database core functionality - connection and initialization."""
 import os
-import sqlite3
+import aiosqlite
 import logging
 from typing import Optional
 from pathlib import Path
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseCore:
-    """Core database functionality for connection and schema initialization."""
+    """Core database functionality for connection and schema initialization with connection pooling."""
 
     def __init__(self, db_path: Optional[str] = None):
         """
@@ -27,20 +27,46 @@ class DatabaseCore:
             os.makedirs(db_dir, exist_ok=True)
 
         self.db_path = db_path
+        self._pool: Optional[aiosqlite.Connection] = None
+        self._pool_size = int(os.getenv("DB_POOL_SIZE", "10"))
+        self._pool_timeout = float(os.getenv("DB_POOL_TIMEOUT", "30.0"))
 
-    def get_connection(self):
-        """Get database connection."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # Enable column access by name
-        return conn
+    async def get_connection(self):
+        """Get database connection from pool."""
+        if self._pool is None:
+            # Create connection pool
+            self._pool = await aiosqlite.connect(
+                self.db_path,
+                timeout=self._pool_timeout,
+                check_same_thread=False
+            )
+            # Enable row factory for column access by name
+            self._pool.row_factory = aiosqlite.Row
+            # Set WAL mode for better concurrency
+            cursor = await self._pool.cursor()
+            await cursor.execute("PRAGMA journal_mode=WAL")
+            await cursor.execute("PRAGMA synchronous=NORMAL")
+            await cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
+            await cursor.execute("PRAGMA temp_store=MEMORY")
+            await self._pool.commit()
+            await cursor.close()
+            logger.info(f"Database connection pool initialized: {self.db_path}")
+        return self._pool
 
-    def init_database(self):
+    async def close(self):
+        """Close database connection pool."""
+        if self._pool:
+            await self._pool.close()
+            self._pool = None
+            logger.info("Database connection pool closed")
+
+    async def init_database(self):
         """Initialize database schema."""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        conn = await self.get_connection()
+        cursor = await conn.cursor()
 
         # Create request_logs table
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS request_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 request_id TEXT NOT NULL,
@@ -59,23 +85,23 @@ class DatabaseCore:
         """)
 
         # Create indexes
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_request_logs_created_at
             ON request_logs(created_at)
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_request_logs_provider_model
             ON request_logs(provider_name, model)
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_request_logs_request_id
             ON request_logs(request_id)
         """)
 
         # Create provider_health_history table
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS provider_health_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 provider_name TEXT NOT NULL,
@@ -86,18 +112,18 @@ class DatabaseCore:
             )
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_health_history_provider
             ON provider_health_history(provider_name)
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_health_history_checked_at
             ON provider_health_history(checked_at)
         """)
 
         # Create config_changes table for version control
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS config_changes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 change_type TEXT NOT NULL,
@@ -110,13 +136,13 @@ class DatabaseCore:
             )
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_config_changes_entity
             ON config_changes(entity_type, entity_name)
         """)
 
         # Create token_usage table for cost tracking
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS token_usage (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
@@ -131,13 +157,13 @@ class DatabaseCore:
             )
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_token_usage_date
             ON token_usage(date)
         """)
 
         # Create users table for admin authentication
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT NOT NULL UNIQUE,
@@ -151,13 +177,13 @@ class DatabaseCore:
             )
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_users_email
             ON users(email)
         """)
 
         # Create api_keys table for API key management
-        cursor.execute("""
+        await cursor.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 key_hash TEXT NOT NULL UNIQUE,
@@ -175,24 +201,23 @@ class DatabaseCore:
         """)
 
         # 检查并添加 encrypted_key 字段（如果不存在）
-        cursor.execute("PRAGMA table_info(api_keys)")
-        columns = [row['name'] for row in cursor.fetchall()]
+        await cursor.execute("PRAGMA table_info(api_keys)")
+        columns = [row['name'] for row in await cursor.fetchall()]
         if 'encrypted_key' not in columns:
-            cursor.execute("ALTER TABLE api_keys ADD COLUMN encrypted_key TEXT")
+            await cursor.execute("ALTER TABLE api_keys ADD COLUMN encrypted_key TEXT")
             logger.info("Added encrypted_key column to api_keys table")
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash
             ON api_keys(key_hash)
         """)
 
-        cursor.execute("""
+        await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_api_keys_user_id
             ON api_keys(user_id)
         """)
 
-        conn.commit()
-        conn.close()
+        await conn.commit()
 
         logger.info(f"Database initialized at {self.db_path}")
 

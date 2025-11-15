@@ -28,11 +28,11 @@ class TokenUsageManager:
     ):
         """Update token usage statistics."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             # Try to update existing record
-            cursor.execute("""
+            await cursor.execute("""
                 UPDATE token_usage
                 SET request_count = request_count + 1,
                     total_input_tokens = total_input_tokens + ?,
@@ -44,15 +44,14 @@ class TokenUsageManager:
 
             # If no rows were updated, insert new record
             if cursor.rowcount == 0:
-                cursor.execute("""
+                await cursor.execute("""
                     INSERT INTO token_usage (
                         date, provider_name, model, request_count,
                         total_input_tokens, total_output_tokens, total_cost_estimate
                     ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (date, provider_name, model, 1, input_tokens, output_tokens, cost_estimate))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
         except Exception as e:
             logger.error(f"Failed to update token usage: {e}")
 
@@ -63,8 +62,8 @@ class TokenUsageManager:
     ) -> Dict[str, Any]:
         """Get token usage summary."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT * FROM token_usage WHERE 1=1"
             params = []
@@ -79,10 +78,8 @@ class TokenUsageManager:
 
             query += " ORDER BY date DESC"
 
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-            conn.close()
+            await cursor.execute(query, params)
+            rows = await cursor.fetchall()
 
             return {
                 "summary": [dict(row) for row in rows],
@@ -94,4 +91,3 @@ class TokenUsageManager:
         except Exception as e:
             logger.error(f"Failed to get token usage summary: {e}")
             return {"summary": [], "total_requests": 0, "total_input_tokens": 0, "total_output_tokens": 0, "total_cost_estimate": 0}
-

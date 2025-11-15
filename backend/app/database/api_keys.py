@@ -1,5 +1,5 @@
 """API Key management database operations."""
-import sqlite3
+import aiosqlite
 import logging
 from typing import Optional, List, Dict, Any
 
@@ -29,21 +29,20 @@ class APIKeysManager:
     ) -> Optional[int]:
         """Create a new API key."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 INSERT INTO api_keys (key_hash, key_prefix, encrypted_key, name, email, user_id)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (key_hash, key_prefix, encrypted_key, name, email, user_id))
 
             api_key_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+            await conn.commit()
 
             logger.info(f"Created API key: {name}")
             return api_key_id
-        except sqlite3.IntegrityError:
+        except aiosqlite.IntegrityError:
             logger.error(f"API key already exists")
             return None
         except Exception as e:
@@ -53,13 +52,11 @@ class APIKeysManager:
     async def get_api_key_by_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
         """Get API key by hash."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("SELECT * FROM api_keys WHERE key_hash = ? AND is_active = 1", (key_hash,))
-            row = cursor.fetchone()
-
-            conn.close()
+            await cursor.execute("SELECT * FROM api_keys WHERE key_hash = ? AND is_active = 1", (key_hash,))
+            row = await cursor.fetchone()
 
             return dict(row) if row else None
         except Exception as e:
@@ -76,8 +73,8 @@ class APIKeysManager:
     ) -> List[Dict[str, Any]]:
         """Get API keys with optional filters."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT * FROM api_keys WHERE 1=1"
             params = []
@@ -97,10 +94,8 @@ class APIKeysManager:
             query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-            conn.close()
+            await cursor.execute(query, params)
+            rows = await cursor.fetchall()
 
             return [dict(row) for row in rows]
         except Exception as e:
@@ -115,8 +110,8 @@ class APIKeysManager:
     ) -> int:
         """Get total count of API keys matching filters."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT COUNT(*) as count FROM api_keys WHERE 1=1"
             params = []
@@ -133,10 +128,8 @@ class APIKeysManager:
                 query += " AND is_active = ?"
                 params.append(1 if is_active else 0)
 
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-
-            conn.close()
+            await cursor.execute(query, params)
+            result = await cursor.fetchone()
 
             return result["count"] if result else 0
         except Exception as e:
@@ -152,8 +145,8 @@ class APIKeysManager:
     ) -> bool:
         """Update API key."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             updates = []
             params = []
@@ -175,10 +168,9 @@ class APIKeysManager:
             params.append(api_key_id)
 
             query = f"UPDATE api_keys SET {', '.join(updates)} WHERE id = ?"
-            cursor.execute(query, params)
+            await cursor.execute(query, params)
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
 
             return cursor.rowcount > 0
         except Exception as e:
@@ -188,13 +180,12 @@ class APIKeysManager:
     async def delete_api_key(self, api_key_id: int) -> bool:
         """Delete API key."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("DELETE FROM api_keys WHERE id = ?", (api_key_id,))
+            await cursor.execute("DELETE FROM api_keys WHERE id = ?", (api_key_id,))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
 
             return cursor.rowcount > 0
         except Exception as e:
@@ -204,34 +195,32 @@ class APIKeysManager:
     async def update_api_key_last_used(self, api_key_id: int):
         """Update API key's last used time."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 UPDATE api_keys
                 SET last_used_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (api_key_id,))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
         except Exception as e:
             logger.error(f"Failed to update API key last used: {e}")
 
     async def get_api_key_encrypted(self, api_key_id: int) -> Optional[Dict[str, Any]]:
         """获取包含加密完整key的API Key信息"""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 SELECT *
                 FROM api_keys
                 WHERE id = ?
             """, (api_key_id,))
 
-            row = cursor.fetchone()
-            conn.close()
+            row = await cursor.fetchone()
 
             if row:
                 return dict(row)
@@ -239,4 +228,3 @@ class APIKeysManager:
         except Exception as e:
             logger.error(f"Failed to get encrypted API key: {e}")
             return None
-

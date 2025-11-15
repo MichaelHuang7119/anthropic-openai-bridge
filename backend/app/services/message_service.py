@@ -182,7 +182,7 @@ class MessageService:
                         
                 except (RateLimitError, httpx.ConnectTimeout, httpx.PoolTimeout, 
                         APIConnectionError, httpx.ReadTimeout, httpx.TimeoutException, 
-                        APIError, HTTPException) as model_error:
+                        APIError) as model_error:
                     # Model failed, add to exclude list and try next model
                     logger.warning(
                         f"Model '{actual_model}' from provider '{provider_config.name}' failed: {type(model_error).__name__}: {model_error}. "
@@ -198,6 +198,28 @@ class MessageService:
                     
                     # Continue to next iteration to try next model
                     continue
+                    
+                except HTTPException as http_error:
+                    # HTTPException from conversion or validation - treat as model failure
+                    # Only retry if it's a 5xx error (server error), not 4xx (client error)
+                    if http_error.status_code >= 500:
+                        logger.warning(
+                            f"Model '{actual_model}' from provider '{provider_config.name}' failed with HTTP {http_error.status_code}: {http_error.detail}. "
+                            f"Trying next model in category..."
+                        )
+                        
+                        # Add failed model to exclude list
+                        if current_provider_name not in current_exclude_models:
+                            current_exclude_models[current_provider_name] = []
+                        if actual_model not in current_exclude_models[current_provider_name]:
+                            current_exclude_models[current_provider_name].append(actual_model)
+                            failed_models_for_current_provider.append(actual_model)
+                        
+                        # Continue to next iteration to try next model
+                        continue
+                    else:
+                        # 4xx errors (like 429 rate limit) should be re-raised
+                        raise
                     
                 except Exception as model_error:
                     # Unexpected error, log and try next model
@@ -283,6 +305,13 @@ class MessageService:
             if "tool_choice" in openai_request:
                 tool_choice_val = openai_request.pop("tool_choice")
                 unsupported_params.append(f"tool_choice={tool_choice_val}")
+            
+            # modelscope requires enable_thinking to be false for non-streaming calls
+            # Remove it if present (or set to false if needed)
+            if "enable_thinking" in openai_request:
+                enable_thinking = openai_request.pop("enable_thinking")
+                if enable_thinking:
+                    unsupported_params.append(f"enable_thinking={enable_thinking} (removed, must be false for non-streaming)")
             
             # Normalize messages for modelscope - ensure content is never None or empty
             # Some providers don't handle None content well
@@ -570,7 +599,7 @@ class MessageService:
             # Log request details for debugging
             logger.debug(f"Sending request to {provider_config.name} provider: model={actual_model}, max_tokens={openai_request.get('max_tokens')}, has_tools={bool(openai_request.get('tools'))}, message_count={len(openai_request.get('messages', []))}")
             
-            # Build params, excluding tool_choice if it was filtered
+            # Build params, excluding tool_choice and enable_thinking if they were filtered
             api_params = {
                 "model": actual_model,
                 "messages": openai_request["messages"],
@@ -585,6 +614,16 @@ class MessageService:
             # Only pass tool_choice if it exists (wasn't filtered)
             if "tool_choice" in openai_request:
                 api_params["tool_choice"] = openai_request["tool_choice"]
+            # Explicitly exclude enable_thinking for non-streaming calls (modelscope requirement)
+            # modelscope API requires enable_thinking to be false (or absent) for non-streaming calls
+            if "enable_thinking" in openai_request:
+                enable_thinking_val = openai_request.get("enable_thinking")
+                if enable_thinking_val:
+                    logger.debug(f"Removing enable_thinking={enable_thinking_val} for non-streaming call to {provider_config.name}")
+                # Don't include enable_thinking in api_params for non-streaming
+            # Also check if it somehow got into api_params and remove it
+            if "enable_thinking" in api_params:
+                del api_params["enable_thinking"]
             
             # Retry logic for non-streaming requests
             async def make_request():
@@ -654,15 +693,119 @@ class MessageService:
                     "provider": provider_config.name
                 }
             )
+        except Exception as e:
+            # Catch any other unexpected exceptions during API call
+            logger.error(f"Unexpected error during API call to {provider_config.name}: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "type": "api_error",
+                    "message": f"Unexpected error from provider '{provider_config.name}': {str(e)}",
+                    "provider": provider_config.name
+                }
+            )
         
         # Convert response
-        openai_dict = openai_response_to_dict(openai_response)
+        try:
+            openai_dict = openai_response_to_dict(openai_response)
+        except Exception as e:
+            logger.error(f"Failed to convert response from {provider_config.name}: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "type": "api_error",
+                    "message": f"Failed to process response from provider '{provider_config.name}': {str(e)}",
+                    "provider": provider_config.name
+                }
+            )
+        
+        # Validate response before conversion
+        # Check if response is a dict
+        if not isinstance(openai_dict, dict):
+            logger.error(f"Invalid response type from {provider_config.name}: {type(openai_dict)}. Expected dict.")
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "type": "api_error",
+                    "message": f"Invalid response format from provider '{provider_config.name}': expected dict, got {type(openai_dict).__name__}",
+                    "provider": provider_config.name
+                }
+            )
+        
+        choices = openai_dict.get('choices')
+        
+        # Handle cases where choices is None, empty list, or missing
+        if choices is None or (isinstance(choices, list) and len(choices) == 0):
+            # Check for explicit error in response
+            error_info = openai_dict.get('error', {})
+            if error_info:
+                error_msg = error_info.get('message', 'Unknown API error')
+                error_type = error_info.get('type', 'api_error')
+                logger.error(f"API returned error response from {provider_config.name}: {error_type}: {error_msg}")
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"API error from provider '{provider_config.name}': {error_msg}",
+                        "provider": provider_config.name
+                    }
+                )
+            
+            # Check usage - if all tokens are 0, this might indicate a failed request
+            usage = openai_dict.get('usage', {})
+            total_tokens = usage.get('total_tokens', 0)
+            completion_tokens = usage.get('completion_tokens', 0)
+            
+            # If choices is None (not empty list), this is likely an error response
+            if choices is None:
+                logger.error(
+                    f"Invalid response from {provider_config.name}: choices is None. "
+                    f"This usually indicates the API request failed or was rejected. "
+                    f"Response: {openai_dict}"
+                )
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Provider '{provider_config.name}' returned an invalid response: no choices generated. "
+                                   f"This may indicate the request was rejected or the model failed to process it.",
+                        "provider": provider_config.name,
+                        "model": actual_model
+                    }
+                )
+            else:
+                # Empty list - also invalid but different from None
+                logger.error(
+                    f"Invalid response from {provider_config.name}: choices is empty list. "
+                    f"Response: {openai_dict}"
+                )
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Provider '{provider_config.name}' returned an empty response: no choices in response",
+                        "provider": provider_config.name,
+                        "model": actual_model
+                    }
+                )
 
-        anthropic_response = convert_openai_response_to_anthropic(
-            openai_dict,
-            req.model,
-            stream=False
-        )
+        try:
+            anthropic_response = convert_openai_response_to_anthropic(
+                openai_dict,
+                req.model,
+                stream=False
+            )
+        except ValueError as e:
+            # Handle conversion errors (e.g., invalid response format)
+            logger.error(f"Failed to convert response from {provider_config.name}: {e}")
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "type": "api_error",
+                    "message": f"Failed to process response from provider '{provider_config.name}': {str(e)}",
+                    "provider": provider_config.name
+                }
+            )
 
         # Cache the response if caching is enabled
         if cache_enabled and cached_response is None:

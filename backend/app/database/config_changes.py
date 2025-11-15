@@ -29,10 +29,10 @@ class ConfigChangesManager:
     ):
         """Log a configuration change."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 INSERT INTO config_changes (
                     change_type, entity_type, entity_name, old_value, new_value, changed_by
                 ) VALUES (?, ?, ?, ?, ?, ?)
@@ -45,8 +45,7 @@ class ConfigChangesManager:
                 changed_by
             ))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
         except Exception as e:
             logger.error(f"Failed to log config change: {e}")
 
@@ -57,8 +56,8 @@ class ConfigChangesManager:
     ) -> List[Dict[str, Any]]:
         """Get configuration changes."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT * FROM config_changes"
             params = []
@@ -70,13 +69,10 @@ class ConfigChangesManager:
             query += " ORDER BY changed_at DESC LIMIT ?"
             params.append(limit)
 
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-            conn.close()
+            await cursor.execute(query, params)
+            rows = await cursor.fetchall()
 
             return [dict(row) for row in rows]
         except Exception as e:
             logger.error(f"Failed to get config changes: {e}")
             return []
-

@@ -16,6 +16,9 @@ const config = {
       precompress: false,
       strict: true
     }),
+    serviceWorker: {
+      register: false  // We'll register manually in layout
+    },
     alias: {
       '$lib': './src/lib',
       '$components': './src/lib/components',

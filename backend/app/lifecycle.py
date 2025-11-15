@@ -16,7 +16,21 @@ async def init_default_admin():
     
     # Check if any admin user exists
     admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    
+    # Require strong password in production
+    if not admin_password:
+        import secrets
+        admin_password = secrets.token_urlsafe(16)
+        logger.warning(
+            f"ADMIN_PASSWORD not set! Generated random password: {admin_password}\n"
+            "Set ADMIN_PASSWORD environment variable for production."
+        )
+    elif len(admin_password) < 12:
+        logger.warning(
+            f"ADMIN_PASSWORD is too short (minimum 12 characters). "
+            "Consider using a stronger password in production."
+        )
     
     existing_user = await db.get_user_by_email(admin_email)
     if existing_user:
@@ -34,13 +48,21 @@ async def init_default_admin():
     
     if user_id:
         logger.info(f"Created default admin user: {admin_email}")
-        logger.warning(f"Default admin password: {admin_password} - Please change it after first login!")
+        if not os.getenv("ADMIN_PASSWORD"):
+            logger.warning(f"Generated admin password: {admin_password} - Please save this and change it after first login!")
+        else:
+            logger.info("Admin user created with provided password")
     else:
         logger.error("Failed to create default admin user")
 
 
 async def startup_event():
     """Initialize cache on startup."""
+    # Initialize database
+    from .database import initialize_database
+    await initialize_database()
+    logger.info("Database initialized successfully")
+    
     if config.app_config.cache.enabled:
         logger.info("Initializing cache system...")
         cache_manager = get_cache_manager()
@@ -79,6 +101,10 @@ async def shutdown_event():
     # Close cache connections
     from .infrastructure import close_cache
     await close_cache()
+    
+    # Close database connections
+    from .database import close_database
+    await close_database()
     
     logger.info("Shutdown complete")
 

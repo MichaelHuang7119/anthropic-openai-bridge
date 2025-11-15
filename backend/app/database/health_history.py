@@ -26,17 +26,16 @@ class HealthHistoryManager:
     ):
         """Log provider health status."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
-            cursor.execute("""
+            await cursor.execute("""
                 INSERT INTO provider_health_history (
                     provider_name, status, response_time_ms, error_message
                 ) VALUES (?, ?, ?, ?)
             """, (provider_name, status, response_time_ms, error_message))
 
-            conn.commit()
-            conn.close()
+            await conn.commit()
         except Exception as e:
             logger.error(f"Failed to log health status: {e}")
 
@@ -47,8 +46,8 @@ class HealthHistoryManager:
     ) -> List[Dict[str, Any]]:
         """Get provider health history."""
         try:
-            conn = self.db_core.get_connection()
-            cursor = conn.cursor()
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
 
             query = "SELECT * FROM provider_health_history"
             params = []
@@ -60,13 +59,10 @@ class HealthHistoryManager:
             query += " ORDER BY checked_at DESC LIMIT ?"
             params.append(limit)
 
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-
-            conn.close()
+            await cursor.execute(query, params)
+            rows = await cursor.fetchall()
 
             return [dict(row) for row in rows]
         except Exception as e:
             logger.error(f"Failed to get health history: {e}")
             return []
-

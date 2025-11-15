@@ -30,6 +30,17 @@
   onMount(() => {
     theme.init();
     
+    // 注册 Service Worker for PWA
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((registration) => {
+          console.log('Service Worker registered:', registration);
+        })
+        .catch((error) => {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+    
     // 检查认证状态（排除登录页）
     if ($page.url.pathname !== '/login' && !authService.isAuthenticated()) {
       goto('/login');

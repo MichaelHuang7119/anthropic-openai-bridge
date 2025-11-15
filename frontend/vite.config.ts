@@ -19,5 +19,43 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    // Enable code splitting and optimization
+    rollupOptions: {
+      output: {
+        // Manual chunk splitting for better caching
+        manualChunks: (id) => {
+          // Vendor chunks
+          if (id.includes('node_modules')) {
+            // Split large dependencies
+            if (id.includes('date-fns')) {
+              return 'vendor-date-fns';
+            }
+            // All other node_modules go to vendor chunk
+            return 'vendor';
+          }
+          // Route-based code splitting is handled by SvelteKit automatically
+        },
+        // Optimize chunk file names for better caching
+        chunkFileNames: 'chunks/[name]-[hash].js',
+        entryFileNames: 'entries/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    },
+    // Enable minification
+    minify: 'esbuild',
+    // Source maps for production debugging (optional)
+    sourcemap: false,
+    // Chunk size warning limit (500kb)
+    chunkSizeWarningLimit: 500,
+    // Target modern browsers for smaller bundle
+    target: 'esnext',
+    // CSS code splitting
+    cssCodeSplit: true
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: ['date-fns']
   }
 });
