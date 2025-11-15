@@ -5,6 +5,7 @@
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
+  import Tooltip from '$components/ui/Tooltip.svelte';
   import { statsService } from '$services/stats';
   import { providerService } from '$services/providers';
   import type { PerformanceSummary, RequestLog, TokenUsage } from '$services/stats';
@@ -449,6 +450,12 @@
     currentPage = 1;
     handleFilterChange();
   }
+
+  function truncateError(errorMessage: string, maxLength: number = 50): string {
+    if (!errorMessage) return '';
+    if (errorMessage.length <= maxLength) return errorMessage;
+    return errorMessage.substring(0, maxLength) + '...';
+  }
 </script>
 
 <div class="container">
@@ -800,11 +807,19 @@
                     <td>{request.output_tokens ? formatNumber(request.output_tokens) : '-'}</td>
                     <td class="error-cell">
                       {#if request.error_message}
-                        <div class="error-content">
+                        {@const truncated = truncateError(request.error_message)}
+                        {@const isTruncated = request.error_message.length > 50}
+                        {#if isTruncated}
+                          <Tooltip content={request.error_message} placement="top" maxWidth="500px">
+                            <span class="error-preview">
+                              {truncated}
+                            </span>
+                          </Tooltip>
+                        {:else}
                           <span class="error-preview">
                             {request.error_message}
                           </span>
-                        </div>
+                        {/if}
                       {:else}
                         <span class="no-error">-</span>
                       {/if}
@@ -995,10 +1010,10 @@
   }
 
   .error-cell {
-    min-width: 350px;
+    min-width: 200px;
+    max-width: 300px;
     font-size: 0.8125rem;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    overflow: hidden;
   }
 
   .error-content {
@@ -1009,8 +1024,14 @@
 
   .error-preview {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--danger-color, #dc3545);
     line-height: 1.4;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .no-error {

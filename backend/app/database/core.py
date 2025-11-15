@@ -1,0 +1,198 @@
+"""Database core functionality - connection and initialization."""
+import os
+import sqlite3
+import logging
+from typing import Optional
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+class DatabaseCore:
+    """Core database functionality for connection and schema initialization."""
+
+    def __init__(self, db_path: Optional[str] = None):
+        """
+        Initialize database core.
+
+        Args:
+            db_path: Path to database file. If None, uses environment variable or default.
+        """
+        if db_path is None:
+            db_path = os.getenv("DATABASE_PATH", str(Path(__file__).parent.parent.parent / "data" / "app.db"))
+
+        # Ensure directory exists
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+
+        self.db_path = db_path
+
+    def get_connection(self):
+        """Get database connection."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row  # Enable column access by name
+        return conn
+
+    def init_database(self):
+        """Initialize database schema."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Create request_logs table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS request_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id TEXT NOT NULL,
+                provider_name TEXT NOT NULL,
+                model TEXT NOT NULL,
+                request_params TEXT,
+                response_data TEXT,
+                status_code INTEGER,
+                error_message TEXT,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                response_time_ms REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                indexed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Create indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_request_logs_created_at
+            ON request_logs(created_at)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_request_logs_provider_model
+            ON request_logs(provider_name, model)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_request_logs_request_id
+            ON request_logs(request_id)
+        """)
+
+        # Create provider_health_history table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS provider_health_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                response_time_ms REAL,
+                error_message TEXT,
+                checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_health_history_provider
+            ON provider_health_history(provider_name)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_health_history_checked_at
+            ON provider_health_history(checked_at)
+        """)
+
+        # Create config_changes table for version control
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS config_changes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                change_type TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_name TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                changed_by TEXT,
+                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_config_changes_entity
+            ON config_changes(entity_type, entity_name)
+        """)
+
+        # Create token_usage table for cost tracking
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                provider_name TEXT NOT NULL,
+                model TEXT NOT NULL,
+                request_count INTEGER DEFAULT 0,
+                total_input_tokens INTEGER DEFAULT 0,
+                total_output_tokens INTEGER DEFAULT 0,
+                total_cost_estimate REAL DEFAULT 0.0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(date, provider_name, model)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_token_usage_date
+            ON token_usage(date)
+        """)
+
+        # Create users table for admin authentication
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                name TEXT,
+                is_admin BOOLEAN DEFAULT 1,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login_at TIMESTAMP
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_users_email
+            ON users(email)
+        """)
+
+        # Create api_keys table for API key management
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key_hash TEXT NOT NULL UNIQUE,
+                key_prefix TEXT NOT NULL,
+                encrypted_key TEXT,
+                name TEXT NOT NULL,
+                email TEXT,
+                user_id INTEGER,
+                is_active BOOLEAN DEFAULT 1,
+                last_used_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        """)
+
+        # 检查并添加 encrypted_key 字段（如果不存在）
+        cursor.execute("PRAGMA table_info(api_keys)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'encrypted_key' not in columns:
+            cursor.execute("ALTER TABLE api_keys ADD COLUMN encrypted_key TEXT")
+            logger.info("Added encrypted_key column to api_keys table")
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash
+            ON api_keys(key_hash)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_api_keys_user_id
+            ON api_keys(user_id)
+        """)
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Database initialized at {self.db_path}")
+

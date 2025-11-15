@@ -1,0 +1,84 @@
+"""Application lifecycle events (startup/shutdown)."""
+import os
+import logging
+
+from .config import config
+from .infrastructure import get_cache_manager
+from .database import get_database
+from .auth import hash_password
+
+logger = logging.getLogger(__name__)
+
+
+async def init_default_admin():
+    """Initialize default admin user if not exists."""
+    db = get_database()
+    
+    # Check if any admin user exists
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    
+    existing_user = await db.get_user_by_email(admin_email)
+    if existing_user:
+        logger.info(f"Admin user already exists: {admin_email}")
+        return
+    
+    # Create default admin user
+    password_hash = hash_password(admin_password)
+    user_id = await db.create_user(
+        email=admin_email,
+        password_hash=password_hash,
+        name="Administrator",
+        is_admin=True
+    )
+    
+    if user_id:
+        logger.info(f"Created default admin user: {admin_email}")
+        logger.warning(f"Default admin password: {admin_password} - Please change it after first login!")
+    else:
+        logger.error("Failed to create default admin user")
+
+
+async def startup_event():
+    """Initialize cache on startup."""
+    if config.app_config.cache.enabled:
+        logger.info("Initializing cache system...")
+        cache_manager = get_cache_manager()
+        await cache_manager.initialize()
+        logger.info("Cache system initialized successfully")
+    
+    # Initialize default admin user if not exists
+    await init_default_admin()
+    
+    # Start config hot reload
+    hot_reload_enabled = os.getenv("CONFIG_HOT_RELOAD", "true").lower() in ("true", "1", "yes")
+    if hot_reload_enabled:
+        from .config import start_config_hot_reload
+        # Create reload callback that reloads config
+        def reload_config():
+            try:
+                config._load_config()
+                logger.info("Configuration hot reloaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to hot reload configuration: {e}", exc_info=True)
+        
+        start_config_hot_reload(config.config_path, reload_config)
+        logger.info("Configuration hot reload enabled")
+    else:
+        logger.info("Configuration hot reload disabled (set CONFIG_HOT_RELOAD=false to disable)")
+
+
+async def shutdown_event():
+    """Cleanup resources on shutdown."""
+    logger.info("Shutting down and cleaning up resources...")
+    
+    # Stop config hot reload
+    from .config import stop_config_hot_reload
+    stop_config_hot_reload()
+    
+    # Close cache connections
+    from .infrastructure import close_cache
+    await close_cache()
+    
+    logger.info("Shutdown complete")
+

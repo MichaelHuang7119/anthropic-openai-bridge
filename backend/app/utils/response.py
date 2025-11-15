@@ -1,4 +1,4 @@
-"""Utility functions for Anthropic OpenAI Bridge"""
+"""Response conversion utilities."""
 from typing import Any, Dict
 
 
@@ -64,6 +64,4 @@ def openai_response_to_dict(response: Any) -> Dict[str, Any]:
     else:
         # Assume it's already a dict
         return response if isinstance(response, dict) else {}
-
-
 

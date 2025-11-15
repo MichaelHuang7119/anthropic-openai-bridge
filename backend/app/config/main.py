@@ -64,7 +64,7 @@ class Config:
         if config_path is None:
             config_path = os.getenv(
                 "PROVIDER_CONFIG_PATH",
-                str(Path(__file__).parent.parent / "provider.json")
+                str(Path(__file__).parent.parent.parent / "provider.json")
             )
         self.config_path = config_path
         self.app_config = self._load_config()
@@ -80,7 +80,7 @@ class Config:
             data = json.load(f)
 
         # Validate configuration security
-        from .security import validate_config_security
+        from ..security import validate_config_security
         warnings = validate_config_security(data)
         if warnings:
             logger = logging.getLogger(__name__)

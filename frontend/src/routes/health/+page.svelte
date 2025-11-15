@@ -5,6 +5,7 @@
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
+  import Tooltip from '$components/ui/Tooltip.svelte';
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { healthService } from '$services/health';
   import type { ProviderHealth, CategoryHealth } from '$types/health';
@@ -183,6 +184,12 @@
       currentPage = newPage;
     }
   }
+
+  function truncateError(errorMessage: string, maxLength: number = 50): string {
+    if (!errorMessage) return '';
+    if (errorMessage.length <= maxLength) return errorMessage;
+    return errorMessage.substring(0, maxLength) + '...';
+  }
 </script>
 
 <div class="container">
@@ -348,9 +355,19 @@
               </td>
               <td class="error-cell">
                 {#if provider.error}
-                  <span class="error-value">
-                    {provider.error}
-                  </span>
+                  {@const truncated = truncateError(provider.error)}
+                  {@const isTruncated = provider.error.length > 50}
+                  {#if isTruncated}
+                    <Tooltip content={provider.error} placement="top" maxWidth="500px">
+                      <span class="error-value">
+                        {truncated}
+                      </span>
+                    </Tooltip>
+                  {:else}
+                    <span class="error-value">
+                      {provider.error}
+                    </span>
+                  {/if}
                 {:else}
                   <span class="error-na">-</span>
                 {/if}
@@ -645,17 +662,20 @@
   }
 
   .error-cell {
+    min-width: 150px;
     max-width: 250px;
+    overflow: hidden;
   }
 
   .error-value {
-    display: inline-block;
-    max-width: 100%;
+    display: block;
+    width: 100%;
     color: var(--danger-color, #dc3545);
     font-size: 0.8125rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
   }
 
   .error-na {

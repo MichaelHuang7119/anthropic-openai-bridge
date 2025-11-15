@@ -2,8 +2,8 @@
 from typing import List, Optional, Tuple, Dict
 import random
 import logging
-from .config import Config, ProviderConfig
-from .infrastructure import get_circuit_breaker_registry, with_circuit_breaker
+from ..config import Config, ProviderConfig
+from ..infrastructure import get_circuit_breaker_registry, with_circuit_breaker
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Callable, Any, Optional, Dict
-from .config import config
+from ..config import config
 
 logger = logging.getLogger(__name__)
 

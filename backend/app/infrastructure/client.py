@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, AsyncIterator
 import os
 import httpx
 from openai import OpenAI, AsyncOpenAI
-from .config import ProviderConfig
+from ..config import ProviderConfig
 
 # Configure httpx limits for connection pooling
 DEFAULT_LIMITS = httpx.Limits(
