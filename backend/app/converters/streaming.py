@@ -282,13 +282,26 @@ async def convert_openai_stream_to_anthropic_async(
                         # Use list append for O(1) complexity instead of string concatenation O(n)
                         tool_call["args_buffer"].append(arguments)
 
-                        # Try to parse complete JSON and send delta only when valid
-                        # Only join the string when we need to parse or send
-                        buffer_str = ''.join(tool_call["args_buffer"])
-                        try:
-                            json_module.loads(buffer_str)
-                            # If parsing succeeds and we haven't sent this JSON yet
-                            if not tool_call["json_sent"]:
+                        # Optimize: Only try to parse JSON periodically or when buffer grows
+                        # This reduces CPU overhead for incomplete JSON
+                        buffer_len = sum(len(s) for s in tool_call["args_buffer"])
+                        
+                        # Only attempt parsing if:
+                        # 1. We haven't sent JSON yet AND
+                        # 2. Buffer is reasonably sized (avoid parsing tiny fragments)
+                        # 3. Or buffer ends with '}' (likely complete)
+                        should_try_parse = (
+                            not tool_call["json_sent"] and 
+                            buffer_len > 10 and  # Minimum size to avoid parsing tiny fragments
+                            (buffer_len % 50 == 0 or arguments.rstrip().endswith('}'))  # Periodic or likely complete
+                        )
+                        
+                        if should_try_parse:
+                            # Only join the string when we need to parse
+                            buffer_str = ''.join(tool_call["args_buffer"])
+                            try:
+                                json_module.loads(buffer_str)
+                                # If parsing succeeds and we haven't sent this JSON yet
                                 yield {
                                     "type": "content_block_delta",
                                     "index": tool_call["claude_index"],
@@ -298,9 +311,11 @@ async def convert_openai_stream_to_anthropic_async(
                                     }
                                 }
                                 tool_call["json_sent"] = True
-                        except json_module.JSONDecodeError:
-                            # JSON is incomplete, continue accumulating
-                            pass
+                                # Cache the joined string to avoid re-joining
+                                tool_call["args_str"] = buffer_str
+                            except json_module.JSONDecodeError:
+                                # JSON is incomplete, continue accumulating
+                                pass
         
         # Handle finish reason - break loop when we get finish_reason
         # Note: Some APIs send finish_reason in the same chunk as the last content
@@ -360,23 +375,33 @@ async def convert_openai_stream_to_anthropic_async(
         if tool_data.get("started") and tool_data.get("claude_index") is not None:
             # Ensure JSON is sent if we have complete JSON but haven't sent it
             if tool_data["args_buffer"] and not tool_data["json_sent"]:
+                # Use cached string if available, otherwise join
+                buffer_str = tool_data.get("args_str") or ''.join(tool_data["args_buffer"])
                 try:
-                    json_module.loads(''.join(tool_data["args_buffer"]))
+                    json_module.loads(buffer_str)
                     yield {
                         "type": "content_block_delta",
                         "index": tool_data["claude_index"],
                         "delta": {
                             "type": "input_json_delta",
-                            "partial_json": ''.join(tool_data["args_buffer"])
+                            "partial_json": buffer_str
                         }
                     }
                 except:
-                    pass
-            
-            yield {
-                "type": "content_block_stop",
-                "index": tool_data["claude_index"]
-            }
+                    # Even if JSON is invalid, send what we have (partial JSON is allowed)
+                    yield {
+                        "type": "content_block_delta",
+                        "index": tool_data["claude_index"],
+                        "delta": {
+                            "type": "input_json_delta",
+                            "partial_json": buffer_str
+                        }
+                    }
+        
+        yield {
+            "type": "content_block_stop",
+            "index": tool_data["claude_index"]
+        }
     
     # Send message_delta with stop_reason and usage
     yield {

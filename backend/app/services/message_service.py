@@ -497,12 +497,15 @@ class MessageService:
                         )
                         
                         # Stream converted chunks
+                        # Optimize: Use faster JSON serialization with minimal separators
                         chunk_count = 0
                         async for chunk in convert_openai_stream_to_anthropic_async(
                             openai_stream, req.model, initial_input_tokens
                         ):
                             chunk_count += 1
-                            json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
+                            # Use compact JSON format for better performance
+                            # separators=(',', ':') removes spaces, ensure_ascii=False is faster for non-ASCII
+                            json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
                             event_type = chunk.get("type", "")
                             if event_type:
                                 yield f"event: {event_type}\ndata: {json_str}\n\n"
@@ -1207,7 +1210,8 @@ class MessageService:
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
                     chunk_count += 1
-                    json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
+                    # Optimize: Use faster JSON serialization
+                    json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
                     event_type = chunk.get("type", "")
                     # 使用标准的SSE格式，包含event和data字段，与OpenAI转换路径保持一致
                     if event_type:

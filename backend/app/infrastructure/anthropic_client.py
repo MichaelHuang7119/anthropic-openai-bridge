@@ -4,12 +4,14 @@ import os
 import json
 import httpx
 import logging
+import sys
 from ..config import ProviderConfig
 from ..constants import (
     DEFAULT_MAX_KEEPALIVE_CONNECTIONS,
     DEFAULT_MAX_CONNECTIONS,
     DEFAULT_KEEPALIVE_EXPIRY
 )
+from ..utils.color_logger import format_log_message
 
 logger = logging.getLogger(__name__)
 
@@ -124,14 +126,26 @@ class AnthropicClient:
         if "provider" in payload:
             del payload["provider"]
         
-        # Log request details for debugging
-        logger.info(
-            f"AnthropicClient.messages for {self.provider.name}: "
-            f"url={url}, model={payload.get('model')}, "
-            f"payload_keys={list(payload.keys())}, "
-            f"headers={dict(self._http_client.headers)}"
-        )
-        logger.debug(f"Full payload: {payload}")
+        # Log request details for debugging with color highlighting
+        # Optimize: Only format logs if logging is enabled at INFO level
+        if logger.isEnabledFor(logging.INFO):
+            use_colors = sys.stdout.isatty() and sys.stderr.isatty()
+            base_message = (
+                f"AnthropicClient.messages for {self.provider.name}: "
+                f"url={url}, model={payload.get('model')}, "
+                f"payload_keys={list(payload.keys())}, "
+                f"headers={dict(self._http_client.headers)}"
+            )
+            formatted_message = format_log_message(
+                base_message,
+                url=url,
+                model=payload.get('model'),
+                provider=self.provider.name,
+                use_colors=use_colors
+            )
+            logger.info(formatted_message)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Full payload: {payload}")
         
         try:
             # Use json=payload which automatically serializes and sets Content-Type
@@ -315,14 +329,26 @@ class AnthropicClient:
                         )
             else:
                 # For non-streaming, use regular request
-                # Log request details for debugging
-                logger.info(
-                    f"AnthropicClient.messages_async for {self.provider.name}: "
-                    f"url={url}, model={payload.get('model')}, "
-                    f"payload_keys={list(payload.keys())}, "
-                    f"headers={dict(self._async_http_client.headers)}"
-                )
-                logger.debug(f"Full payload: {payload}")
+                # Log request details for debugging with color highlighting
+                # Optimize: Only format logs if logging is enabled at INFO level
+                if logger.isEnabledFor(logging.INFO):
+                    use_colors = sys.stdout.isatty() and sys.stderr.isatty()
+                    base_message = (
+                        f"AnthropicClient.messages_async for {self.provider.name}: "
+                        f"url={url}, model={payload.get('model')}, "
+                        f"payload_keys={list(payload.keys())}, "
+                        f"headers={dict(self._async_http_client.headers)}"
+                    )
+                    formatted_message = format_log_message(
+                        base_message,
+                        url=url,
+                        model=payload.get('model'),
+                        provider=self.provider.name,
+                        use_colors=use_colors
+                    )
+                    logger.info(formatted_message)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Full payload: {payload}")
                 response = await self._async_http_client.post(url, json=payload)
                 response.raise_for_status()
                 # Yield single response
