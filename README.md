@@ -23,6 +23,8 @@ Anthropic OpenAI Bridge 是一个高性能的 API 代理服务，它实现了 An
 - **错误处理** - 完善的错误处理和日志记录
 - **自动重试** - 支持超时和连接错误的自动重试机制
 - **Toast 消息提示** - 友好的操作反馈提示
+- **Anthropic 直连** - 支持直接连接 Anthropic API 格式提供商（无需转换）
+- **增强日志** - 详细的请求日志和性能监控
 
 ## 快速开始
 
@@ -576,6 +578,7 @@ anthropic-openai-bridge/
 - 查看 Token 使用统计
 - 查看性能摘要
 - 按供应商筛选和统计
+- 优化的分页加载（默认显示最近100条记录，支持"增加1000条"按钮扩展）
 
 #### 首页仪表板
 - 供应商统计概览
@@ -645,6 +648,7 @@ anthropic-openai-bridge/
 | `timeout` | 请求超时时间（秒） |
 | `max_retries` | 最大重试次数 |
 | `models` | 模型配置，分为大、中、小三个类别 |
+| `api_format` | API 格式（'openai' 或 'anthropic'，默认为 'openai'） |
 
 ### 供应商支持
 
@@ -661,6 +665,30 @@ anthropic-openai-bridge/
 - 自动故障转移
 - 独立的超时和重试配置
 - 自定义 HTTP 请求头
+- API 格式选择（OpenAI 或 Anthropic 格式）
+
+### Anthropic 直连功能
+
+项目新增了 Anthropic 直连功能，支持直接连接到 Anthropic API 格式的提供商，无需进行格式转换。通过在供应商配置中设置 `"api_format": "anthropic"`，可以启用此功能。
+
+示例配置：
+```json
+{
+  "name": "anthropic-direct",
+  "enabled": true,
+  "priority": 1,
+  "api_key": "${ANTHROPIC_API_KEY}",
+  "base_url": "https://api.anthropic.com",
+  "api_format": "anthropic",
+  "timeout": 60,
+  "max_retries": 1,
+  "models": {
+    "big": ["claude-3-opus-20240229"],
+    "middle": ["claude-3-sonnet-20240229"],
+    "small": ["claude-3-haiku-20240307"]
+  }
+}
+```
 
 ## 架构设计
 

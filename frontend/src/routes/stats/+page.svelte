@@ -248,7 +248,7 @@
   let hasLoadedAll = false;
   let offset = 0;
   const initialLimit = 100;
-  const loadMoreLimit = 200;
+  const loadMoreLimit = 1000;
 
   async function loadRequests(reset = true) {
     if (!abortController) return;
@@ -915,7 +915,7 @@
                 on:click={loadMore}
                 disabled={loadingRequests}
                 class="load-more-button"
-                title="新增200条记录"
+                title="新增1000条记录"
               >
                 {#if loadingRequests}
                   <svg class="loading-spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

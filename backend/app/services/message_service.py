@@ -424,7 +424,7 @@ class MessageService:
                                 yield f"event: {event_type}\ndata: {json_str}\n\n"
                             else:
                                 yield f"data: {json_str}\n\n"
-                        yield "data: [DONE]\n\n"
+                        yield f"data: [DONE]\n\n"
                         # Success, break out of retry loop
                         break
                         
@@ -463,7 +463,7 @@ class MessageService:
                                     "retry_delay": delay
                                 }
                             }
-                            yield f"data: {json.dumps(retry_notification)}\n\n"
+                            yield f"event: error\ndata: {json.dumps(retry_notification)}\n\n"
                             
                             await asyncio.sleep(delay)
                         else:
@@ -501,7 +501,7 @@ class MessageService:
                                         "provider": provider_config.name
                                     }
                                 }
-                            yield f"data: {json.dumps(final_error)}\n\n"
+                            yield f"event: error\ndata: {json.dumps(final_error)}\n\n"
                             raise
                     except Exception as e:
                         # For other exceptions, check if retryable
@@ -528,7 +528,7 @@ class MessageService:
                         "provider": provider_config.name
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
                 logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
                 error_response = {
@@ -539,7 +539,7 @@ class MessageService:
                         "provider": provider_config.name
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except APIConnectionError as e:
                 logger.error(f"Connection error from provider {provider_config.name}: {e}")
                 error_response = {
@@ -550,7 +550,7 @@ class MessageService:
                         "provider": provider_config.name
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except (httpx.ReadTimeout, httpx.TimeoutException) as e:
                 logger.error(f"Timeout error from provider {provider_config.name}: {e}")
                 error_response = {
@@ -561,14 +561,14 @@ class MessageService:
                         "provider": provider_config.name
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except APIError as e:
                 error_detail = str(e)
                 logger.error(f"API error from provider {provider_config.name}: {e}")
                 # Log request details when error occurs (for debugging format issues)
                 if provider_config.name == "modelscope":
                     self._log_modelscope_error(api_params, actual_model)
-                
+
                 error_response = {
                     "type": "error",
                     "error": {
@@ -577,7 +577,7 @@ class MessageService:
                         "provider": provider_config.name
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except Exception as e:
                 logger.error(f"Unexpected error in streaming response: {e}", exc_info=True)
                 error_response = {
@@ -587,7 +587,7 @@ class MessageService:
                         "message": f"Internal error: {str(e)}"
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
         
         return StreamingResponse(
             generate(),
@@ -1112,13 +1112,16 @@ class MessageService:
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
                     json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
-                    # 标准化SSE格式 - 统一使用data字段，不使用event头
-                    # Claude Code客户端期望所有事件都通过data字段传递，内部type字段区分事件类型
-                    yield f"data: {json_str}\n\n"
+                    event_type = chunk.get("type", "")
+                    # 使用标准的SSE格式，包含event和data字段，与OpenAI转换路径保持一致
+                    if event_type:
+                        yield f"event: {event_type}\ndata: {json_str}\n\n"
+                    else:
+                        yield f"data: {json_str}\n\n"
 
                 # 使用标准的message_stop事件代替[DONE]标记
-                # 这符合claude-code-proxy的期望格式
-                yield f"data: {{\"type\": \"message_stop\"}}\n\n"
+                # 保持与SSE格式的一致性
+                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
             except Exception as e:
                 logger.error(f"Error in streaming response from {provider_config.name}: {e}", exc_info=True)
                 # 标准化错误响应格式，符合Claude客户端期望
@@ -1130,9 +1133,9 @@ class MessageService:
                         "code": "streaming_error"
                     }
                 }
-                yield f"data: {json.dumps(error_response)}\n\n"
+                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
                 # 立即发送message_stop确保连接终止
-                yield f"data: {{\"type\": \"message_stop\"}}\n\n"
+                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
             finally:
                 # Close client after streaming completes (or on error)
                 try:
