@@ -248,7 +248,7 @@
   let hasLoadedAll = false;
   let offset = 0;
   const initialLimit = 100;
-  const loadMoreLimit = 100;
+  const loadMoreLimit = 200;
 
   async function loadRequests(reset = true) {
     if (!abortController) return;
@@ -911,15 +911,23 @@
           {#if !hasLoadedAll}
             <div class="load-more-container">
               <Button
-                variant="primary"
+                variant="secondary"
                 on:click={loadMore}
                 disabled={loadingRequests}
                 class="load-more-button"
+                title="新增200条记录"
               >
                 {#if loadingRequests}
-                  加载中...
+                  <svg class="loading-spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  <span>加载中...</span>
                 {:else}
-                  增加100条
+                  <svg class="more-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                  </svg>
+                  <span>查看更多</span>
                 {/if}
               </Button>
             </div>
@@ -1238,7 +1246,29 @@
   }
 
   .load-more-button {
-    min-width: 120px;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+  }
+
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  .more-icon {
+    transition: transform 0.2s ease;
+  }
+
+  .load-more-button:hover .more-icon {
+    transform: scale(1.1);
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   .info-text {
