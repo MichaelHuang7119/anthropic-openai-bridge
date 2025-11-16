@@ -110,17 +110,27 @@ async def get_token_usage_stats(
 
 
 @router.get("/summary")
-async def get_performance_summary(user: dict = Depends(require_admin())):
+async def get_performance_summary(
+    date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    user: dict = Depends(require_admin())
+):
     """获取性能摘要统计"""
     try:
         db = get_database()
 
-        # 获取最近 7 天的请求日志（移除1000条限制，获取所有数据）
-        seven_days_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        # 确定日期范围，如果没有提供则使用最近7天
+        if not date_from:
+            date_from = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        if not date_to:
+            date_to = datetime.now().strftime("%Y-%m-%d")
+
+        # 获取指定时间范围内的请求日志
         logs = await db.get_request_logs(
-            limit=None,  # 移除限制，获取所有符合条件的记录
+            limit=None,
             offset=0,
-            date_from=seven_days_ago,
+            date_from=date_from,
+            date_to=date_to,
         )
 
         # 计算统计信息
@@ -155,12 +165,13 @@ async def get_performance_summary(user: dict = Depends(require_admin())):
             else:
                 provider_stats[provider]["failed"] += 1
 
+            # 统计所有请求的token（无论成功还是失败）
             input_tokens = log.get("input_tokens") or 0
             output_tokens = log.get("output_tokens") or 0
             provider_stats[provider]["total_tokens"] += input_tokens + output_tokens
 
-        # 获取 Token 使用统计
-        token_summary = await db.get_token_usage_summary(date_from=seven_days_ago)
+        # 获取 Token 使用统计（使用相同的日期范围）
+        token_summary = await db.get_token_usage_summary(date_from=date_from, date_to=date_to)
 
         # 从 token_usage 表中按供应商汇总成本
         for usage_item in token_summary.get("summary", []):
@@ -194,6 +205,10 @@ async def get_performance_summary(user: dict = Depends(require_admin())):
                 "avg_response_time_ms": round(avg_response_time, 2),
                 "provider_stats": provider_stats,
                 "token_usage": token_summary,
+                "date_range": {
+                    "from": date_from,
+                    "to": date_to
+                }
             },
         }
     except Exception as e:

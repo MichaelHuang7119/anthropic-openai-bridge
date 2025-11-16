@@ -261,6 +261,18 @@ class MessageService:
             error_message = str(e.detail)
             status_code = e.status_code
             db = get_database()
+
+            # Estimate input tokens for failed requests
+            failed_request_input_tokens = 0
+            if 'openai_request' in locals() and openai_request and 'messages' in openai_request:
+                try:
+                    failed_request_input_tokens = count_tokens_estimate(
+                        openai_request.get('messages', []),
+                        actual_model if 'actual_model' in locals() else req.model
+                    )
+                except:
+                    pass
+
             await db.log_request(
                 request_id=request_id,
                 provider_name=provider_config.name if 'provider_config' in locals() else "unknown",
@@ -268,8 +280,24 @@ class MessageService:
                 request_params=openai_request if 'openai_request' in locals() else {},
                 status_code=status_code,
                 error_message=error_message,
+                input_tokens=failed_request_input_tokens,
                 response_time_ms=(time.time() - start_time) * 1000
             )
+
+            # Also update token_usage table for failed requests
+            # This ensures consistency between provider_stats and token_usage
+            if failed_request_input_tokens > 0:
+                today = datetime.now().strftime("%Y-%m-%d")
+                cost_estimate = failed_request_input_tokens * 0.00001  # Estimate only input tokens
+                await db.update_token_usage(
+                    date=today,
+                    provider_name=provider_config.name if 'provider_config' in locals() else "unknown",
+                    model=actual_model if 'actual_model' in locals() else req.model,
+                    input_tokens=failed_request_input_tokens,
+                    output_tokens=0,
+                    cost_estimate=cost_estimate
+                )
+
             # Re-raise HTTP exceptions (RateLimitError, APIError, etc.)
             raise
         except ValueError as e:
@@ -278,6 +306,18 @@ class MessageService:
             error_message = str(e)
             status_code = 400
             db = get_database()
+
+            # Estimate input tokens for failed requests
+            failed_request_input_tokens = 0
+            if 'openai_request' in locals() and openai_request and 'messages' in openai_request:
+                try:
+                    failed_request_input_tokens = count_tokens_estimate(
+                        openai_request.get('messages', []),
+                        actual_model if 'actual_model' in locals() else req.model
+                    )
+                except:
+                    pass
+
             if 'provider_config' in locals():
                 await db.log_request(
                     request_id=request_id,
@@ -286,8 +326,23 @@ class MessageService:
                     request_params=openai_request if 'openai_request' in locals() else {},
                     status_code=status_code,
                     error_message=error_message,
+                    input_tokens=failed_request_input_tokens,
                     response_time_ms=(time.time() - start_time) * 1000
                 )
+
+                # Also update token_usage table for failed requests
+                if failed_request_input_tokens > 0:
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    cost_estimate = failed_request_input_tokens * 0.00001
+                    await db.update_token_usage(
+                        date=today,
+                        provider_name=provider_config.name,
+                        model=actual_model if 'actual_model' in locals() else req.model,
+                        input_tokens=failed_request_input_tokens,
+                        output_tokens=0,
+                        cost_estimate=cost_estimate
+                    )
+
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logger.error(f"Error processing request: {e}", exc_info=True)
@@ -295,6 +350,18 @@ class MessageService:
             error_message = str(e)
             status_code = 500
             db = get_database()
+
+            # Estimate input tokens for failed requests
+            failed_request_input_tokens = 0
+            if 'openai_request' in locals() and openai_request and 'messages' in openai_request:
+                try:
+                    failed_request_input_tokens = count_tokens_estimate(
+                        openai_request.get('messages', []),
+                        actual_model if 'actual_model' in locals() else req.model
+                    )
+                except:
+                    pass
+
             if 'provider_config' in locals():
                 await db.log_request(
                     request_id=request_id,
@@ -303,8 +370,23 @@ class MessageService:
                     request_params=openai_request if 'openai_request' in locals() else {},
                     status_code=status_code,
                     error_message=error_message,
+                    input_tokens=failed_request_input_tokens,
                     response_time_ms=(time.time() - start_time) * 1000
                 )
+
+                # Also update token_usage table for failed requests
+                if failed_request_input_tokens > 0:
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    cost_estimate = failed_request_input_tokens * 0.00001
+                    await db.update_token_usage(
+                        date=today,
+                        provider_name=provider_config.name,
+                        model=actual_model if 'actual_model' in locals() else req.model,
+                        input_tokens=failed_request_input_tokens,
+                        output_tokens=0,
+                        cost_estimate=cost_estimate
+                    )
+
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
     def _filter_unsupported_params(self, provider_config, openai_request: dict):

@@ -5,6 +5,7 @@
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
+  import Chart from '$components/ui/Chart.svelte';
   import ErrorMessageModal from '$components/ErrorMessageModal.svelte';
   import { statsService } from '$services/stats';
   import { providerService } from '$services/providers';
@@ -504,6 +505,138 @@
     selectedError = '';
     selectedRequestInfo = '';
   }
+
+  // 供应商Token使用饼图数据
+  $: providerTokenChartData = (() => {
+    if (!summary) return null;
+
+    const providers = Object.entries(summary.provider_stats);
+    const totalTokensData = providers.map(([name, stats]) => ({
+      name,
+      value: stats.total_tokens
+    }));
+
+    return {
+      labels: totalTokensData.map(d => d.name),
+      datasets: [
+        {
+          label: 'Token 使用量',
+          data: totalTokensData.map(d => d.value),
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(255, 99, 132, 0.7)',
+            'rgba(255, 206, 86, 0.7)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 159, 64, 0.7)',
+            'rgba(199, 199, 199, 0.7)',
+            'rgba(83, 102, 255, 0.7)',
+            'rgba(255, 99, 255, 0.7)',
+            'rgba(99, 255, 132, 0.7)'
+          ],
+          borderColor: [
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 99, 132, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(199, 199, 199, 1)',
+            'rgba(83, 102, 255, 1)',
+            'rgba(255, 99, 255, 1)',
+            'rgba(99, 255, 132, 1)'
+          ],
+          borderWidth: 1
+        }
+      ]
+    };
+  })();
+
+  // Token使用趋势图数据
+  $: tokenUsageTrendChartData = (() => {
+    if (!tokenUsage || tokenUsage.length === 0) return null;
+
+    // 按日期聚合数据
+    const dateMap = new Map();
+    tokenUsage.forEach(usage => {
+      const date = usage.date;
+      if (!dateMap.has(date)) {
+        dateMap.set(date, {
+          date,
+          totalTokens: 0,
+          totalCost: 0,
+          requestCount: 0
+        });
+      }
+      const data = dateMap.get(date);
+      data.totalTokens += usage.total_input_tokens + usage.total_output_tokens;
+      data.totalCost += usage.total_cost_estimate;
+      data.requestCount += usage.request_count;
+    });
+
+    const sortedDates = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      labels: sortedDates.map(d => d.date),
+      datasets: [
+        {
+          label: 'Token 使用量',
+          data: sortedDates.map(d => d.totalTokens),
+          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          tension: 0.4,
+          fill: true
+        },
+        {
+          label: '成本估算',
+          data: sortedDates.map(d => d.totalCost),
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          tension: 0.4,
+          fill: true,
+          yAxisID: 'y1'
+        }
+      ]
+    };
+  })();
+
+  // Token使用柱状图数据（按供应商）
+  $: tokenUsageBarChartData = (() => {
+    if (!tokenUsage || tokenUsage.length === 0) return null;
+
+    // 按供应商聚合数据
+    const providerMap = new Map();
+    tokenUsage.forEach(usage => {
+      const provider = usage.provider_name;
+      if (!providerMap.has(provider)) {
+        providerMap.set(provider, {
+          provider,
+          totalTokens: 0,
+          totalCost: 0
+        });
+      }
+      const data = providerMap.get(provider);
+      data.totalTokens += usage.total_input_tokens + usage.total_output_tokens;
+      data.totalCost += usage.total_cost_estimate;
+    });
+
+    const sortedProviders = Array.from(providerMap.values())
+      .sort((a, b) => b.totalTokens - a.totalTokens)
+      .slice(0, 10); // 只显示前10个供应商
+
+    return {
+      labels: sortedProviders.map(d => d.provider),
+      datasets: [
+        {
+          label: 'Token 使用量',
+          data: sortedProviders.map(d => d.totalTokens),
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  })();
 </script>
 
 <div class="container">
@@ -581,6 +714,45 @@
     <!-- 供应商统计 -->
     {#if Object.keys(summary.provider_stats).length > 0}
       <Card title="供应商统计" subtitle="各供应商性能指标">
+        <!-- 图表展示 -->
+        {#if providerTokenChartData}
+          <div class="charts-section">
+            <h3 class="chart-title">Token 使用占比</h3>
+            <div class="chart-wrapper">
+              <Chart
+                type="pie"
+                data={providerTokenChartData}
+                options={{
+                  plugins: {
+                    legend: {
+                      position: 'right',
+                      labels: {
+                        color: 'var(--text-primary)',
+                        padding: 15,
+                        font: {
+                          size: 12
+                        }
+                      }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.label || '';
+                          const value = formatNumber(context.parsed as number);
+                          const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0);
+                          const percentage = total > 0 ? ((context.parsed as number / total) * 100).toFixed(2) : 0;
+                          return `${label}: ${value} (${percentage}%)`;
+                        }
+                      }
+                    }
+                  }
+                }}
+                height={350}
+              />
+            </div>
+          </div>
+        {/if}
+
         <div class="filters">
             <div class="filter-row">
               <div class="filter-group search-group">
@@ -591,13 +763,13 @@
                   placeholder="搜索供应商名称..."
                 />
               </div>
-              
+
               <Button variant="secondary" size="sm" on:click={clearProviderStatsFilters} title="清除筛选" class="clear-button">
                 清除
               </Button>
             </div>
           </div>
-          
+
           {#if filteredProviderStats.length > 0}
             <div class="table-container">
               <table class="stats-table">
@@ -674,6 +846,131 @@
     <!-- Token 使用详情 -->
     {#if tokenUsage.length > 0}
       <Card title="Token 使用详情" subtitle="按日期和供应商统计">
+        <!-- 图表展示 -->
+        <div class="charts-section">
+          {#if tokenUsageTrendChartData}
+            <h3 class="chart-title">Token 使用趋势</h3>
+            <div class="chart-wrapper">
+              <Chart
+                type="line"
+                data={tokenUsageTrendChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: {
+                    mode: 'index',
+                    intersect: false
+                  },
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                      labels: {
+                        color: 'var(--text-primary)',
+                        padding: 15,
+                        font: {
+                          size: 12
+                        }
+                      }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const label = context.dataset.label || '';
+                          const value = label === '成本估算' ? formatCurrency(context.parsed.y) : formatNumber(context.parsed.y);
+                          return `${label}: ${value}`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    x: {
+                      ticks: {
+                        color: 'var(--text-secondary)'
+                      },
+                      grid: {
+                        color: 'var(--border-color)'
+                      }
+                    },
+                    y: {
+                      type: 'linear',
+                      display: true,
+                      position: 'left',
+                      ticks: {
+                        color: 'var(--text-secondary)',
+                        callback: (value) => formatNumber(value as number)
+                      },
+                      grid: {
+                        color: 'var(--border-color)'
+                      }
+                    },
+                    y1: {
+                      type: 'linear',
+                      display: true,
+                      position: 'right',
+                      ticks: {
+                        color: 'var(--text-secondary)',
+                        callback: (value) => formatCurrency(value as number)
+                      },
+                      grid: {
+                        drawOnChartArea: false
+                      }
+                    }
+                  }
+                }}
+                height={350}
+              />
+            </div>
+          {/if}
+
+          {#if tokenUsageBarChartData}
+            <h3 class="chart-title">供应商 Token 使用排行</h3>
+            <div class="chart-wrapper">
+              <Chart
+                type="bar"
+                data={tokenUsageBarChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: false
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          return `Token 使用量: ${formatNumber(context.parsed.y)}`;
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    x: {
+                      ticks: {
+                        color: 'var(--text-secondary)',
+                        maxRotation: 45,
+                        minRotation: 45
+                      },
+                      grid: {
+                        color: 'var(--border-color)'
+                      }
+                    },
+                    y: {
+                      ticks: {
+                        color: 'var(--text-secondary)',
+                        callback: (value) => formatNumber(value as number)
+                      },
+                      grid: {
+                        color: 'var(--border-color)'
+                      }
+                    }
+                  }
+                }}
+                height={350}
+              />
+            </div>
+          {/if}
+        </div>
+
         <div class="filters">
             <div class="filter-row">
               <div class="filter-group">
@@ -686,7 +983,7 @@
                   class="filter-input"
                 />
               </div>
-              
+
               <div class="filter-group">
                 <label>模型:</label>
                 <Input
@@ -697,7 +994,7 @@
                   class="filter-input"
                 />
               </div>
-              
+
               <Button variant="secondary" size="sm" on:click={clearTokenUsageFilters} title="清除筛选" class="clear-button">
                 清除
               </Button>
@@ -1288,6 +1585,30 @@
     text-align: center;
     padding: 4rem;
     color: var(--text-secondary);
+  }
+
+  /* 图表样式 */
+  .charts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid var(--primary-color);
+  }
+
+  .chart-wrapper {
+    background: var(--bg-primary);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
   }
 
   @media (max-width: 768px) {
