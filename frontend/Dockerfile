@@ -9,19 +9,25 @@ RUN npm config set registry https://registry.npmmirror.com/ && \
     npm config set fetch-timeout 300000 && \
     npm config set fetch-retries 5
 
-# 安装 pnpm
-RUN npm install -g pnpm
+# 安装 pnpm (锁定版本以支持 lockfileVersion 9.0)
+RUN npm install -g pnpm@10.18.3
 
-# 配置 pnpm 镜像源
-RUN pnpm config set registry https://registry.npmmirror.com/
+# 配置 pnpm 镜像源和超时设置
+RUN pnpm config set fetch-timeout 300000 && \
+    pnpm config set fetch-retries 5 && \
+    pnpm config set store-dir /tmp/.pnpm-store
 
 # 复制 package 文件
 COPY package.json pnpm-lock.yaml* ./
 
 # 安装依赖（如果主镜像失败，尝试备用镜像）
-RUN pnpm install --frozen-lockfile || \
-    (pnpm config set registry https://registry.npm.taobao.org/ && \
-     pnpm install --frozen-lockfile)
+RUN pnpm --version && \
+    echo "Attempting to install with npmmirror.com registry..." && \
+    (pnpm config set registry https://registry.npmmirror.com/ && \
+     pnpm install --frozen-lockfile --fetch-timeout=300000) || \
+    (echo "npmmirror.com failed, trying npmjs.org registry..." && \
+     pnpm config set registry https://registry.npmjs.org/ && \
+     pnpm install --frozen-lockfile --fetch-timeout=300000)
 
 # 复制应用代码
 COPY . .
