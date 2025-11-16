@@ -22,8 +22,9 @@ async def convert_openai_stream_to_anthropic_async(
     current_tool_calls = {}  # Maps OpenAI index -> tool call data
     text_block_started = False
     message_started = False
-    final_stop_reason = 'end_turn'
+    final_stop_reason = 'end_turn'  # Default stop reason if none is provided
     last_chunk = None
+    finish_reason_seen = False  # Track if we've seen a finish_reason
     # Initialize usage_data with actual input_tokens (per claude-code-proxy pattern)
     # This allows clients to see input token count immediately
     usage_data = {"input_tokens": initial_input_tokens, "output_tokens": 0}
@@ -63,6 +64,8 @@ async def convert_openai_stream_to_anthropic_async(
         "type": "ping"
     }
     
+    # Track if we've received any content chunks (not just usage updates)
+    has_content_chunks = False
     async for chunk in openai_stream:
         last_chunk = chunk
         
@@ -148,9 +151,13 @@ async def convert_openai_stream_to_anthropic_async(
         if not hasattr(chunk, 'choices'):
             # If chunk has usage but no choices, continue to next chunk
             # This is expected for the final usage chunk
+            # However, if this is the last chunk and we haven't seen finish_reason,
+            # the stream might have ended naturally
             continue
         
         if not chunk.choices:
+            # Empty choices list - might be the last chunk
+            # Check if we have finish_reason from previous chunks
             continue
         
         choice = chunk.choices[0]
@@ -158,7 +165,21 @@ async def convert_openai_stream_to_anthropic_async(
         delta = getattr(choice, 'delta', None)
         if delta is None:
             delta = {}
+        
+        # Get finish_reason - this indicates the stream is ending
+        # Some APIs send finish_reason in the last chunk with content
+        # Others send it in a separate final chunk
         finish_reason = getattr(choice, 'finish_reason', None)
+        
+        # Also check if finish_reason is in the choice dict format
+        if not finish_reason and isinstance(choice, dict):
+            finish_reason = choice.get('finish_reason')
+        elif not finish_reason and hasattr(choice, 'model_dump'):
+            try:
+                choice_dict = choice.model_dump()
+                finish_reason = choice_dict.get('finish_reason')
+            except:
+                pass
         
         # Helper to get delta attribute safely
         def get_delta_attr(attr, default=None):
@@ -171,6 +192,7 @@ async def convert_openai_stream_to_anthropic_async(
         # Handle text delta (message_start and content_block_start already sent above)
         content = get_delta_attr('content')
         if content:
+            has_content_chunks = True
             yield {
                 "type": "content_block_delta",
                 "index": text_block_index,
@@ -229,6 +251,7 @@ async def convert_openai_stream_to_anthropic_async(
                 
                 # Start content block when we have both id and name
                 if tool_call["id"] and tool_call["name"] and not tool_call["started"]:
+                    has_content_chunks = True
                     tool_block_counter += 1
                     claude_index = text_block_index + tool_block_counter
                     tool_call["claude_index"] = claude_index
@@ -280,6 +303,8 @@ async def convert_openai_stream_to_anthropic_async(
                             pass
         
         # Handle finish reason - break loop when we get finish_reason
+        # Note: Some APIs send finish_reason in the same chunk as the last content
+        # Others send it in a separate final chunk. We handle both cases.
         if finish_reason:
             # Map OpenAI finish_reason to Anthropic stop_reason
             stop_reason = None
@@ -294,10 +319,34 @@ async def convert_openai_stream_to_anthropic_async(
             
             # Store for final events
             final_stop_reason = stop_reason
-            break
+            finish_reason_seen = True
+            # Don't break immediately - process any remaining content in this chunk first
+            # The loop will naturally end when the stream ends
+            # This handles cases where finish_reason comes with the last content chunk
+            # Some APIs send finish_reason in the same chunk as the last content, then end the stream
     
     # usage_data is already initialized and updated during the loop
     # No need to extract from last_chunk since we update it in real-time
+    
+    # If we didn't see a finish_reason, the stream ended naturally
+    # This is normal for some APIs that don't send finish_reason or [DONE] markers
+    if not finish_reason_seen:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(
+            f"OpenAI stream ended naturally without finish_reason. "
+            f"Model: {model}, Using default stop_reason: {final_stop_reason}"
+        )
+    
+    # Log warning if we didn't receive any content chunks (only usage updates)
+    # This might indicate the API returned an empty response
+    if not has_content_chunks:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"OpenAI stream conversion completed without any content chunks. "
+            f"Model: {model}, Only received usage updates or empty stream."
+        )
     
     # Send final SSE events
     # Per claude-code-proxy: Always stop text block (even if empty)

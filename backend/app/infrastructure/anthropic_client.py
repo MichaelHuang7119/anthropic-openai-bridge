@@ -204,11 +204,19 @@ class AnthropicClient:
         try:
             if stream:
                 # For streaming, use stream mode
+                logger.debug(f"Starting streaming request to {self.provider.name}: {url}")
                 async with self._async_http_client.stream(
                     "POST",
                     url,
                     json=payload
                 ) as response:
+                    # Log response status and headers for debugging
+                    logger.debug(
+                        f"Streaming response from {self.provider.name}: "
+                        f"status={response.status_code}, "
+                        f"headers={dict(response.headers)}"
+                    )
+                    
                     # Check status before processing stream
                     if response.status_code >= 400:
                         # Read error response before raising
@@ -242,19 +250,69 @@ class AnthropicClient:
                         response.raise_for_status()
                     
                     # For streaming, yield Server-Sent Events
+                    # Track if we've received any valid data to detect empty responses
+                    has_received_data = False
+                    buffer = ""  # Buffer for incomplete lines or non-SSE format
+                    
                     async for line in response.aiter_lines():
                         if line:
+                            has_received_data = True
                             if line.startswith("data: "):
-                                data_str = line[6:]  # Remove "data: " prefix
+                                data_str = line[6:].strip()  # Remove "data: " prefix and whitespace
+                                # Handle [DONE] marker - some APIs send it, others don't
+                                # If we see it, we can stop, but don't require it
                                 if data_str == "[DONE]":
+                                    logger.debug(f"Received [DONE] marker from {self.provider.name}")
                                     break
+                                if not data_str:  # Empty data line, skip
+                                    continue
                                 try:
-                                    yield json.loads(data_str)
-                                except json.JSONDecodeError:
+                                    parsed = json.loads(data_str)
+                                    yield parsed
+                                except json.JSONDecodeError as e:
+                                    logger.debug(f"Failed to parse SSE data line as JSON: {data_str[:100]}, error: {e}")
                                     continue
                             elif line.startswith("event: "):
                                 # Skip event type lines, we'll use type from data
                                 continue
+                            elif line.strip() and not line.startswith(":"):
+                                # Handle non-SSE format: some APIs return raw JSON lines
+                                # Try to parse as JSON directly
+                                try:
+                                    parsed = json.loads(line.strip())
+                                    yield parsed
+                                    has_received_data = True
+                                except json.JSONDecodeError:
+                                    # If it's not valid JSON, might be part of a multi-line JSON
+                                    # Buffer it and try to parse when we get more data
+                                    buffer += line
+                                    try:
+                                        parsed = json.loads(buffer.strip())
+                                        yield parsed
+                                        buffer = ""  # Clear buffer after successful parse
+                                        has_received_data = True
+                                    except json.JSONDecodeError:
+                                        # Still incomplete, continue buffering
+                                        continue
+                            # Empty lines are valid in SSE (they separate events), just continue
+                        # Note: The loop will naturally end when the stream closes
+                        # We don't require [DONE] marker - some APIs end the stream directly
+                    
+                    # Check if we received any data - if not, this might indicate a problem
+                    if not has_received_data:
+                        logger.warning(
+                            f"Streaming response from {self.provider.name} completed without any data. "
+                            f"Status: {response.status_code}, URL: {url}, Model: {payload.get('model')}, "
+                            f"Response headers: {dict(response.headers)}"
+                        )
+                        # Some APIs might return 200 with empty body as a valid response
+                        # In this case, we should still yield a proper completion event
+                        # But log it for debugging
+                    else:
+                        logger.debug(
+                            f"Streaming response from {self.provider.name} completed successfully. "
+                            f"Received data chunks."
+                        )
             else:
                 # For non-streaming, use regular request
                 # Log request details for debugging

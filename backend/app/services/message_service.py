@@ -497,15 +497,27 @@ class MessageService:
                         )
                         
                         # Stream converted chunks
+                        chunk_count = 0
                         async for chunk in convert_openai_stream_to_anthropic_async(
                             openai_stream, req.model, initial_input_tokens
                         ):
+                            chunk_count += 1
                             json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
                             event_type = chunk.get("type", "")
                             if event_type:
                                 yield f"event: {event_type}\ndata: {json_str}\n\n"
                             else:
                                 yield f"data: {json_str}\n\n"
+                        
+                        # Check if we received any chunks - if not, this might indicate a problem
+                        if chunk_count == 0:
+                            logger.warning(
+                                f"Streaming request to {provider_config.name} (OpenAI format) completed without any chunks. "
+                                f"Model: {actual_model}, Request ID: {request_id}"
+                            )
+                            # Even if no chunks were received, we should still send [DONE]
+                            # to properly close the stream, but log it for debugging
+                        
                         yield f"data: [DONE]\n\n"
                         # Success, break out of retry loop
                         break
@@ -1191,8 +1203,10 @@ class MessageService:
     ) -> StreamingResponse:
         """Handle streaming Anthropic direct request."""
         async def generate():
+            chunk_count = 0
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
+                    chunk_count += 1
                     json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
                     event_type = chunk.get("type", "")
                     # 使用标准的SSE格式，包含event和data字段，与OpenAI转换路径保持一致
@@ -1200,6 +1214,15 @@ class MessageService:
                         yield f"event: {event_type}\ndata: {json_str}\n\n"
                     else:
                         yield f"data: {json_str}\n\n"
+
+                # Check if we received any chunks - if not, this might indicate a problem
+                if chunk_count == 0:
+                    logger.warning(
+                        f"Streaming request to {provider_config.name} completed without any chunks. "
+                        f"Model: {actual_model}, Request ID: {request_id}"
+                    )
+                    # Even if no chunks were received, we should still send message_stop
+                    # to properly close the stream, but log it for debugging
 
                 # 使用标准的message_stop事件代替[DONE]标记
                 # 保持与SSE格式的一致性
