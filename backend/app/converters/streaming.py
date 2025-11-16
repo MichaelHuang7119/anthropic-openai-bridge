@@ -16,6 +16,17 @@ async def convert_openai_stream_to_anthropic_async(
         model: Model name
         initial_input_tokens: Initial input token count (calculated from request messages)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Validate that we have a valid stream
+    if openai_stream is None:
+        logger.error(f"openai_stream is None for model {model}")
+        raise ValueError("openai_stream cannot be None")
+    
+    # Log stream type for debugging
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"Starting stream conversion for model {model}, stream type: {type(openai_stream).__name__}")
     message_id = f"msg_{uuid.uuid4().hex[:24]}"
     text_block_index = 0
     tool_block_counter = 0
@@ -66,8 +77,25 @@ async def convert_openai_stream_to_anthropic_async(
     
     # Track if we've received any content chunks (not just usage updates)
     has_content_chunks = False
+    chunk_count = 0  # Track total chunks received
+    chunks_with_choices = 0  # Track chunks that have choices
+    chunks_without_choices = 0  # Track chunks without choices
+    
     async for chunk in openai_stream:
+        chunk_count += 1
         last_chunk = chunk
+        
+        # Log chunk info at DEBUG level for troubleshooting
+        import logging
+        chunk_logger = logging.getLogger(__name__)
+        if chunk_logger.isEnabledFor(logging.DEBUG):
+            chunk_type = type(chunk).__name__
+            has_choices_attr = hasattr(chunk, 'choices')
+            is_dict = isinstance(chunk, dict)
+            chunk_logger.debug(
+                f"Received chunk #{chunk_count}: type={chunk_type}, "
+                f"has_choices={has_choices_attr}, is_dict={is_dict}"
+            )
         
         # Extract usage from chunk if available (when stream_options.include_usage=True)
         # Per OpenAI API: usage appears in the final chunk, which may not have choices
@@ -148,33 +176,72 @@ async def convert_openai_stream_to_anthropic_async(
             last_sent_usage = usage_data.copy()
         
         # Handle OpenAI SDK response objects
-        if not hasattr(chunk, 'choices'):
-            # If chunk has usage but no choices, continue to next chunk
-            # This is expected for the final usage chunk
-            # However, if this is the last chunk and we haven't seen finish_reason,
-            # the stream might have ended naturally
+        # Support multiple chunk formats: SDK objects, dicts, etc.
+        choices = None
+        if hasattr(chunk, 'choices'):
+            choices = chunk.choices
+        elif isinstance(chunk, dict):
+            choices = chunk.get('choices')
+        elif hasattr(chunk, 'model_dump'):
+            try:
+                chunk_dict = chunk.model_dump()
+                choices = chunk_dict.get('choices')
+            except:
+                pass
+        
+        # If chunk has usage but no choices, continue to next chunk
+        # This is expected for the final usage chunk
+        if not choices:
+            chunks_without_choices += 1
+            # However, we should still check if this is a dict chunk with direct content
+            # Some APIs might send content in a different format
+            if isinstance(chunk, dict):
+                # Check for direct content in chunk (non-standard format)
+                direct_content = chunk.get('content') or chunk.get('text')
+                if direct_content:
+                    has_content_chunks = True
+                    yield {
+                        "type": "content_block_delta",
+                        "index": text_block_index,
+                        "delta": {
+                            "type": "text_delta",
+                            "text": direct_content
+                        }
+                    }
+            # Log at DEBUG level why we're skipping this chunk
+            if chunk_logger.isEnabledFor(logging.DEBUG):
+                chunk_logger.debug(
+                    f"Skipping chunk #{chunk_count}: no choices found. "
+                    f"Chunk keys: {list(chunk.keys()) if isinstance(chunk, dict) else 'N/A'}"
+                )
             continue
         
-        if not chunk.choices:
+        chunks_with_choices += 1
+        
+        if not choices or len(choices) == 0:
             # Empty choices list - might be the last chunk
-            # Check if we have finish_reason from previous chunks
             continue
         
-        choice = chunk.choices[0]
+        choice = choices[0]
         # Handle delta as object (OpenAI SDK) or dict
-        delta = getattr(choice, 'delta', None)
+        delta = None
+        if isinstance(choice, dict):
+            delta = choice.get('delta', {})
+        elif hasattr(choice, 'delta'):
+            delta = getattr(choice, 'delta', None)
+        
         if delta is None:
             delta = {}
         
         # Get finish_reason - this indicates the stream is ending
         # Some APIs send finish_reason in the last chunk with content
         # Others send it in a separate final chunk
-        finish_reason = getattr(choice, 'finish_reason', None)
-        
-        # Also check if finish_reason is in the choice dict format
-        if not finish_reason and isinstance(choice, dict):
+        finish_reason = None
+        if isinstance(choice, dict):
             finish_reason = choice.get('finish_reason')
-        elif not finish_reason and hasattr(choice, 'model_dump'):
+        elif hasattr(choice, 'finish_reason'):
+            finish_reason = getattr(choice, 'finish_reason', None)
+        elif hasattr(choice, 'model_dump'):
             try:
                 choice_dict = choice.model_dump()
                 finish_reason = choice_dict.get('finish_reason')
@@ -183,14 +250,21 @@ async def convert_openai_stream_to_anthropic_async(
         
         # Helper to get delta attribute safely
         def get_delta_attr(attr, default=None):
-            if hasattr(delta, attr):
-                return getattr(delta, attr)
-            elif isinstance(delta, dict):
+            if isinstance(delta, dict):
                 return delta.get(attr, default)
+            elif hasattr(delta, attr):
+                return getattr(delta, attr)
             return default
         
         # Handle text delta (message_start and content_block_start already sent above)
         content = get_delta_attr('content')
+        # Also check if content is directly in choice (some API formats)
+        if not content:
+            if isinstance(choice, dict):
+                content = choice.get('content') or choice.get('text')
+            elif hasattr(choice, 'content'):
+                content = getattr(choice, 'content', None)
+        
         if content:
             has_content_chunks = True
             yield {
@@ -300,7 +374,8 @@ async def convert_openai_stream_to_anthropic_async(
                             # Only join the string when we need to parse
                             buffer_str = ''.join(tool_call["args_buffer"])
                             try:
-                                json_module.loads(buffer_str)
+                                import json
+                                json.loads(buffer_str)
                                 # If parsing succeeds and we haven't sent this JSON yet
                                 yield {
                                     "type": "content_block_delta",
@@ -313,7 +388,7 @@ async def convert_openai_stream_to_anthropic_async(
                                 tool_call["json_sent"] = True
                                 # Cache the joined string to avoid re-joining
                                 tool_call["args_str"] = buffer_str
-                            except json_module.JSONDecodeError:
+                            except json.JSONDecodeError:
                                 # JSON is incomplete, continue accumulating
                                 pass
         
@@ -358,10 +433,44 @@ async def convert_openai_stream_to_anthropic_async(
     if not has_content_chunks:
         import logging
         logger = logging.getLogger(__name__)
+        # Log more details for debugging
         logger.warning(
             f"OpenAI stream conversion completed without any content chunks. "
-            f"Model: {model}, Only received usage updates or empty stream."
+            f"Model: {model}, Only received usage updates or empty stream. "
+            f"Total chunks received: {chunk_count}, "
+            f"Chunks with choices: {chunks_with_choices}, "
+            f"Chunks without choices: {chunks_without_choices}, "
+            f"Last chunk type: {type(last_chunk).__name__ if last_chunk else 'None'}, "
+            f"Has choices attr: {hasattr(last_chunk, 'choices') if last_chunk else False}, "
+            f"Is dict: {isinstance(last_chunk, dict) if last_chunk else False}"
         )
+        
+        # If no chunks were received at all, this is a more serious issue
+        if chunk_count == 0:
+            logger.error(
+                f"No chunks received from OpenAI stream for model {model}. "
+                f"This indicates the stream was empty or the connection was closed immediately."
+            )
+        
+        # If we have last_chunk, log its structure for debugging
+        if last_chunk and logger.isEnabledFor(logging.DEBUG):
+            try:
+                if hasattr(last_chunk, 'model_dump'):
+                    chunk_dict = last_chunk.model_dump()
+                elif isinstance(last_chunk, dict):
+                    chunk_dict = last_chunk
+                else:
+                    chunk_dict = {"type": type(last_chunk).__name__, "repr": str(last_chunk)[:200]}
+                logger.debug(f"Last chunk structure: {chunk_dict}")
+            except Exception as e:
+                logger.debug(f"Could not inspect last chunk: {e}")
+        
+        # If we received chunks but none had content, log sample chunks
+        if chunk_count > 0 and logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                f"Received {chunk_count} chunks but none contained content. "
+                f"This might indicate the API returned only usage/metadata chunks."
+            )
     
     # Send final SSE events
     # Per claude-code-proxy: Always stop text block (even if empty)
@@ -378,7 +487,8 @@ async def convert_openai_stream_to_anthropic_async(
                 # Use cached string if available, otherwise join
                 buffer_str = tool_data.get("args_str") or ''.join(tool_data["args_buffer"])
                 try:
-                    json_module.loads(buffer_str)
+                    import json
+                    json.loads(buffer_str)
                     yield {
                         "type": "content_block_delta",
                         "index": tool_data["claude_index"],

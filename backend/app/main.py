@@ -19,8 +19,19 @@ from .services.health_service import HealthService
 from .services.provider_service import ProviderService
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+# Allow log level to be set via environment variable or default to INFO
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+# Map string level to logging constant
+log_level_map = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+    'CRITICAL': logging.CRITICAL,
+}
+logging.basicConfig(level=log_level_map.get(log_level, logging.INFO))
 logger = logging.getLogger(__name__)
+logger.info(f"Logging level set to: {log_level}")
 
 # Initialize OpenTelemetry if enabled
 _telemetry_enabled = os.getenv("ENABLE_TELEMETRY", "true").lower() in ("true", "1", "yes")

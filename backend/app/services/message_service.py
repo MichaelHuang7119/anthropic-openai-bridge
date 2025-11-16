@@ -168,6 +168,45 @@ class MessageService:
                                     status_code=200,
                                     response_time_ms=(time.time() - start_time) * 1000
                                 )
+
+                                # For cached responses, we need to extract token information from the cached data
+                                # This is important for accurate cost estimation and token usage statistics
+                                input_tokens = 0
+                                output_tokens = 0
+
+                                # Try to extract token info from cached response
+                                try:
+                                    import json
+                                    if isinstance(cached_response, str):
+                                        cached_data = json.loads(cached_response)
+                                    else:
+                                        cached_data = cached_response
+
+                                    # Extract token usage from cached response if available
+                                    if hasattr(cached_data, 'get'):
+                                        usage = cached_data.get('usage') or cached_data.get('message', {}).get('usage', {})
+                                        input_tokens = usage.get('input_tokens', 0) or usage.get('prompt_tokens', 0)
+                                        output_tokens = usage.get('output_tokens', 0) or usage.get('completion_tokens', 0)
+                                except:
+                                    # If we can't parse the cached response, we can't extract token info
+                                    # In this case, we'll still update token usage with 0 tokens (just to record the request)
+                                    pass
+
+                                # Update token usage statistics for cached response
+                                today = datetime.now().strftime("%Y-%m-%d")
+                                cost_estimate = (
+                                    input_tokens * 0.00001 +
+                                    output_tokens * 0.00003
+                                )
+                                await db.update_token_usage(
+                                    date=today,
+                                    provider_name=provider_config.name,
+                                    model=actual_model,
+                                    input_tokens=input_tokens,
+                                    output_tokens=output_tokens,
+                                    cost_estimate=cost_estimate
+                                )
+
                                 return cached_response
 
                         # Convert Anthropic request to OpenAI format
@@ -445,10 +484,11 @@ class MessageService:
     ) -> StreamingResponse:
         """Handle streaming request."""
         async def generate():
+            total_output_tokens = 0
             try:
                 # Log request details for debugging
                 logger.debug(f"Sending request to {provider_config.name} provider: model={actual_model}, max_tokens={openai_request.get('max_tokens')}, has_tools={bool(openai_request.get('tools'))}, message_count={len(openai_request.get('messages', []))}")
-                
+
                 # Build params, excluding tool_choice if it was filtered
                 api_params = {
                     "model": actual_model,
@@ -464,7 +504,7 @@ class MessageService:
                 # Only pass tool_choice if it exists (wasn't filtered)
                 if "tool_choice" in openai_request:
                     api_params["tool_choice"] = openai_request["tool_choice"]
-                
+
                 # Calculate input tokens before streaming starts
                 messages_list = []
                 for msg in req.messages:
@@ -475,43 +515,69 @@ class MessageService:
                         })
                     else:
                         messages_list.append(msg)
-                
+
                 # Estimate input tokens
                 initial_input_tokens = count_tokens_estimate(messages_list, actual_model)
-                
+
                 # Retry logic for streaming requests
                 max_retries = provider_config.max_retries
                 retry_count = 0
-                
+
                 while retry_count <= max_retries:
                     try:
                         # Create request function for retry
                         async def make_stream_request():
                             return await client.chat_completion_async(**api_params)
-                        
+
                         # Use retry mechanism for initial connection
                         openai_stream = await retry_with_backoff(
                             make_stream_request,
                             max_retries=0,  # Don't retry here, handle retries manually for better control
                             provider_name=provider_config.name
                         )
-                        
+
+                        # Validate stream before processing
+                        if openai_stream is None:
+                            logger.error(f"Received None stream from {provider_config.name} for model {actual_model}")
+                            raise ValueError(f"Stream from {provider_config.name} is None")
+
+                        # Log stream type for debugging
+                        logger.debug(
+                            f"Stream received from {provider_config.name}: "
+                            f"type={type(openai_stream).__name__}, "
+                            f"model={actual_model}"
+                        )
+
                         # Stream converted chunks
                         # Optimize: Use faster JSON serialization with minimal separators
                         chunk_count = 0
-                        async for chunk in convert_openai_stream_to_anthropic_async(
-                            openai_stream, req.model, initial_input_tokens
-                        ):
-                            chunk_count += 1
-                            # Use compact JSON format for better performance
-                            # separators=(',', ':') removes spaces, ensure_ascii=False is faster for non-ASCII
-                            json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
-                            event_type = chunk.get("type", "")
-                            if event_type:
-                                yield f"event: {event_type}\ndata: {json_str}\n\n"
-                            else:
-                                yield f"data: {json_str}\n\n"
-                        
+                        try:
+                            async for chunk in convert_openai_stream_to_anthropic_async(
+                                openai_stream, req.model, initial_input_tokens
+                            ):
+                                chunk_count += 1
+                                # Track output tokens from streaming chunks
+                                if chunk.get("type") == "content_block_delta":
+                                    chunk_output = chunk.get("delta", {}).get("text", "")
+                                    if chunk_output:
+                                        total_output_tokens += len(chunk_output.split())  # Simple estimation
+
+                                # Use compact JSON format for better performance
+                                # separators=(',', ':') removes spaces, ensure_ascii=False is faster for non-ASCII
+                                json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
+                                event_type = chunk.get("type", "")
+                                if event_type:
+                                    yield f"event: {event_type}\ndata: {json_str}\n\n"
+                                else:
+                                    yield f"data: {json_str}\n\n"
+                        except Exception as stream_error:
+                            logger.error(
+                                f"Error iterating over stream from {provider_config.name}: {type(stream_error).__name__}: {stream_error}",
+                                exc_info=True
+                            )
+                            # Re-raise to trigger retry logic
+                            raise
+
                         # Check if we received any chunks - if not, this might indicate a problem
                         if chunk_count == 0:
                             logger.warning(
@@ -520,8 +586,37 @@ class MessageService:
                             )
                             # Even if no chunks were received, we should still send [DONE]
                             # to properly close the stream, but log it for debugging
-                        
+
                         yield f"data: [DONE]\n\n"
+
+                        # Log successful streaming request to database
+                        db = get_database()
+                        await db.log_request(
+                            request_id=request_id,
+                            provider_name=provider_config.name,
+                            model=actual_model,
+                            request_params=openai_request,
+                            status_code=200,
+                            input_tokens=initial_input_tokens,
+                            output_tokens=total_output_tokens,
+                            response_time_ms=(time.time() - start_time) * 1000
+                        )
+
+                        # Update token usage statistics for streaming request
+                        today = datetime.now().strftime("%Y-%m-%d")
+                        cost_estimate = (
+                            initial_input_tokens * 0.00001 +
+                            total_output_tokens * 0.00003
+                        )
+                        await db.update_token_usage(
+                            date=today,
+                            provider_name=provider_config.name,
+                            model=actual_model,
+                            input_tokens=initial_input_tokens,
+                            output_tokens=total_output_tokens,
+                            cost_estimate=cost_estimate
+                        )
+
                         # Success, break out of retry loop
                         break
                         
@@ -617,6 +712,32 @@ class MessageService:
                             raise
             except RateLimitError as e:
                 logger.warning(f"Rate limit error from provider {provider_config.name}: {e}")
+                # Log failed request and update token usage
+                db = get_database()
+                await db.log_request(
+                    request_id=request_id,
+                    provider_name=provider_config.name,
+                    model=actual_model,
+                    request_params=openai_request,
+                    status_code=429,
+                    error_message=str(e),
+                    input_tokens=initial_input_tokens,
+                    output_tokens=total_output_tokens,
+                    response_time_ms=(time.time() - start_time) * 1000
+                )
+                # Update token usage for failed request
+                if initial_input_tokens > 0:
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    cost_estimate = initial_input_tokens * 0.00001
+                    await db.update_token_usage(
+                        date=today,
+                        provider_name=provider_config.name,
+                        model=actual_model,
+                        input_tokens=initial_input_tokens,
+                        output_tokens=0,
+                        cost_estimate=cost_estimate
+                    )
+
                 error_response = {
                     "type": "error",
                     "error": {
@@ -628,6 +749,32 @@ class MessageService:
                 yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
                 logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
+                # Log failed request and update token usage
+                db = get_database()
+                await db.log_request(
+                    request_id=request_id,
+                    provider_name=provider_config.name,
+                    model=actual_model,
+                    request_params=openai_request,
+                    status_code=503,
+                    error_message=str(e),
+                    input_tokens=initial_input_tokens,
+                    output_tokens=total_output_tokens,
+                    response_time_ms=(time.time() - start_time) * 1000
+                )
+                # Update token usage for failed request
+                if initial_input_tokens > 0:
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    cost_estimate = initial_input_tokens * 0.00001
+                    await db.update_token_usage(
+                        date=today,
+                        provider_name=provider_config.name,
+                        model=actual_model,
+                        input_tokens=initial_input_tokens,
+                        output_tokens=0,
+                        cost_estimate=cost_estimate
+                    )
+
                 error_response = {
                     "type": "error",
                     "error": {
@@ -639,6 +786,32 @@ class MessageService:
                 yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except APIConnectionError as e:
                 logger.error(f"Connection error from provider {provider_config.name}: {e}")
+                # Log failed request and update token usage
+                db = get_database()
+                await db.log_request(
+                    request_id=request_id,
+                    provider_name=provider_config.name,
+                    model=actual_model,
+                    request_params=openai_request,
+                    status_code=503,
+                    error_message=str(e),
+                    input_tokens=initial_input_tokens,
+                    output_tokens=total_output_tokens,
+                    response_time_ms=(time.time() - start_time) * 1000
+                )
+                # Update token usage for failed request
+                if initial_input_tokens > 0:
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    cost_estimate = initial_input_tokens * 0.00001
+                    await db.update_token_usage(
+                        date=today,
+                        provider_name=provider_config.name,
+                        model=actual_model,
+                        input_tokens=initial_input_tokens,
+                        output_tokens=0,
+                        cost_estimate=cost_estimate
+                    )
+
                 error_response = {
                     "type": "error",
                     "error": {
@@ -932,6 +1105,20 @@ class MessageService:
         usage = anthropic_response.get("usage", {})
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
+
+        # If token usage is not available in anthropic format, try to extract from original OpenAI response
+        # This handles cases where the provider's response might not include complete usage information
+        if (input_tokens is None or output_tokens is None or
+            (input_tokens == 0 and output_tokens == 0 and openai_dict.get('usage'))):
+            # Try to get from original OpenAI response
+            openai_usage = openai_dict.get('usage', {})
+            if openai_usage:
+                input_tokens = input_tokens or openai_usage.get('prompt_tokens', 0)
+                output_tokens = output_tokens or openai_usage.get('completion_tokens', 0)
+
+                # Some providers might use different field names
+                input_tokens = input_tokens or openai_usage.get('input_tokens', 0)
+                output_tokens = output_tokens or openai_usage.get('output_tokens', 0)
 
         # Log to database (successful request)
         db = get_database()

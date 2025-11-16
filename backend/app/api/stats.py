@@ -146,7 +146,7 @@ async def get_performance_summary(
             sum(response_times) / len(response_times) if response_times else 0
         )
 
-        # 按供应商统计
+        # 按供应商统计 - 首先基于 request_logs 表统计所有数据
         provider_stats: Dict[str, Dict[str, Any]] = {}
         for log in logs:
             provider = log.get("provider_name", "unknown")
@@ -165,31 +165,84 @@ async def get_performance_summary(
             else:
                 provider_stats[provider]["failed"] += 1
 
-            # 统计所有请求的token（无论成功还是失败）
+            # 统计所有请求的token（无论成功还是失败）并计算成本
             input_tokens = log.get("input_tokens") or 0
             output_tokens = log.get("output_tokens") or 0
-            provider_stats[provider]["total_tokens"] += input_tokens + output_tokens
+            total_request_tokens = input_tokens + output_tokens
+            provider_stats[provider]["total_tokens"] += total_request_tokens
 
-        # 获取 Token 使用统计（使用相同的日期范围）
-        token_summary = await db.get_token_usage_summary(date_from=date_from, date_to=date_to)
+            # 同时计算该请求的成本并累加
+            request_cost = (input_tokens * 0.00001) + (output_tokens * 0.00003)
+            provider_stats[provider]["total_cost"] += request_cost
 
-        # 从 token_usage 表中按供应商汇总成本
-        for usage_item in token_summary.get("summary", []):
-            provider_name = usage_item.get("provider_name", "unknown")
-            cost = usage_item.get("total_cost_estimate", 0)
+        # 构建基于 request_logs 的准确 token_usage 统计
+        # 按日期和供应商聚合 request_logs 数据，生成准确的 token 使用统计
+        accurate_token_usage = {
+            "summary": [],
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "total_cost_estimate": 0,
+            "date_range": {
+                "from": date_from,
+                "to": date_to
+            }
+        }
 
-            # 如果供应商不在 provider_stats 中，初始化它
-            if provider_name not in provider_stats:
-                provider_stats[provider_name] = {
-                    "total": 0,
-                    "success": 0,
-                    "failed": 0,
-                    "total_tokens": 0,
-                    "total_cost": 0,
+        # 按日期和供应商聚合日志数据
+        date_provider_map = {}
+        for log in logs:
+            created_at = log.get("created_at")
+            log_date = None
+
+            if created_at:
+                # 处理不同格式的日期时间字段
+                if isinstance(created_at, str):
+                    # 如果是字符串格式，提取日期部分 (YYYY-MM-DD)
+                    log_date = created_at[:10]
+                elif hasattr(created_at, 'strftime'):
+                    # 如果是datetime对象，格式化为字符串
+                    log_date = created_at.strftime("%Y-%m-%d")
+                elif isinstance(created_at, (int, float)):
+                    # 如果是时间戳，转换为datetime然后格式化
+                    from datetime import datetime as dt
+                    dt_obj = dt.fromtimestamp(created_at)
+                    log_date = dt_obj.strftime("%Y-%m-%d")
+
+            # 如果无法获取有效日期，跳过此记录
+            if not log_date:
+                # 记录调试信息
+                print(f"Warning: Could not parse date for log: {log.get('request_id', 'unknown')}, created_at: {created_at}")
+                continue
+
+            provider = log.get("provider_name", "unknown")
+            model = log.get("model", "unknown")
+            input_tokens = log.get("input_tokens") or 0
+            output_tokens = log.get("output_tokens") or 0
+            request_cost = (input_tokens * 0.00001) + (output_tokens * 0.00003)
+
+            key = (log_date, provider)
+            if key not in date_provider_map:
+                date_provider_map[key] = {
+                    "date": log_date,
+                    "provider_name": provider,
+                    "model": model,
+                    "request_count": 0,
+                    "total_input_tokens": 0,
+                    "total_output_tokens": 0,
+                    "total_cost_estimate": 0
                 }
 
-            # 累加成本
-            provider_stats[provider_name]["total_cost"] += cost
+            date_provider_map[key]["request_count"] += 1
+            date_provider_map[key]["total_input_tokens"] += input_tokens
+            date_provider_map[key]["total_output_tokens"] += output_tokens
+            date_provider_map[key]["total_cost_estimate"] += request_cost
+
+        # 构建准确的摘要
+        for item in date_provider_map.values():
+            accurate_token_usage["summary"].append(item)
+            accurate_token_usage["total_input_tokens"] += item["total_input_tokens"]
+            accurate_token_usage["total_output_tokens"] += item["total_output_tokens"]
+            accurate_token_usage["total_cost_estimate"] += item["total_cost_estimate"]
 
         return {
             "success": True,
@@ -204,7 +257,7 @@ async def get_performance_summary(
                 ),
                 "avg_response_time_ms": round(avg_response_time, 2),
                 "provider_stats": provider_stats,
-                "token_usage": token_summary,
+                "token_usage": accurate_token_usage,
                 "date_range": {
                     "from": date_from,
                     "to": date_to
