@@ -13,6 +13,7 @@ export interface Provider {
     middle: string[];
     small: string[];
   };
+  api_format?: 'openai' | 'anthropic'; // API format: 'openai' (default) or 'anthropic'
 }
 
 export interface ProviderFormData {
@@ -30,6 +31,7 @@ export interface ProviderFormData {
     middle: string[];
     small: string[];
   };
+  api_format?: 'openai' | 'anthropic'; // API format: 'openai' (default) or 'anthropic'
 }
 
 export interface CategoryHealthStatus {

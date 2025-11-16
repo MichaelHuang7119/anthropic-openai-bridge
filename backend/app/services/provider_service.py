@@ -39,7 +39,8 @@ class ProviderService:
                     "timeout": p.get("timeout", 60),
                     "max_retries": p.get("max_retries", 1),
                     "custom_headers": p.get("custom_headers", {}),
-                    "models": p.get("models", {})
+                    "models": p.get("models", {}),
+                    "api_format": p.get("api_format", "openai")  # Default to 'openai' for backward compatibility
                 }
 
                 # Only show API key if explicitly requested
@@ -76,6 +77,10 @@ class ProviderService:
 
             # Validate provider configuration
             self.config_service.validate_provider_config(provider_data)
+
+            # Ensure api_format is always included (default to 'openai' if not set)
+            if "api_format" not in provider_data:
+                provider_data["api_format"] = "openai"
 
             # Add to configuration
             config_data.setdefault("providers", []).append(provider_data)
@@ -119,8 +124,24 @@ class ProviderService:
                     # Validate provider configuration
                     self.config_service.validate_provider_config(provider_data)
 
-                    # Update
-                    providers[i] = provider_data
+                    # Log the incoming api_format value for debugging
+                    logger.debug(f"Updating provider {name}: received api_format = {provider_data.get('api_format', 'NOT PROVIDED')}")
+                    
+                    # Ensure api_format is always included (default to 'openai' if not set)
+                    # But only set default if it's truly missing, not if it's explicitly set to a value
+                    if "api_format" not in provider_data or provider_data.get("api_format") is None:
+                        logger.debug(f"api_format not provided or None, defaulting to 'openai'")
+                        provider_data["api_format"] = "openai"
+                    else:
+                        logger.debug(f"api_format is set to: {provider_data.get('api_format')}")
+
+                    # Update - preserve existing fields that might not be in provider_data
+                    # Merge with existing provider to preserve fields not in the update
+                    existing_provider = providers[i].copy()
+                    existing_provider.update(provider_data)
+                    providers[i] = existing_provider
+                    
+                    logger.debug(f"Final provider data after update: api_format = {providers[i].get('api_format')}")
                     config_data["providers"] = providers
 
                     # Save configuration
@@ -225,4 +246,5 @@ class ProviderService:
         except Exception as e:
             logger.error(f"Failed to get provider: {e}")
             raise
+
 

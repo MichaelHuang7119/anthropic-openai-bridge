@@ -5,6 +5,7 @@
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
   import ProviderForm from '$components/ProviderForm.svelte';
+  import ErrorMessageModal from '$components/ErrorMessageModal.svelte';
   import { providers } from '$stores/providers';
   import { providerService } from '$services/providers';
   import { toast } from '$stores/toast';
@@ -211,6 +212,78 @@
     testingProvider = null;
   }
 
+  function handleOverlayClick(event: MouseEvent) {
+    // Only close if clicking directly on the overlay (not on modal content)
+    if (event.target === event.currentTarget) {
+      closeTestResult();
+    }
+  }
+
+  function handleFormOverlayClick(event: MouseEvent) {
+    // Only close if clicking directly on the overlay (not on modal content)
+    if (event.target === event.currentTarget) {
+      handleCancel();
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        toast.success('已复制到剪贴板');
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toast.success('已复制到剪贴板');
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.error('复制失败，请手动复制');
+    }
+  }
+
+  function copyTestResult() {
+    if (!testResult) return;
+    
+    const lines: string[] = [];
+    lines.push(`测试结果 - ${testingProvider}`);
+    lines.push(`总体状态: ${testResult.healthy ? '健康' : '不健康'}`);
+    if (testResult.responseTime !== null) {
+      lines.push(`响应时间: ${testResult.responseTime}ms`);
+    }
+    lines.push('');
+    lines.push('类别健康状态:');
+    
+    if (testResult.categories) {
+      for (const [category, status] of Object.entries(testResult.categories)) {
+        const catStatus = status as any;
+        lines.push(`  ${getCategoryLabel(category)}: ${catStatus.healthy ? '健康' : '不健康'}`);
+        if (catStatus.responseTime !== null) {
+          lines.push(`    响应时间: ${catStatus.responseTime}ms`);
+        }
+        if (catStatus.workingModel) {
+          lines.push(`    可用模型: ${catStatus.workingModel}`);
+        }
+        if (catStatus.error) {
+          lines.push(`    错误: ${catStatus.error}`);
+        }
+      }
+    }
+    
+    copyToClipboard(lines.join('\n'));
+  }
+
   function getCategoryLabel(category: string): string {
     const labels: Record<string, string> = {
       big: '大模型',
@@ -218,6 +291,29 @@
       small: '小模型'
     };
     return labels[category] || category;
+  }
+
+  function truncateError(errorMessage: string, maxLength: number = 50): string {
+    if (!errorMessage) return '';
+    if (errorMessage.length <= maxLength) return errorMessage;
+    return errorMessage.substring(0, maxLength) + '...';
+  }
+
+  // 错误信息模态框相关
+  let showErrorModal = false;
+  let selectedError: string = '';
+  let selectedErrorTitle: string = '';
+
+  function showErrorMessage(category: string, error: string) {
+    selectedErrorTitle = `错误信息 - ${testingProvider} - ${getCategoryLabel(category)}`;
+    selectedError = error;
+    showErrorModal = true;
+  }
+
+  function closeErrorModal() {
+    showErrorModal = false;
+    selectedError = '';
+    selectedErrorTitle = '';
   }
 
   async function handleSave(providerData: Provider) {
@@ -326,6 +422,7 @@
               <th>名称</th>
               <th style="text-align: center;">状态</th>
               <th>Base URL</th>
+              <th>API格式</th>
               <th>优先级</th>
               <th>模型数量</th>
               <th>操作</th>
@@ -351,6 +448,11 @@
                 </td>
                 <td class="url-cell">
                   <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
+                </td>
+                <td class="format-cell">
+                  <Badge type="info">
+                    {provider.api_format === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+                  </Badge>
                 </td>
                 <td class="priority-cell">
                   <span class="priority-value">{provider.priority}</span>
@@ -450,7 +552,7 @@
 
 <!-- Provider Form Modal -->
 {#if showForm}
-  <div class="modal-overlay" on:click={handleCancel}>
+  <div class="modal-overlay" on:click={handleFormOverlayClick}>
     <div class="modal-content" on:click|stopPropagation>
       <h2>{editingProvider ? '编辑供应商' : '添加供应商'}</h2>
       <ProviderForm
@@ -465,16 +567,24 @@
 
 <!-- Test Result Modal -->
 {#if showTestResult && testResult}
-  <div class="modal-overlay" on:click={closeTestResult}>
+  <div class="modal-overlay" on:click={handleOverlayClick}>
     <div class="modal-content test-result-modal" on:click|stopPropagation>
       <div class="test-result-header">
         <h2>测试结果 - {testingProvider}</h2>
-        <Button variant="secondary" size="sm" on:click={closeTestResult} title="关闭" class="icon-button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </Button>
+        <div class="header-actions">
+          <Button variant="secondary" size="sm" on:click={copyTestResult} title="复制结果" class="icon-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </Button>
+          <Button variant="secondary" size="sm" on:click={closeTestResult} title="关闭" class="icon-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </Button>
+        </div>
       </div>
       
       <div class="test-summary">
@@ -529,10 +639,24 @@
               {:else}
                 <div class="category-details">
                   {#if catStatus.error}
+                    {@const truncated = truncateError(catStatus.error)}
+                    {@const isTruncated = catStatus.error.length > 50}
                     <div class="detail-item error">
                       <span class="detail-label">错误:</span>
-                      <span class="detail-value">
-                        {catStatus.error}
+                      <span 
+                        class="detail-value error-value clickable" 
+                        role="button"
+                        tabindex="0"
+                        on:click={() => showErrorMessage(category, catStatus.error)}
+                        on:keydown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            showErrorMessage(category, catStatus.error);
+                          }
+                        }}
+                        title={isTruncated ? "点击查看完整错误信息" : ""}
+                      >
+                        {truncated}
                       </span>
                     </div>
                   {/if}
@@ -555,6 +679,14 @@
     </div>
   </div>
 {/if}
+
+<!-- Error Message Modal -->
+<ErrorMessageModal
+  show={showErrorModal}
+  errorMessage={selectedError}
+  title={selectedErrorTitle}
+  on:close={closeErrorModal}
+/>
 
 <style>
   .page-header {
@@ -1012,6 +1144,12 @@
     margin: 0;
   }
 
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
   .test-summary {
     display: flex;
     gap: 2rem;
@@ -1098,10 +1236,31 @@
   .detail-value {
     color: var(--text-primary, #1a1a1a);
     white-space: nowrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   
   .detail-item.error .detail-value {
     color: var(--danger-color, #dc3545);
+  }
+
+  .error-value {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .error-value.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+  }
+
+  .error-value.clickable:hover {
+    color: var(--danger-color, #dc3545);
+    opacity: 0.8;
   }
 
   .detail-value.code {
@@ -1110,6 +1269,24 @@
     background: var(--bg-tertiary, #f8f9fa);
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+
+  .category-details {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+
+  .detail-value {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 
   .test-result-actions {

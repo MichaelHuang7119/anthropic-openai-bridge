@@ -26,7 +26,8 @@
       big: [],
       middle: [],
       small: []
-    }
+    },
+    api_format: 'openai' // Default to 'openai' for backward compatibility
   };
 
   // Initialize form data if editing
@@ -45,7 +46,8 @@
         big: [...(provider.models.big || [])],
         middle: [...(provider.models.middle || [])],
         small: [...(provider.models.small || [])]
-      }
+      },
+      api_format: provider.api_format || 'openai' // Default to 'openai' if not set
     };
   }
 
@@ -109,11 +111,22 @@
 
     // Convert form data to Provider format
     // For display purposes, hide API key if it was pre-filled during edit
+    // Ensure api_format is explicitly set (use the value from formData, default to 'openai' only if truly missing)
+    const apiFormat = formData.api_format && formData.api_format.trim() !== '' 
+      ? formData.api_format 
+      : 'openai';
+    
     const providerData: Provider = {
       ...formData,
       // Keep API key as-is (user might not want to change it)
-      api_key: formData.api_key
+      api_key: formData.api_key,
+      // Explicitly set api_format
+      api_format: apiFormat
     };
+
+    // Debug: log the api_format value being sent
+    console.log('ProviderForm: Sending provider data with api_format =', providerData.api_format);
+    console.log('ProviderForm: Full formData.api_format =', formData.api_format);
 
     dispatch('save', providerData);
   }
@@ -298,6 +311,17 @@
         {#if errors.priority}
           <span class="error">{errors.priority}</span>
         {/if}
+      </div>
+
+      <div class="form-group">
+        <label for="api_format">
+          API格式 <span class="required">*</span>
+        </label>
+        <select id="api_format" bind:value={formData.api_format} class="select-input">
+          <option value="openai">OpenAI 格式 (需要转换)</option>
+          <option value="anthropic">Anthropic 格式 (直接转发)</option>
+        </select>
+        <small>选择提供商使用的API格式。Anthropic格式将直接转发，无需转换。</small>
       </div>
     </div>
   </div>
@@ -721,6 +745,24 @@
   .toggle-password svg {
     width: 1.25rem;
     height: 1.25rem;
+  }
+
+  .select-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background: var(--bg-primary, white);
+    color: var(--text-primary, #495057);
+    font-size: 0.875rem;
+    cursor: pointer;
+    width: 100%;
+    font-family: inherit;
+  }
+
+  .select-input:focus {
+    outline: 2px solid var(--primary-color, #007bff);
+    outline-offset: 2px;
+    border-color: var(--primary-color, #007bff);
   }
 
   @media (max-width: 768px) {

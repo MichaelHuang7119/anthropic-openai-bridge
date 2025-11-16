@@ -20,6 +20,7 @@ class ProviderModel(BaseModel):
     max_retries: int = 1
     custom_headers: dict = {}
     models: dict = {}
+    api_format: str = "openai"  # API format: 'openai' or 'anthropic'
 
 # Global service instance (will be initialized in main.py)
 _provider_service: Optional[ProviderService] = None
@@ -55,7 +56,8 @@ async def create_provider(provider: ProviderModel, user: dict = Depends(require_
     """创建新供应商"""
     try:
         provider_service = get_provider_service()
-        provider_service.create_provider(provider.model_dump())
+        # Use exclude_unset=False to ensure all fields including defaults are included
+        provider_service.create_provider(provider.model_dump(exclude_unset=False))
         return {"success": True, "message": "Provider created successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -67,7 +69,13 @@ async def update_provider(name: str, provider: ProviderModel, user: dict = Depen
     """更新供应商"""
     try:
         provider_service = get_provider_service()
-        provider_service.update_provider(name, provider.model_dump())
+        # Use exclude_unset=False to ensure all fields including defaults are included
+        provider_dict = provider.model_dump(exclude_unset=False)
+        # Log the api_format value being sent
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Update provider {name}: received api_format = {provider_dict.get('api_format', 'NOT PROVIDED')}")
+        provider_service.update_provider(name, provider_dict)
         return {"success": True, "message": "Provider updated successfully"}
     except ValueError as e:
         if "not found" in str(e).lower():

@@ -189,3 +189,4 @@ jobs:
           kubectl rollout status deployment/backend -n default
           kubectl rollout status deployment/frontend -n default
 
+

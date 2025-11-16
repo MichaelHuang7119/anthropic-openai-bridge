@@ -192,6 +192,25 @@ class HealthService:
                 category_response_time = test_response_time
                 break
 
+            except ValueError as ve:
+                # Handle "No provider found" or "All models exhausted" errors
+                error_msg = str(ve)
+                if "No provider found" in error_msg or "All models exhausted" in error_msg:
+                    # All models in this provider are exhausted
+                    excluded_models_for_provider.append(model_name)
+                    if category_error is None:
+                        category_error = f"All models failed. Last error: {error_msg[:200]}"
+                    if len(excluded_models_for_provider) >= len(category_models):
+                        break
+                    continue
+                else:
+                    # Other ValueError, treat as model failure
+                    excluded_models_for_provider.append(model_name)
+                    if category_error is None:
+                        category_error = f"All models failed. Last error: {error_msg[:200]}"
+                    if len(excluded_models_for_provider) >= len(category_models):
+                        break
+                    continue
             except Exception as model_error:
                 excluded_models_for_provider.append(model_name)
                 error_msg = str(model_error)

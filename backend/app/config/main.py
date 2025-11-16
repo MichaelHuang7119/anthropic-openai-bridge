@@ -39,6 +39,7 @@ class ProviderConfig(BaseModel):
     custom_headers: Dict[str, str] = Field(default_factory=dict)
     models: Dict[str, List[str]] = Field(default_factory=dict)
     max_tokens_limit: Optional[int] = None  # Maximum allowed max_tokens for this provider
+    api_format: str = Field(default="openai", description="API format: 'openai' or 'anthropic'. Defaults to 'openai' for backward compatibility.")
 
 
 class AppConfig(BaseModel):

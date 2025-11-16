@@ -5,7 +5,7 @@
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
-  import Tooltip from '$components/ui/Tooltip.svelte';
+  import ErrorMessageModal from '$components/ErrorMessageModal.svelte';
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { healthService } from '$services/health';
   import type { ProviderHealth, CategoryHealth } from '$types/health';
@@ -190,6 +190,23 @@
     if (errorMessage.length <= maxLength) return errorMessage;
     return errorMessage.substring(0, maxLength) + '...';
   }
+
+  // 错误信息模态框相关
+  let showErrorModal = false;
+  let selectedError: string = '';
+  let selectedProviderName: string = '';
+
+  function showErrorMessage(providerName: string, error: string) {
+    selectedProviderName = providerName;
+    selectedError = error;
+    showErrorModal = true;
+  }
+
+  function closeErrorModal() {
+    showErrorModal = false;
+    selectedError = '';
+    selectedProviderName = '';
+  }
 </script>
 
 <div class="container">
@@ -354,18 +371,13 @@
               <td class="error-cell">
                 {#if provider.error}
                   {@const truncated = truncateError(provider.error)}
-                  {@const isTruncated = provider.error.length > 50}
-                  {#if isTruncated}
-                    <Tooltip content={provider.error} placement="top" maxWidth="500px">
-                      <span class="error-value">
-                        {truncated}
-                      </span>
-                    </Tooltip>
-                  {:else}
-                    <span class="error-value">
-                      {provider.error}
-                    </span>
-                  {/if}
+                  <span 
+                    class="error-value clickable" 
+                    on:click={() => showErrorMessage(provider.name, provider.error || '')}
+                    title="点击查看完整错误信息"
+                  >
+                    {truncated}
+                  </span>
                 {:else}
                   <span class="error-na">-</span>
                 {/if}
@@ -419,6 +431,14 @@
     {/if}
   {/if}
 </div>
+
+<!-- Error Message Modal -->
+<ErrorMessageModal
+  show={showErrorModal}
+  errorMessage={selectedError}
+  title={`错误信息 - ${selectedProviderName}`}
+  on:close={closeErrorModal}
+/>
 
 <style>
   .page-header {
@@ -666,7 +686,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .error-value.clickable {
     cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+  }
+
+  .error-value.clickable:hover {
+    color: var(--danger-color, #dc3545);
+    opacity: 0.8;
   }
 
   .error-na {

@@ -138,3 +138,4 @@ def instrument_httpx():
     except Exception as e:
         logger.error(f"Failed to instrument httpx: {e}", exc_info=True)
 
+

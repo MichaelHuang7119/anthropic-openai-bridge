@@ -18,7 +18,7 @@ from ..converters import (
     convert_openai_response_to_anthropic,
     convert_openai_stream_to_anthropic_async
 )
-from ..infrastructure import OpenAIClient, retry_with_backoff, is_retryable_error, CacheKey, get_cache_manager
+from ..infrastructure import OpenAIClient, AnthropicClient, retry_with_backoff, is_retryable_error, CacheKey, get_cache_manager
 from ..utils import openai_response_to_dict
 from ..database import get_database
 from .token_counter import count_tokens_estimate
@@ -116,73 +116,83 @@ class MessageService:
                         failed_models_for_current_provider = []
                         continue
                     
-                    client = OpenAIClient(provider_config)
-
-                    # Try to get from cache for non-streaming requests
-                    cache_enabled = config.app_config.cache.enabled and not req.stream
-                    cached_response = None
-                    cache_key = None
-
-                    if cache_enabled:
-                        # Generate cache key first
-                        # We need the openai_request for this, so convert first
-                        openai_request_for_cache = convert_anthropic_request_to_openai(req)
-
-                        cache_key = CacheKey.generate_key(
-                            model=actual_model,
-                            messages=openai_request_for_cache.get("messages", []),
-                            max_tokens=openai_request_for_cache.get("max_tokens"),
-                            temperature=openai_request_for_cache.get("temperature"),
-                            tools=openai_request_for_cache.get("tools"),
-                            stream=req.stream,
-                            provider=provider_config.name
-                        )
-
-                        # Try to get from cache
-                        cache_manager = get_cache_manager()
-                        cached_response = await cache_manager.get(cache_key)
-
-                        if cached_response is not None:
-                            logger.info(f"Cache hit for provider {provider_config.name}, model {actual_model}")
-                            # Log to database (successful cache hit)
-                            db = get_database()
-                            await db.log_request(
-                                request_id=request_id,
-                                provider_name=provider_config.name,
-                                model=actual_model,
-                                request_params={
-                                    "model": req.model,
-                                    "stream": req.stream,
-                                    "cache_hit": True
-                                },
-                                status_code=200,
-                                response_time_ms=(time.time() - start_time) * 1000
-                            )
-                            return cached_response
-
-                    # Convert Anthropic request to OpenAI format
-                    openai_request = convert_anthropic_request_to_openai(req)
+                    # Check provider API format
+                    api_format = getattr(provider_config, 'api_format', 'openai').lower()
                     
-                    # Filter and validate request
-                    self._filter_unsupported_params(provider_config, openai_request)
-                    self._validate_max_tokens(openai_request)
-                    
-                    # Make request
-                    if req.stream:
-                        return await self._handle_streaming_request(
-                            req, provider_config, actual_model, client,
-                            openai_request, request_id, start_time
+                    if api_format == 'anthropic':
+                        # Direct forwarding for Anthropic format providers
+                        return await self._handle_anthropic_direct_request(
+                            req, provider_config, actual_model, request_id, start_time
                         )
                     else:
-                        return await self._handle_non_streaming_request(
-                            req, provider_config, actual_model, client,
-                            openai_request, cache_enabled, cache_key,
-                            cached_response, request_id, start_time
-                        )
+                        # OpenAI format - use conversion logic (default behavior)
+                        client = OpenAIClient(provider_config)
+
+                        # Try to get from cache for non-streaming requests
+                        cache_enabled = config.app_config.cache.enabled and not req.stream
+                        cached_response = None
+                        cache_key = None
+
+                        if cache_enabled:
+                            # Generate cache key first
+                            # We need the openai_request for this, so convert first
+                            openai_request_for_cache = convert_anthropic_request_to_openai(req)
+
+                            cache_key = CacheKey.generate_key(
+                                model=actual_model,
+                                messages=openai_request_for_cache.get("messages", []),
+                                max_tokens=openai_request_for_cache.get("max_tokens"),
+                                temperature=openai_request_for_cache.get("temperature"),
+                                tools=openai_request_for_cache.get("tools"),
+                                stream=req.stream,
+                                provider=provider_config.name
+                            )
+
+                            # Try to get from cache
+                            cache_manager = get_cache_manager()
+                            cached_response = await cache_manager.get(cache_key)
+
+                            if cached_response is not None:
+                                logger.info(f"Cache hit for provider {provider_config.name}, model {actual_model}")
+                                # Log to database (successful cache hit)
+                                db = get_database()
+                                await db.log_request(
+                                    request_id=request_id,
+                                    provider_name=provider_config.name,
+                                    model=actual_model,
+                                    request_params={
+                                        "model": req.model,
+                                        "stream": req.stream,
+                                        "cache_hit": True
+                                    },
+                                    status_code=200,
+                                    response_time_ms=(time.time() - start_time) * 1000
+                                )
+                                return cached_response
+
+                        # Convert Anthropic request to OpenAI format
+                        openai_request = convert_anthropic_request_to_openai(req)
                         
-                except (RateLimitError, httpx.ConnectTimeout, httpx.PoolTimeout, 
-                        APIConnectionError, httpx.ReadTimeout, httpx.TimeoutException, 
-                        APIError) as model_error:
+                        # Filter and validate request
+                        self._filter_unsupported_params(provider_config, openai_request)
+                        self._validate_max_tokens(openai_request)
+                        
+                        # Make request
+                        if req.stream:
+                            return await self._handle_streaming_request(
+                                req, provider_config, actual_model, client,
+                                openai_request, request_id, start_time
+                            )
+                        else:
+                            return await self._handle_non_streaming_request(
+                                req, provider_config, actual_model, client,
+                                openai_request, cache_enabled, cache_key,
+                                cached_response, request_id, start_time
+                            )
+                        
+                except (RateLimitError, httpx.ConnectTimeout, httpx.PoolTimeout,
+                        APIConnectionError, httpx.ReadTimeout, httpx.TimeoutException,
+                        APIError, httpx.HTTPStatusError) as model_error:
                     # Model failed, add to exclude list and try next model
                     logger.warning(
                         f"Model '{actual_model}' from provider '{provider_config.name}' failed: {type(model_error).__name__}: {model_error}. "
@@ -858,6 +868,350 @@ class MessageService:
             )
 
         return anthropic_response
+    
+    async def _handle_anthropic_direct_request(
+        self,
+        req: MessagesRequest,
+        provider_config,
+        actual_model: str,
+        request_id: str,
+        start_time: float
+    ):
+        """Handle direct Anthropic format request (no conversion needed)."""
+        client = AnthropicClient(provider_config)
+        
+        try:
+            # Convert MessagesRequest to dict for direct forwarding
+            if isinstance(req, dict):
+                anthropic_request = req.copy()
+            else:
+                # Use model_dump to convert Pydantic model to dict
+                anthropic_request = req.model_dump(exclude_none=True, exclude_unset=True)
+            
+            # Normalize messages content format: ensure content is always an array
+            # Some APIs (like aiping) require content to be in array format [{"type": "text", "text": "..."}]
+            if "messages" in anthropic_request:
+                normalized_messages = []
+                for msg in anthropic_request["messages"]:
+                    normalized_msg = msg.copy() if isinstance(msg, dict) else dict(msg)
+                    content = normalized_msg.get("content")
+                    
+                    # Convert string content to array format
+                    if isinstance(content, str):
+                        normalized_msg["content"] = [{"type": "text", "text": content}]
+                    # Ensure array content has proper structure
+                    elif isinstance(content, list):
+                        normalized_content = []
+                        for item in content:
+                            if isinstance(item, dict):
+                                # Already in correct format
+                                normalized_content.append(item)
+                            elif isinstance(item, str):
+                                # Convert string to text block
+                                normalized_content.append({"type": "text", "text": item})
+                            else:
+                                # Try to convert Pydantic model to dict
+                                if hasattr(item, 'model_dump'):
+                                    normalized_content.append(item.model_dump(exclude_unset=True))
+                                else:
+                                    normalized_content.append(item)
+                        normalized_msg["content"] = normalized_content
+                    
+                    normalized_messages.append(normalized_msg)
+                anthropic_request["messages"] = normalized_messages
+            
+            # Update model to actual provider model (use the actual model name from provider config, not the Anthropic model name)
+            original_model = anthropic_request.get("model", "unknown")
+            anthropic_request["model"] = actual_model
+            
+            # Normalize system field format if present
+            # Some APIs may require system to be in array format
+            if "system" in anthropic_request and anthropic_request["system"] is not None:
+                system = anthropic_request["system"]
+                # If system is a string, keep it as is (most APIs accept string format)
+                # If it's a list, ensure proper structure
+                if isinstance(system, list):
+                    normalized_system = []
+                    for item in system:
+                        if isinstance(item, dict):
+                            normalized_system.append(item)
+                        elif isinstance(item, str):
+                            normalized_system.append({"type": "text", "text": item})
+                        else:
+                            if hasattr(item, 'model_dump'):
+                                normalized_system.append(item.model_dump(exclude_unset=True))
+                            else:
+                                normalized_system.append(item)
+                    anthropic_request["system"] = normalized_system
+            
+            # Remove stream field from request payload if present (it's handled separately)
+            # Some APIs may not accept this field in the request body
+            if "stream" in anthropic_request:
+                del anthropic_request["stream"]
+            
+            # Remove provider field if present (it's for internal routing only)
+            if "provider" in anthropic_request:
+                del anthropic_request["provider"]
+            
+            # Remove fields that may not be supported by all APIs or may cause issues
+            # These fields are optional and some APIs may reject requests with unsupported fields
+            # Only remove if they are None or empty to avoid breaking APIs that do support them
+            fields_to_remove_if_none = [
+                "metadata",  # Some APIs don't support metadata
+                "container",  # Some APIs don't support container
+                "context_management",  # Some APIs don't support context_management
+                "mcp_servers",  # Some APIs don't support mcp_servers
+                "service_tier",  # Some APIs don't support service_tier
+                "thinking",  # Some APIs don't support thinking
+            ]
+
+            for field in fields_to_remove_if_none:
+                if field in anthropic_request:
+                    value = anthropic_request[field]
+                    # Remove if None, empty dict, or empty list
+                    if value is None or value == {} or value == []:
+                        del anthropic_request[field]
+                        logger.debug(f"Removed empty/None field '{field}' from request to {provider_config.name}")
+
+            # Validate and fix thinking parameter
+            # Some APIs (like qwen-anthropic) have strict requirements for thinking.budget
+            if "thinking" in anthropic_request and anthropic_request["thinking"]:
+                thinking_dict = anthropic_request["thinking"]
+                if isinstance(thinking_dict, dict):
+                    # Check for budget field (may be named "budget" or "thinking_budget")
+                    budget_value = None
+                    budget_key = None
+
+                    if "budget" in thinking_dict:
+                        budget_value = thinking_dict["budget"]
+                        budget_key = "budget"
+                    elif "thinking_budget" in thinking_dict:
+                        budget_value = thinking_dict["thinking_budget"]
+                        budget_key = "thinking_budget"
+
+                    # Validate budget value
+                    if budget_key and budget_value is not None:
+                        # Convert to int if it's a string
+                        if isinstance(budget_value, str):
+                            try:
+                                budget_value = int(budget_value)
+                            except (ValueError, TypeError):
+                                logger.warning(f"Invalid thinking budget value '{budget_value}', removing it")
+                                del thinking_dict[budget_key]
+                                budget_value = None
+
+                        # Check if budget is a valid positive integer not exceeding 81920
+                        if budget_value is not None:
+                            try:
+                                budget_int = int(budget_value)
+                                if budget_int <= 0 or budget_int > 81920:
+                                    logger.warning(
+                                        f"Invalid thinking budget value {budget_int} (must be 1-81920), "
+                                        f"removing it for provider {provider_config.name}"
+                                    )
+                                    del thinking_dict[budget_key]
+                            except (ValueError, TypeError):
+                                logger.warning(
+                                    f"Invalid thinking budget value '{budget_value}', removing it"
+                                )
+                                del thinking_dict[budget_key]
+
+                    # If thinking dict becomes empty after validation, remove it
+                    if not thinking_dict:
+                        del anthropic_request["thinking"]
+                        logger.debug(f"Removed empty thinking field after validation")
+            
+            logger.info(
+                f"Anthropic direct request for {provider_config.name}: "
+                f"mapped model '{original_model}' -> '{actual_model}', "
+                f"payload_keys={list(anthropic_request.keys())}"
+            )
+            
+            # Log messages format for debugging
+            if "messages" in anthropic_request and anthropic_request["messages"]:
+                first_msg = anthropic_request["messages"][0]
+                logger.debug(
+                    f"First message format: role={first_msg.get('role')}, "
+                    f"content_type={type(first_msg.get('content')).__name__}, "
+                    f"content={first_msg.get('content')}"
+                )
+            
+            logger.debug(f"Full anthropic_request: {json.dumps(anthropic_request, ensure_ascii=False, indent=2)}")
+            
+            # Make request
+            if req.stream:
+                # For streaming requests, don't close client here - it will be closed in the generator
+                return await self._handle_anthropic_streaming_request(
+                    anthropic_request, provider_config, actual_model, client, request_id, start_time
+                )
+            else:
+                # For non-streaming requests, close client after request completes
+                try:
+                    return await self._handle_anthropic_non_streaming_request(
+                        anthropic_request, provider_config, actual_model, client, request_id, start_time
+                    )
+                finally:
+                    # Close client after non-streaming request completes
+                    await client.close_async()
+        except httpx.HTTPStatusError as e:
+            error_text = str(e.response.text) if hasattr(e.response, 'text') else ""
+            logger.error(f"HTTP error from {provider_config.name}: {e.response.status_code} - {error_text}")
+            # Close client on error for non-streaming requests
+            if not req.stream:
+                try:
+                    await client.close_async()
+                except:
+                    pass
+            # Re-raise HTTPStatusError so it can be handled by the main loop
+            # This allows 4xx errors to be treated as model failures for fallback handling
+            raise e
+        except httpx.RequestError as e:
+            logger.error(f"Request error from {provider_config.name}: {e}")
+            # Close client on error for non-streaming requests
+            if not req.stream:
+                try:
+                    await client.close_async()
+                except:
+                    pass
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "type": "connection_error",
+                    "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
+                    "provider": provider_config.name
+                }
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error from {provider_config.name}: {e}", exc_info=True)
+            # Close client on error for non-streaming requests
+            if not req.stream:
+                try:
+                    await client.close_async()
+                except:
+                    pass
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "type": "internal_error",
+                    "message": f"Internal error: {str(e)}",
+                    "provider": provider_config.name
+                }
+            )
+    
+    async def _handle_anthropic_streaming_request(
+        self,
+        anthropic_request: dict,
+        provider_config,
+        actual_model: str,
+        client: AnthropicClient,
+        request_id: str,
+        start_time: float
+    ) -> StreamingResponse:
+        """Handle streaming Anthropic direct request."""
+        async def generate():
+            try:
+                async for chunk in client.messages_async(anthropic_request, stream=True):
+                    json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'))
+                    # 标准化SSE格式 - 统一使用data字段，不使用event头
+                    # Claude Code客户端期望所有事件都通过data字段传递，内部type字段区分事件类型
+                    yield f"data: {json_str}\n\n"
+
+                # 使用标准的message_stop事件代替[DONE]标记
+                # 这符合claude-code-proxy的期望格式
+                yield f"data: {{\"type\": \"message_stop\"}}\n\n"
+            except Exception as e:
+                logger.error(f"Error in streaming response from {provider_config.name}: {e}", exc_info=True)
+                # 标准化错误响应格式，符合Claude客户端期望
+                error_response = {
+                    "type": "error",
+                    "error": {
+                        "type": "api_error",
+                        "message": str(e),
+                        "code": "streaming_error"
+                    }
+                }
+                yield f"data: {json.dumps(error_response)}\n\n"
+                # 立即发送message_stop确保连接终止
+                yield f"data: {{\"type\": \"message_stop\"}}\n\n"
+            finally:
+                # Close client after streaming completes (or on error)
+                try:
+                    await client.close_async()
+                except Exception as close_error:
+                    logger.debug(f"Error closing client for {provider_config.name}: {close_error}")
+        
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            }
+        )
+    
+    async def _handle_anthropic_non_streaming_request(
+        self,
+        anthropic_request: dict,
+        provider_config,
+        actual_model: str,
+        client: AnthropicClient,
+        request_id: str,
+        start_time: float
+    ) -> dict:
+        """Handle non-streaming Anthropic direct request."""
+        # Make request
+        async def make_request():
+            # For non-streaming, messages_async yields a single response
+            async for response in client.messages_async(anthropic_request, stream=False):
+                return response
+            # Should not reach here, but just in case
+            raise ValueError("No response received from provider")
+        
+        response = await retry_with_backoff(
+            make_request,
+            max_retries=provider_config.max_retries,
+            initial_delay=1.0,
+            max_delay=60.0,
+            exponential_base=2.0,
+            retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.RequestError),
+            provider_name=provider_config.name
+        )
+        
+        # Log to database
+        usage = response.get("usage", {})
+        input_tokens = usage.get("input_tokens")
+        output_tokens = usage.get("output_tokens")
+        
+        db = get_database()
+        await db.log_request(
+            request_id=request_id,
+            provider_name=provider_config.name,
+            model=actual_model,
+            request_params=anthropic_request,
+            response_data=response,
+            status_code=200,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            response_time_ms=(time.time() - start_time) * 1000
+        )
+        
+        # Update token usage statistics
+        if input_tokens or output_tokens:
+            today = datetime.now().strftime("%Y-%m-%d")
+            cost_estimate = (
+                (input_tokens or 0) * 0.00001 +
+                (output_tokens or 0) * 0.00003
+            )
+            await db.update_token_usage(
+                date=today,
+                provider_name=provider_config.name,
+                model=actual_model,
+                input_tokens=input_tokens or 0,
+                output_tokens=output_tokens or 0,
+                cost_estimate=cost_estimate
+            )
+        
+        return response
     
     def _log_modelscope_error(self, api_params: dict, actual_model: str):
         """Log detailed error information for modelscope provider."""

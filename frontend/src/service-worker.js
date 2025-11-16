@@ -85,3 +85,4 @@ async function doBackgroundSync() {
   console.log('Background sync triggered');
 }
 
+

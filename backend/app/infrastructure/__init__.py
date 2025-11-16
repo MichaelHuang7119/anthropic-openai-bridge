@@ -7,6 +7,7 @@ from .circuit_breaker import (
     with_circuit_breaker,
 )
 from .client import OpenAIClient
+from .anthropic_client import AnthropicClient
 from .retry import retry_with_backoff, is_retryable_error
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "with_circuit_breaker",
     # Client
     "OpenAIClient",
+    "AnthropicClient",
     # Retry
     "retry_with_backoff",
     "is_retryable_error",

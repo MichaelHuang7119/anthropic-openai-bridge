@@ -1,6 +1,7 @@
 <script lang="ts">
   import { toast } from '$stores/toast';
   import type { Toast } from '$stores/toast';
+  import ErrorMessageModal from '../ErrorMessageModal.svelte';
 
   let toasts: Toast[] = [];
   
@@ -11,13 +12,61 @@
   function handleClose(id: string) {
     toast.remove(id);
   }
+
+  // 错误信息模态框相关
+  let showErrorModal = false;
+  let selectedError: string = '';
+  let selectedErrorTitle: string = '';
+
+  function showFullErrorMessage(message: string, title: string = '错误信息') {
+    selectedError = message;
+    selectedErrorTitle = title;
+    showErrorModal = true;
+  }
+
+  function closeErrorModal() {
+    showErrorModal = false;
+    selectedError = '';
+    selectedErrorTitle = '';
+  }
+
+  // 判断错误信息是否过长（超过100字符）
+  function isLongMessage(message: string): boolean {
+    return message.length > 100;
+  }
+
+  // 截断消息用于显示
+  function truncateMessage(message: string, maxLength: number = 100): string {
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  }
 </script>
 
 <div class="toast-container">
   {#each toasts as toastItem (toastItem.id)}
+    {@const isLong = isLongMessage(toastItem.message)}
+    {@const displayMessage = isLong ? truncateMessage(toastItem.message) : toastItem.message}
     <div class="toast toast-{toastItem.type}" role="alert">
       <div class="toast-content">
-        <span class="toast-message">{toastItem.message}</span>
+        {#if isLong && toastItem.type === 'error'}
+          <span 
+            class="toast-message clickable" 
+            role="button"
+            tabindex="0"
+            on:click={() => showFullErrorMessage(toastItem.message, '错误信息')}
+            on:keydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showFullErrorMessage(toastItem.message, '错误信息');
+              }
+            }}
+            title="点击查看完整错误信息"
+          >
+            {displayMessage}
+          </span>
+        {:else}
+          <span class="toast-message">{displayMessage}</span>
+        {/if}
       </div>
       <button class="toast-close" on:click={() => handleClose(toastItem.id)} aria-label="关闭">
         ×
@@ -25,6 +74,14 @@
     </div>
   {/each}
 </div>
+
+<!-- Error Message Modal for long error messages -->
+<ErrorMessageModal
+  show={showErrorModal}
+  errorMessage={selectedError}
+  title={selectedErrorTitle}
+  on:close={closeErrorModal}
+/>
 
 <style>
   .toast-container {
@@ -92,6 +149,25 @@
     font-size: 0.875rem;
     line-height: 1.5;
     white-space: pre-line;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .toast-message.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+  }
+
+  .toast-message.clickable:hover {
+    opacity: 0.8;
+  }
+
+  .toast-message.clickable:focus {
+    outline: 2px solid var(--primary-color, #007bff);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
   }
 
   .toast-close {

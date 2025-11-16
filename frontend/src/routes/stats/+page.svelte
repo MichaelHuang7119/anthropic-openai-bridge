@@ -5,7 +5,7 @@
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
-  import Tooltip from '$components/ui/Tooltip.svelte';
+  import ErrorMessageModal from '$components/ErrorMessageModal.svelte';
   import { statsService } from '$services/stats';
   import { providerService } from '$services/providers';
   import type { PerformanceSummary, RequestLog, TokenUsage } from '$services/stats';
@@ -456,6 +456,23 @@
     if (errorMessage.length <= maxLength) return errorMessage;
     return errorMessage.substring(0, maxLength) + '...';
   }
+
+  // 错误信息模态框相关
+  let showErrorModal = false;
+  let selectedError: string = '';
+  let selectedRequestInfo: string = '';
+
+  function showErrorMessage(request: RequestLog) {
+    selectedRequestInfo = `请求 ID: ${request.request_id || 'N/A'} | 供应商: ${request.provider_name || 'N/A'} | 模型: ${request.model || 'N/A'}`;
+    selectedError = request.error_message || '';
+    showErrorModal = true;
+  }
+
+  function closeErrorModal() {
+    showErrorModal = false;
+    selectedError = '';
+    selectedRequestInfo = '';
+  }
 </script>
 
 <div class="container">
@@ -808,18 +825,13 @@
                     <td class="error-cell">
                       {#if request.error_message}
                         {@const truncated = truncateError(request.error_message)}
-                        {@const isTruncated = request.error_message.length > 50}
-                        {#if isTruncated}
-                          <Tooltip content={request.error_message} placement="top" maxWidth="500px">
-                            <span class="error-preview">
-                              {truncated}
-                            </span>
-                          </Tooltip>
-                        {:else}
-                          <span class="error-preview">
-                            {request.error_message}
-                          </span>
-                        {/if}
+                        <span 
+                          class="error-preview clickable" 
+                          on:click={() => showErrorMessage(request)}
+                          title="点击查看完整错误信息"
+                        >
+                          {truncated}
+                        </span>
                       {:else}
                         <span class="no-error">-</span>
                       {/if}
@@ -877,6 +889,14 @@
     </div>
   {/if}
 </div>
+
+<!-- Error Message Modal -->
+<ErrorMessageModal
+  show={showErrorModal}
+  errorMessage={selectedError}
+  title={selectedRequestInfo ? `错误信息 - ${selectedRequestInfo}` : '错误信息'}
+  on:close={closeErrorModal}
+/>
 
 <style>
   .page-header {
@@ -1026,12 +1046,21 @@
     font-size: 0.875rem;
     color: var(--danger-color, #dc3545);
     line-height: 1.4;
-    cursor: pointer;
     display: block;
-    width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .error-preview.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+  }
+
+  .error-preview.clickable:hover {
+    color: var(--danger-color, #dc3545);
+    opacity: 0.8;
   }
 
   .no-error {
