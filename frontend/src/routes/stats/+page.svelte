@@ -131,7 +131,7 @@
           date_from: dateRange.from,
           date_to: dateRange.to
         }, { signal }),
-        loadRequests() // 并行加载但不使用返回值
+        loadRequests(true) // 重置并加载最初的100条记录
       ]);
       
       // 检查是否已被取消
@@ -244,16 +244,28 @@
     tokenUsagePage = 1;
   }
 
-  async function loadRequests() {
+  // 添加状态变量来跟踪是否已加载所有记录
+  let hasLoadedAll = false;
+  let offset = 0;
+  const initialLimit = 100;
+  const loadMoreLimit = 100;
+
+  async function loadRequests(reset = true) {
     if (!abortController) return;
     try {
-      loadingRequests = true;
+      if (reset) {
+        loadingRequests = true;
+        offset = 0;
+        hasLoadedAll = false;
+      } else {
+        loadingRequests = true;
+      }
+
       const dateRange = getDateRange();
-      
+
       const params: any = {
-        // 为了支持客户端搜索，加载更多数据
-        limit: 1000, // 增加限制以支持客户端搜索
-        offset: 0,
+        limit: reset ? initialLimit : loadMoreLimit,
+        offset: reset ? 0 : offset,
         date_from: dateRange.from,
         date_to: dateRange.to
       };
@@ -265,37 +277,51 @@
         // 失败状态：400+ 的状态码（使用范围查询）
         params.status_min = 400;
       }
-      
+
       // 注意：不发送 provider_name 和 model 参数，改为客户端搜索
       const result = await statsService.getRequests(params, { signal: abortController.signal });
-      
+
       // 检查是否已被取消
       if (abortController.signal.aborted) return;
-      
-      let allRequests = result.data;
-      
-      // 客户端模糊搜索过滤
+
+      const newRequests = result.data;
+
+      // 对新获取的请求进行客户端过滤
+      let filteredNewRequests = newRequests;
       if (filterProvider.trim()) {
         const filterLower = filterProvider.toLowerCase().trim();
-        allRequests = allRequests.filter(r => 
+        filteredNewRequests = filteredNewRequests.filter(r =>
           r.provider_name.toLowerCase().includes(filterLower)
         );
       }
-      
+
       if (filterModel.trim()) {
         const filterLower = filterModel.toLowerCase().trim();
-        allRequests = allRequests.filter(r => 
+        filteredNewRequests = filteredNewRequests.filter(r =>
           r.model.toLowerCase().includes(filterLower)
         );
       }
-      
-      // 保存所有过滤后的数据
-      allRequestsData = allRequests;
-      
+
+      if (reset) {
+        // 重置时替换所有数据
+        allRequestsData = filteredNewRequests;
+      } else {
+        // 添加新数据到现有数据
+        allRequestsData = [...allRequestsData, ...filteredNewRequests];
+      }
+
+      // 更新偏移量用于下一次请求
+      offset += newRequests.length;
+
+      // 检查是否已加载完所有服务器数据（没有更多数据返回）
+      if (newRequests.length < params.limit) {
+        hasLoadedAll = true;
+      }
+
       // 客户端分页计算
-      totalCount = allRequests.length;
+      totalCount = allRequestsData.length;
       totalPages = Math.ceil(totalCount / pageSize);
-      
+
       // 确保当前页在有效范围内
       if (totalPages === 0) {
         // 没有数据时，设置为第1页
@@ -305,7 +331,7 @@
       } else if (currentPage < 1) {
         currentPage = 1;
       }
-      
+
       // requests 会通过响应式语句自动更新
     } catch (error) {
       // 忽略取消错误
@@ -329,7 +355,7 @@
     }
     debounceTimer = setTimeout(() => {
       currentPage = 1;
-      loadRequests();
+      loadRequests(true); // 重置并重新加载最初的100条记录
     }, 300);
   }
 
@@ -338,6 +364,11 @@
       currentPage = newPage;
       // 不需要重新加载数据，响应式语句会自动更新 requests
     }
+  }
+
+  async function loadMore() {
+    if (hasLoadedAll || loadingRequests) return;
+    await loadRequests(false); // 不重置数据，而是加载更多
   }
   
 
@@ -843,38 +874,54 @@
           </div>
 
           <!-- 分页控件 -->
-          {#if totalPages > 1}
-            <div class="pagination">
-              <div class="pagination-info">
-                共 {formatNumber(totalCount)} 条记录，第 {currentPage} / {totalPages} 页
-              </div>
-              <div class="pagination-controls">
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  disabled={currentPage === 1 || loadingRequests}
-                  on:click={() => handlePageChange(currentPage - 1)}
-                  title="上一页"
-                  class="icon-button"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                  </svg>
-                </Button>
-                <span class="page-info">{currentPage} / {totalPages}</span>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  disabled={currentPage === totalPages || loadingRequests}
-                  on:click={() => handlePageChange(currentPage + 1)}
-                  title="下一页"
-                  class="icon-button"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                  </svg>
-                </Button>
-              </div>
+          <div class="pagination">
+            <div class="pagination-info">
+              共 {formatNumber(totalCount)} 条记录，第 {currentPage} / {totalPages} 页
+            </div>
+            <div class="pagination-controls">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === 1 || loadingRequests}
+                on:click={() => handlePageChange(currentPage - 1)}
+                title="上一页"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </Button>
+              <span class="page-info">{currentPage} / {totalPages}</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === totalPages || loadingRequests}
+                on:click={() => handlePageChange(currentPage + 1)}
+                title="下一页"
+                class="icon-button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </Button>
+            </div>
+          </div>
+
+          <!-- 加载更多按钮 -->
+          {#if !hasLoadedAll}
+            <div class="load-more-container">
+              <Button
+                variant="primary"
+                on:click={loadMore}
+                disabled={loadingRequests}
+                class="load-more-button"
+              >
+                {#if loadingRequests}
+                  加载中...
+                {:else}
+                  增加100条
+                {/if}
+              </Button>
             </div>
           {/if}
         {:else}
@@ -1181,6 +1228,17 @@
     text-align: center;
     padding: 2rem;
     color: var(--text-secondary);
+  }
+
+  .load-more-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    padding: 1rem;
+  }
+
+  .load-more-button {
+    min-width: 120px;
   }
 
   .info-text {
