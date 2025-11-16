@@ -6,9 +6,10 @@
 
   export let provider: Provider | null = null; // null for create, provider object for edit
   export let loading = false;
+  export let apiFormat: string | undefined = undefined; // API format for precise identification when editing
 
   const dispatch = createEventDispatcher<{
-    save: Provider;
+    save: { provider: Provider; api_format?: string };
     cancel: void;
   }>();
 
@@ -47,8 +48,12 @@
         middle: [...(provider.models.middle || [])],
         small: [...(provider.models.small || [])]
       },
-      api_format: provider.api_format || 'openai' // Default to 'openai' if not set
+      // Use the provided api_format or the provider's api_format, default to 'openai' if neither
+      api_format: provider.api_format || apiFormat || 'openai'
     };
+  } else if (apiFormat) {
+    // When creating new provider, set default api_format from prop
+    formData.api_format = apiFormat;
   }
 
   let errors: Record<string, string> = {};
@@ -112,10 +117,10 @@
     // Convert form data to Provider format
     // For display purposes, hide API key if it was pre-filled during edit
     // Ensure api_format is explicitly set (use the value from formData, default to 'openai' only if truly missing)
-    const apiFormat = formData.api_format && formData.api_format.trim() !== '' 
-      ? formData.api_format 
+    const apiFormat = formData.api_format && formData.api_format.trim() !== ''
+      ? formData.api_format
       : 'openai';
-    
+
     const providerData: Provider = {
       ...formData,
       // Keep API key as-is (user might not want to change it)
@@ -128,7 +133,13 @@
     console.log('ProviderForm: Sending provider data with api_format =', providerData.api_format);
     console.log('ProviderForm: Full formData.api_format =', formData.api_format);
 
-    dispatch('save', providerData);
+    // Pass the current editing api_format for precise identification
+    const saveData = {
+      provider: providerData,
+      api_format: apiFormat || apiFormat
+    };
+
+    dispatch('save', saveData);
   }
 
   function handleCancel() {

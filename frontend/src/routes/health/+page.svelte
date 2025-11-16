@@ -317,6 +317,7 @@
         <thead>
           <tr>
             <th>供应商名称</th>
+            <th>API格式</th>
             <th>健康状态</th>
             <th>类别健康状态</th>
             <th>启用状态</th>
@@ -331,6 +332,11 @@
             <tr class={!provider.enabled ? 'disabled-row' : ''}>
               <td class="name-cell">
                 <span class="provider-name">{provider.name}</span>
+              </td>
+              <td class="format-cell">
+                <Badge type={provider.api_format === 'anthropic' ? 'warning' : 'info'}>
+                  {provider.api_format === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+                </Badge>
               </td>
               <td>
                 <Badge type={status.type}>{status.text}</Badge>
@@ -371,8 +377,8 @@
               <td class="error-cell">
                 {#if provider.error}
                   {@const truncated = truncateError(provider.error)}
-                  <span 
-                    class="error-value clickable" 
+                  <span
+                    class="error-value clickable"
                     on:click={() => showErrorMessage(provider.name, provider.error || '')}
                     title="点击查看完整错误信息"
                   >
@@ -602,22 +608,26 @@
   }
 
   .health-table th:nth-child(2) {
-    width: 120px;
-  }
-
-  .health-table th:nth-child(3) {
-    width: 200px;
-  }
-
-  .health-table th:nth-child(4) {
     width: 100px;
   }
 
+  .health-table th:nth-child(3) {
+    width: 120px;
+  }
+
+  .health-table th:nth-child(4) {
+    width: 200px;
+  }
+
   .health-table th:nth-child(5) {
-    width: 80px;
+    width: 100px;
   }
 
   .health-table th:nth-child(6) {
+    width: 80px;
+  }
+
+  .health-table th:nth-child(7) {
     width: 180px;
   }
 

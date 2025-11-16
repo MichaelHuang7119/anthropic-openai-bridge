@@ -342,6 +342,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                 <thead>
                   <tr>
                     <th>名称</th>
+                    <th>API格式</th>
                     <th>状态</th>
                     <th>Base URL</th>
                     <th>模型数量</th>
@@ -352,6 +353,11 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                     <tr class={!provider.enabled ? 'disabled-row' : ''}>
                       <td class="name-cell">
                         <span class="provider-name">{provider.name}</span>
+                      </td>
+                      <td class="format-cell">
+                        <Badge type={provider.api_format === 'anthropic' ? 'warning' : 'info'}>
+                          {provider.api_format === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+                        </Badge>
                       </td>
                       <td>
                         <Badge type={provider.enabled ? 'success' : 'secondary'}>
@@ -640,6 +646,10 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
   }
 
   .providers-table th:nth-child(3) {
+    width: 100px;
+  }
+
+  .providers-table th:nth-child(4) {
     width: 250px;
   }
 

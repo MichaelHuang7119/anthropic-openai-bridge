@@ -70,10 +70,11 @@ class ProviderService:
         try:
             config_data = self.config_service.load_config()
 
-            # Validate provider name uniqueness
+            # Validate provider name and api_format uniqueness (allow same name with different format)
             for p in config_data.get("providers", []):
-                if p.get("name") == provider_data.get("name"):
-                    raise ValueError("Provider already exists")
+                if (p.get("name") == provider_data.get("name") and
+                    p.get("api_format") == provider_data.get("api_format")):
+                    raise ValueError("Provider with same name and format already exists")
 
             # Validate provider configuration
             self.config_service.validate_provider_config(provider_data)
@@ -96,13 +97,14 @@ class ProviderService:
             logger.error(f"Failed to create provider: {e}")
             raise
 
-    def update_provider(self, name: str, provider_data: Dict[str, Any]) -> None:
+    def update_provider(self, name: str, provider_data: Dict[str, Any], api_format: str = "openai") -> None:
         """
         Update an existing provider.
 
         Args:
-            name: Current provider name
+            name: Provider name
             provider_data: Updated provider configuration
+            api_format: API format for precise identification
 
         Raises:
             ValueError: If provider not found or name conflict
@@ -111,27 +113,34 @@ class ProviderService:
             config_data = self.config_service.load_config()
             providers = config_data.get("providers", [])
 
-            # Find and update provider
+            # Find and update provider using name + api_format for precise identification
+            target_name = name
+            target_format = api_format
+
+            provider_found = False
             for i, p in enumerate(providers):
-                if p.get("name") == name:
-                    # Check for name conflict if name changed
-                    new_name = provider_data.get("name")
-                    if new_name != name:
-                        for j, other in enumerate(providers):
-                            if j != i and other.get("name") == new_name:
-                                raise ValueError("Provider name already exists")
+                if p.get("name") == target_name and p.get("api_format") == target_format:
+                    provider_found = True
+                    # Check for name and api_format conflict if name or api_format changed
+                    new_name = provider_data.get("name", target_name)
+                    new_api_format = provider_data.get("api_format", target_format)
+
+                    for j, other in enumerate(providers):
+                        if (j != i and
+                            other.get("name") == new_name and
+                            other.get("api_format") == new_api_format):
+                            raise ValueError("Provider with same name and format already exists")
 
                     # Validate provider configuration
                     self.config_service.validate_provider_config(provider_data)
 
                     # Log the incoming api_format value for debugging
-                    logger.debug(f"Updating provider {name}: received api_format = {provider_data.get('api_format', 'NOT PROVIDED')}")
-                    
-                    # Ensure api_format is always included (default to 'openai' if not set)
-                    # But only set default if it's truly missing, not if it's explicitly set to a value
+                    logger.debug(f"Updating provider {name} with format {target_format}: received api_format = {provider_data.get('api_format', 'NOT PROVIDED')}")
+
+                    # Ensure api_format is always included (default to target_format)
                     if "api_format" not in provider_data or provider_data.get("api_format") is None:
-                        logger.debug(f"api_format not provided or None, defaulting to 'openai'")
-                        provider_data["api_format"] = "openai"
+                        logger.debug(f"api_format not provided or None, using target_format {target_format}")
+                        provider_data["api_format"] = target_format
                     else:
                         logger.debug(f"api_format is set to: {provider_data.get('api_format')}")
 
@@ -140,7 +149,7 @@ class ProviderService:
                     existing_provider = providers[i].copy()
                     existing_provider.update(provider_data)
                     providers[i] = existing_provider
-                    
+
                     logger.debug(f"Final provider data after update: api_format = {providers[i].get('api_format')}")
                     config_data["providers"] = providers
 
@@ -150,21 +159,23 @@ class ProviderService:
                     # Reload global config
                     config._load_config()
 
-                    logger.info(f"Updated provider: {name}")
-                    return
+                    logger.info(f"Updated provider: {name} (format: {target_format})")
+                    break
 
-            raise ValueError("Provider not found")
+            if not provider_found:
+                raise ValueError(f"Provider '{name}' with format '{target_format}' not found")
         except Exception as e:
             logger.error(f"Failed to update provider: {e}")
             raise
 
-    def toggle_provider_enabled(self, name: str, enabled: bool) -> None:
+    def toggle_provider_enabled(self, name: str, enabled: bool, api_format: Optional[str] = None) -> None:
         """
         Toggle provider enabled status.
 
         Args:
             name: Provider name
             enabled: Enable or disable the provider
+            api_format: Optional API format for precise identification
 
         Raises:
             ValueError: If provider not found
@@ -173,10 +184,31 @@ class ProviderService:
             config_data = self.config_service.load_config()
             providers = config_data.get("providers", [])
 
-            # Find and update provider's enabled status
-            for i, p in enumerate(providers):
-                if p.get("name") == name:
-                    providers[i]["enabled"] = enabled
+            if api_format:
+                # Find specific provider by name + api_format
+                for i, p in enumerate(providers):
+                    if p.get("name") == name and p.get("api_format") == api_format:
+                        providers[i]["enabled"] = enabled
+                        config_data["providers"] = providers
+
+                        # Save configuration
+                        self.config_service.save_config(config_data)
+
+                        # Reload global config
+                        config._load_config()
+
+                        logger.info(f"{'Enabled' if enabled else 'Disabled'} provider: {name} (format: {api_format})")
+                        return
+                raise ValueError(f"Provider '{name}' with format '{api_format}' not found")
+            else:
+                # Toggle all providers with the given name
+                provider_found = False
+                for i, p in enumerate(providers):
+                    if p.get("name") == name:
+                        providers[i]["enabled"] = enabled
+                        provider_found = True
+
+                if provider_found:
                     config_data["providers"] = providers
 
                     # Save configuration
@@ -185,20 +217,20 @@ class ProviderService:
                     # Reload global config
                     config._load_config()
 
-                    logger.info(f"{'Enabled' if enabled else 'Disabled'} provider: {name}")
-                    return
-
-            raise ValueError("Provider not found")
+                    logger.info(f"{'Enabled' if enabled else 'Disabled'} all configurations for provider: {name}")
+                else:
+                    raise ValueError(f"No providers found with name '{name}'")
         except Exception as e:
             logger.error(f"Failed to toggle provider status: {e}")
             raise
 
-    def delete_provider(self, name: str) -> None:
+    def delete_provider(self, name: str, api_format: Optional[str] = None) -> None:
         """
         Delete a provider.
 
         Args:
             name: Provider name
+            api_format: Optional API format for precise identification
 
         Raises:
             ValueError: If provider not found
@@ -207,10 +239,29 @@ class ProviderService:
             config_data = self.config_service.load_config()
             providers = config_data.get("providers", [])
 
-            # Find and delete
-            for i, p in enumerate(providers):
-                if p.get("name") == name:
-                    del providers[i]
+            if api_format:
+                # Delete specific provider by name + api_format
+                for i, p in enumerate(providers):
+                    if p.get("name") == name and p.get("api_format") == api_format:
+                        del providers[i]
+                        config_data["providers"] = providers
+
+                        # Save configuration
+                        self.config_service.save_config(config_data)
+
+                        # Reload global config
+                        config._load_config()
+
+                        logger.info(f"Deleted provider: {name} (format: {api_format})")
+                        return
+                raise ValueError(f"Provider '{name}' with format '{api_format}' not found")
+            else:
+                # Delete all providers with the given name
+                original_count = len(providers)
+                providers = [p for p in providers if p.get("name") != name]
+                deleted_count = original_count - len(providers)
+
+                if deleted_count > 0:
                     config_data["providers"] = providers
 
                     # Save configuration
@@ -219,10 +270,9 @@ class ProviderService:
                     # Reload global config
                     config._load_config()
 
-                    logger.info(f"Deleted provider: {name}")
-                    return
-
-            raise ValueError("Provider not found")
+                    logger.info(f"Deleted {deleted_count} configuration(s) for provider: {name}")
+                else:
+                    raise ValueError(f"No providers found with name '{name}'")
         except Exception as e:
             logger.error(f"Failed to delete provider: {e}")
             raise

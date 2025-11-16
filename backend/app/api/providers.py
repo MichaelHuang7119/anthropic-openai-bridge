@@ -65,17 +65,27 @@ async def create_provider(provider: ProviderModel, user: dict = Depends(require_
         raise HTTPException(status_code=500, detail=f"Failed to create provider: {str(e)}")
 
 @router.put("/{name}")
-async def update_provider(name: str, provider: ProviderModel, user: dict = Depends(require_admin())):
+async def update_provider(
+    name: str,
+    provider: ProviderModel,
+    api_format: Optional[str] = Query(None, description="API format for precise identification"),
+    user: dict = Depends(require_admin())
+):
     """更新供应商"""
     try:
         provider_service = get_provider_service()
         # Use exclude_unset=False to ensure all fields including defaults are included
         provider_dict = provider.model_dump(exclude_unset=False)
+
+        # Use api_format from query param or from body, prioritize query param for precision
+        target_api_format = api_format or provider_dict.get("api_format", "openai")
+
         # Log the api_format value being sent
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Update provider {name}: received api_format = {provider_dict.get('api_format', 'NOT PROVIDED')}")
-        provider_service.update_provider(name, provider_dict)
+        logger.info(f"Update provider {name} with format {target_api_format}: received api_format = {provider_dict.get('api_format', 'NOT PROVIDED')}")
+
+        provider_service.update_provider(name, provider_dict, target_api_format)
         return {"success": True, "message": "Provider updated successfully"}
     except ValueError as e:
         if "not found" in str(e).lower():
@@ -86,14 +96,15 @@ async def update_provider(name: str, provider: ProviderModel, user: dict = Depen
 
 @router.patch("/{name}/enable")
 async def toggle_provider_enabled(
-    name: str, 
+    name: str,
     enabled: bool = Query(..., description="Enable or disable the provider"),
+    api_format: Optional[str] = Query(None, description="API format for precise identification"),
     user: dict = Depends(require_admin())
 ):
     """切换供应商启用状态"""
     try:
         provider_service = get_provider_service()
-        provider_service.toggle_provider_enabled(name, enabled)
+        provider_service.toggle_provider_enabled(name, enabled, api_format)
         return {"success": True, "message": f"Provider {'enabled' if enabled else 'disabled'} successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -101,11 +112,15 @@ async def toggle_provider_enabled(
         raise HTTPException(status_code=500, detail=f"Failed to toggle provider status: {str(e)}")
 
 @router.delete("/{name}")
-async def delete_provider(name: str, user: dict = Depends(require_admin())):
+async def delete_provider(
+    name: str,
+    api_format: Optional[str] = Query(None, description="API format for precise identification"),
+    user: dict = Depends(require_admin())
+):
     """删除供应商"""
     try:
         provider_service = get_provider_service()
-        provider_service.delete_provider(name)
+        provider_service.delete_provider(name, api_format)
         return {"success": True, "message": "Provider deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

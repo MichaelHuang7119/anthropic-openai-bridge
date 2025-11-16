@@ -40,23 +40,23 @@
     // 搜索过滤
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      if (!p.name.toLowerCase().includes(query) && 
+      if (!p.name.toLowerCase().includes(query) &&
           !p.base_url.toLowerCase().includes(query)) {
         return false;
       }
     }
-    
+
     // 状态过滤
     if (filterEnabled === 'enabled' && !p.enabled) return false;
     if (filterEnabled === 'disabled' && p.enabled) return false;
-    
+
     return true;
   });
-  
+
   // 分页计算
   $: totalCount = allFilteredProviders.length;
   $: totalPages = Math.ceil(totalCount / pageSize);
-  
+
   // 确保当前页在有效范围内
   $: {
     if (totalPages === 0) {
@@ -68,7 +68,7 @@
       currentPage = 1;
     }
   }
-  
+
   // 当前页显示的数据
   $: filteredProviders = (() => {
     const start = (currentPage - 1) * pageSize;
@@ -138,8 +138,10 @@
       // 更新缓存
       providersForEdit = editData;
 
-      // 从最新数据中找到对应的供应商
-      const fullProvider = providersForEdit.find(p => p.name === provider.name);
+      // 从最新数据中找到对应的供应商 (包含格式匹配)
+      const fullProvider = providersForEdit.find(p =>
+        p.name === provider.name && p.api_format === provider.api_format
+      );
       if (!fullProvider) {
         toast.error('找不到该供应商的配置数据');
         return;
@@ -160,7 +162,7 @@
   async function handleToggleEnabled(provider: Provider) {
     const newEnabled = !provider.enabled;
     try {
-      await providerService.toggleEnabled(provider.name, newEnabled);
+      await providerService.toggleEnabled(provider.name, newEnabled, provider.api_format);
       await loadProviders();
       toast.success(newEnabled ? '供应商已启用' : '供应商已禁用');
     } catch (error) {
@@ -175,7 +177,7 @@
     }
 
     try {
-      await providerService.delete(provider.name);
+      await providerService.delete(provider.name, provider.api_format);
       // 清空编辑数据缓存
       providersForEdit = [];
       await loadProviders();
@@ -316,11 +318,16 @@
     selectedErrorTitle = '';
   }
 
-  async function handleSave(providerData: Provider) {
+  async function handleSave(saveData: { provider: Provider; api_format?: string }) {
     try {
       saving = true;
+
+      // Extract provider data and api_format
+      const { provider: providerData, api_format } = saveData;
+
       if (editingProvider) {
-        await providerService.update(editingProvider.name, providerData);
+        // Pass api_format for precise provider identification
+        await providerService.update(editingProvider.name, providerData, api_format);
       } else {
         await providerService.create(providerData);
       }
@@ -433,7 +440,9 @@
               <tr>
                 <td class="name-cell">
                   <div class="name-wrapper">
-                    <span class="provider-name">{provider.name}</span>
+                    <span class="provider-name" title={provider.name}>
+                      {provider.name}
+                    </span>
                   </div>
                 </td>
                 <td class="status-cell">
@@ -450,7 +459,7 @@
                   <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
                 </td>
                 <td class="format-cell">
-                  <Badge type="info">
+                  <Badge type={provider.api_format === 'anthropic' ? 'warning' : 'info'}>
                     {provider.api_format === 'anthropic' ? 'Anthropic' : 'OpenAI'}
                   </Badge>
                 </td>
@@ -557,7 +566,8 @@
       <h2>{editingProvider ? '编辑供应商' : '添加供应商'}</h2>
       <ProviderForm
         provider={editingProvider}
-        loading={loading}
+        apiFormat={editingProvider?.api_format}
+        loading={saving}
         on:save={(e) => handleSave(e.detail)}
         on:cancel={handleCancel}
       />
@@ -893,6 +903,12 @@
   .provider-name {
     font-weight: 600;
     color: var(--text-primary, #1a1a1a);
+  }
+
+  .name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .status-cell {

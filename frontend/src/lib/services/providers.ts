@@ -15,19 +15,31 @@ export const providerService = {
     return apiClient.post('/api/providers', data);
   },
 
-  async update(name: string, data: ProviderFormData): Promise<{ success: boolean; message: string }> {
-    return apiClient.put(`/api/providers/${encodeURIComponent(name)}`, data);
+  async update(name: string, data: ProviderFormData, api_format?: string): Promise<{ success: boolean; message: string }> {
+    // Use query parameter for precise provider identification when api_format is specified
+    const url = api_format
+      ? `/api/providers/${encodeURIComponent(name)}?api_format=${encodeURIComponent(api_format)}`
+      : `/api/providers/${encodeURIComponent(name)}`;
+    return apiClient.put(url, data);
   },
 
-  async delete(name: string): Promise<{ success: boolean; message: string }> {
-    return apiClient.delete(`/api/providers/${encodeURIComponent(name)}`);
+  async delete(name: string, api_format?: string): Promise<{ success: boolean; message: string }> {
+    // Use query parameter for precise provider identification when api_format is specified
+    const url = api_format
+      ? `/api/providers/${encodeURIComponent(name)}?api_format=${encodeURIComponent(api_format)}`
+      : `/api/providers/${encodeURIComponent(name)}`;
+    return apiClient.delete(url);
   },
 
   async test(name: string): Promise<ProviderTestResponse> {
     return apiClient.post(`/api/providers/${encodeURIComponent(name)}/test`);
   },
 
-  async toggleEnabled(name: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
-    return apiClient.patch(`/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}`);
+  async toggleEnabled(name: string, enabled: boolean, api_format?: string): Promise<{ success: boolean; message: string }> {
+    // Use query parameter for precise provider identification when api_format is specified
+    const url = api_format
+      ? `/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}&api_format=${encodeURIComponent(api_format)}`
+      : `/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}`;
+    return apiClient.patch(url);
   }
 };

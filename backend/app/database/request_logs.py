@@ -1,4 +1,5 @@
 """Request logs database operations."""
+
 import json
 import logging
 from typing import Optional, List, Dict, Any
@@ -29,30 +30,37 @@ class RequestLogsManager:
         error_message: Optional[str] = None,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
-        response_time_ms: Optional[float] = None
+        response_time_ms: Optional[float] = None,
     ):
         """Log a request to the database."""
         try:
             conn = await self.db_core.get_connection()
             cursor = await conn.cursor()
 
-            await cursor.execute("""
+            await cursor.execute(
+                """
                 INSERT INTO request_logs (
                     request_id, provider_name, model, request_params, response_data,
                     status_code, error_message, input_tokens, output_tokens, response_time_ms
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                request_id,
-                provider_name,
-                model,
-                json.dumps(request_params, ensure_ascii=False),
-                json.dumps(response_data, ensure_ascii=False) if response_data else None,
-                status_code,
-                error_message,
-                input_tokens,
-                output_tokens,
-                response_time_ms
-            ))
+            """,
+                (
+                    request_id,
+                    provider_name,
+                    model,
+                    json.dumps(request_params, ensure_ascii=False),
+                    (
+                        json.dumps(response_data, ensure_ascii=False)
+                        if response_data
+                        else None
+                    ),
+                    status_code,
+                    error_message,
+                    input_tokens,
+                    output_tokens,
+                    response_time_ms,
+                ),
+            )
 
             await conn.commit()
         except Exception as e:
@@ -60,14 +68,14 @@ class RequestLogsManager:
 
     async def get_request_logs(
         self,
-        limit: int = 100,
+        limit: Optional[int] = 100,
         offset: int = 0,
         provider_name: Optional[str] = None,
         model: Optional[str] = None,
         status_code: Optional[int] = None,
         status_min: Optional[int] = None,
         date_from: Optional[str] = None,
-        date_to: Optional[str] = None
+        date_to: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get request logs with optional filters."""
         try:
@@ -100,8 +108,12 @@ class RequestLogsManager:
                 query += " AND date(created_at) <= ?"
                 params.append(date_to)
 
-            query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-            params.extend([limit, offset])
+            # Only add LIMIT if limit is specified
+            if limit is not None:
+                query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                params.extend([limit, offset])
+            else:
+                query += " ORDER BY created_at DESC"
 
             await cursor.execute(query, params)
             rows = await cursor.fetchall()
@@ -118,14 +130,14 @@ class RequestLogsManager:
         status_code: Optional[int] = None,
         status_min: Optional[int] = None,
         date_from: Optional[str] = None,
-        date_to: Optional[str] = None
+        date_to: Optional[str] = None,
     ) -> int:
-        """Get total count of request logs matching filters."""
+        """Get total count of request logs with filters."""
         try:
             conn = await self.db_core.get_connection()
             cursor = await conn.cursor()
 
-            query = "SELECT COUNT(*) as count FROM request_logs WHERE 1=1"
+            query = "SELECT COUNT(*) FROM request_logs WHERE 1=1"
             params = []
 
             if provider_name:
@@ -153,8 +165,7 @@ class RequestLogsManager:
 
             await cursor.execute(query, params)
             result = await cursor.fetchone()
-
-            return result["count"] if result else 0
+            return result[0] if result else 0
         except Exception as e:
             logger.error(f"Failed to get request logs count: {e}")
             return 0

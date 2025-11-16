@@ -6,6 +6,7 @@ export interface CategoryHealth {
 
 export interface ProviderHealth {
   name: string;
+  api_format: string;
   healthy: boolean | null;
   enabled: boolean;
   priority: number;

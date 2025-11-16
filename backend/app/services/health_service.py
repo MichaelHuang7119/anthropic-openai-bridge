@@ -43,6 +43,7 @@ class HealthService:
         """
         health_info = {
             "name": provider.get("name"),
+            "api_format": provider.get("api_format", "openai"),
             "healthy": None,
             "enabled": provider.get("enabled", True),
             "priority": provider.get("priority", 1),
