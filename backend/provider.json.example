@@ -1,0 +1,46 @@
+{
+  "providers": [
+    {
+      "name": "example-provider",
+      "enabled": false,
+      "priority": 1,
+      "api_key": "your-api-key-here",
+      "base_url": "https://api.example.com/v1",
+      "api_version": null,
+      "timeout": 180,
+      "max_retries": 2,
+      "custom_headers": {},
+      "models": {
+        "big": ["claude-opus"],
+        "middle": ["claude-sonnet"],
+        "small": ["claude-haiku"]
+      },
+      "api_format": "openai",
+      "max_tokens_limit": 32768
+    }
+  ],
+  "fallback_strategy": "priority",
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "recovery_timeout": 60
+  },
+  "cache": {
+    "enabled": true,
+    "cache_type": "memory",
+    "default_ttl": 3600,
+    "max_size": 1000,
+    "redis_url": "redis://localhost:6379/0",
+    "redis_max_connections": 20,
+    "exclude_from_cache": ["stream"]
+  },
+  "observability": {
+    "log_level": "info",
+    "log_sampling_rate": 1.0,
+    "slow_request_threshold_ms": 5000,
+    "enable_slow_request_alert": true,
+    "otel_enabled": false,
+    "otlp_endpoint": "http://localhost:4317",
+    "otlp_service_name": "anthropic-openai-bridge",
+    "otlp_headers": {}
+  }
+}

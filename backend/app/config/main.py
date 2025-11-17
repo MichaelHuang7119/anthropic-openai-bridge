@@ -34,12 +34,29 @@ class ProviderConfig(BaseModel):
     api_key: str
     base_url: str
     api_version: Optional[str] = None
-    timeout: int = 180  # Increased from 90 to reduce timeouts for long-running requests
-    max_retries: int = 2  # Reduced from 3 to match claude-code-proxy and reduce unnecessary retries
+    timeout: int = 180
+    max_retries: int = 2
     custom_headers: Dict[str, str] = Field(default_factory=dict)
     models: Dict[str, List[str]] = Field(default_factory=dict)
-    max_tokens_limit: Optional[int] = None  # Maximum allowed max_tokens for this provider
+    max_tokens_limit: Optional[int] = None  # Per-provider max_tokens limit override
     api_format: str = Field(default="openai", description="API format: 'openai' or 'anthropic'. Defaults to 'openai' for backward compatibility.")
+
+
+class ObservabilityConfig(BaseModel):
+    """Observability configuration."""
+    # Logging configuration
+    log_level: str = Field(default="info", description="Log level: debug, info, warning, error")
+    log_sampling_rate: float = Field(default=1.0, description="Log sampling rate (0.0-1.0), 1.0 means log everything")
+
+    # Slow request detection
+    slow_request_threshold_ms: int = Field(default=5000, description="Slow request threshold in milliseconds")
+    enable_slow_request_alert: bool = Field(default=True, description="Enable slow request alerting")
+
+    # OpenTelemetry configuration
+    otlp_enabled: bool = Field(default=False, description="Enable OpenTelemetry tracing")
+    otlp_endpoint: Optional[str] = Field(default=None, description="OTLP endpoint URL")
+    otlp_service_name: str = Field(default="anthropic-openai-bridge", description="Service name for OTLP")
+    otlp_headers: Dict[str, str] = Field(default_factory=dict, description="OTLP authentication headers")
 
 
 class AppConfig(BaseModel):
@@ -48,6 +65,7 @@ class AppConfig(BaseModel):
     fallback_strategy: str = "priority"
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
+    observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
 
 
 class Config:

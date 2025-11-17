@@ -28,10 +28,28 @@ logger = logging.getLogger(__name__)
 
 class MessageService:
     """Service for handling message requests."""
-    
+
     def __init__(self, model_manager: ModelManager):
         self.model_manager = model_manager
-    
+        # Observability config
+        self.observability_config = config.app_config.observability
+
+    def _should_log_sample(self) -> bool:
+        """Check if current request should be logged based on sampling rate."""
+        import random
+        return random.random() < self.observability_config.log_sampling_rate
+
+    def _check_slow_request(self, start_time: float, provider_name: str, request_id: str):
+        """Check if request is slow and log warning if enabled."""
+        elapsed_ms = (time.time() - start_time) * 1000
+        threshold_ms = self.observability_config.slow_request_threshold_ms
+
+        if elapsed_ms > threshold_ms and self.observability_config.enable_slow_request_alert:
+            logger.warning(
+                f"Slow request detected: {elapsed_ms:.2f}ms > {threshold_ms}ms threshold, "
+                f"provider={provider_name}, request_id={request_id}"
+            )
+
     async def handle_messages(
         self,
         request: Union[MessagesRequest, dict],
@@ -40,7 +58,7 @@ class MessageService:
         exclude_models: Optional[Dict[str, List[str]]] = None
     ):
         """Internal function to handle messages request with optional exclude parameters.
-        
+
         Rotates through all models in a category within the same provider before switching providers.
         """
         request_id = str(uuid.uuid4())
@@ -48,6 +66,9 @@ class MessageService:
         input_tokens = None
         output_tokens = None
         status_code = 200
+
+        # Observability: log sampling
+        should_log = self._should_log_sample()
         error_message = None
 
         try:

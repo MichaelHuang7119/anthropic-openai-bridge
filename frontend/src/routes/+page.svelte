@@ -15,7 +15,7 @@
   let loading = true;
   let currentUrl = '';
   let copySuccess = false;
-  
+
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
   
@@ -106,7 +106,7 @@
 
   async function copyToClipboard(text: string) {
     if (!browser) return;
-    
+
     // 优先使用现代 Clipboard API
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
@@ -122,7 +122,7 @@
         // 继续尝试降级方案
       }
     }
-    
+
     // 降级方案：使用传统的 execCommand
     try {
       const textArea = document.createElement('textarea');
@@ -133,10 +133,10 @@
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
-      
+
       const successful = document.execCommand('copy');
       document.body.removeChild(textArea);
-      
+
       if (successful) {
         copySuccess = true;
         toast.success('已复制到剪贴板');
