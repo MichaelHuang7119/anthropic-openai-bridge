@@ -1,82 +1,107 @@
 # Anthropic OpenAI Bridge
 
-一个基于 FastAPI 和 Svelte 5 的 AI 模型代理服务，支持多供应商配置和管理。
+一个基于 FastAPI 和 Svelte 5 的高性能 AI 模型代理服务，支持多供应商配置和管理。
 
 ## 项目简介
 
-Anthropic OpenAI Bridge 是一个高性能的 API 代理服务，它实现了 Anthropic 兼容的 API 端点，并将请求转发到支持 OpenAI 兼容接口的后端供应商（如通义千问、ModelScope、AI Ping 等）。通过统一的 API 接口，您可以轻松切换不同的 AI 模型供应商，而无需修改客户端代码。
+Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthropic 兼容的 API 端点，并将请求转发到支持 OpenAI 兼容接口的后端供应商（如通义千问、ModelScope、AI Ping、Anthropic 等）。通过统一的 API 接口，您可以轻松切换不同的 AI 模型供应商，而无需修改客户端代码。
 
 本项目提供：
-- **Web 管理界面** - 基于 Svelte 5 的现代化管理界面
-- **用户认证系统** - 邮箱密码登录，支持管理员权限管理
-- **API Key 管理** - 完整的 API Key 生命周期管理，支持用户关联
-- **多供应商支持** - 支持多个 AI 供应商，支持优先级回退机制
-- **实时监控** - 供应商健康状态实时监控（支持健康、部分健康、不健康、未检查四种状态）
-- **可视化配置** - 通过 Web 界面轻松配置供应商和模型
-- **流式响应** - 支持 Server-Sent Events (SSE) 流式输出，实时显示 Token 消耗
-- **工具调用** - 完整的工具调用（Function Calling）支持
-- **多模态输入** - 支持文本和图片输入
-- **Token 计数** - 提供 token 计数端点
-- **自动模型映射** - 智能模型映射（haiku→small, sonnet→middle, opus→big）
-- **全局 Token 限制** - 可配置的全局 max_tokens 限制
-- **健康检查** - 内置健康检查端点，支持手动检查模式
-- **错误处理** - 完善的错误处理和日志记录
-- **自动重试** - 支持超时和连接错误的自动重试机制
-- **Toast 消息提示** - 友好的操作反馈提示
-- **Anthropic 直连** - 支持直接连接 Anthropic API 格式提供商（无需转换）
-- **增强日志** - 详细的请求日志和性能监控
+- **🚀 Web 管理界面** - 基于 Svelte 5 的现代化管理界面，支持深色/浅色主题切换
+- **🔐 双层认证系统** - 管理面板认证（邮箱密码）+ 服务 API 认证（API Key）
+- **🔑 API Key 生命周期管理** - 支持创建、禁用、删除 API Key，支持用户关联和最后使用时间追踪
+- **🏢 多供应商支持** - 支持多个 AI 供应商，支持优先级/随机回退机制
+- **💓 智能健康监控** - 四种状态（健康、部分健康、不健康、未检查），手动检查模式节省 API 调用
+- **🎨 可视化配置** - 通过 Web 界面轻松配置供应商和模型，支持大/中/小模型分类
+- **⚡ 高性能流式响应** - 支持 Server-Sent Events (SSE) 流式输出，优化响应速度
+- **🔧 完整工具调用** - 全面的工具调用（Function Calling）支持，包括参数验证和错误处理
+- **🖼️ 多模态输入** - 支持文本和图片输入，兼容 Anthropic 和 OpenAI 格式
+- **📊 Token 计数服务** - 独立的 token 计数端点，帮助控制成本
+- **🗺️ 智能模型映射** - 自动模型映射（haiku→small, sonnet→middle, opus→big）
+- **🚦 全局 Token 限制** - 可配置的全局 max_tokens/min_tokens 限制
+- **🔍 健康检查系统** - 内置健康检查端点，支持单个/批量检查
+- **📝 完善的日志** - 彩色输出日志，支持慢请求检测和错误追踪
+- **🔄 自动重试机制** - 支持超时和连接错误的指数退避重试
+- **🔄 熔断器模式** - 支持熔断器模式，快速失败防止级联故障
+- **💬 友好的提示** - Toast 消息提示，操作反馈清晰
+- **🔗 Anthropic 直连** - 支持直接连接 Anthropic API 格式提供商（无需转换）
+- **📈 性能监控** - 详细的请求日志、性能统计和 Token 使用追踪
+- **🔧 增强的缓存** - 支持内存和 Redis 缓存，可配置 TTL 和排除参数
+- **🛡️ 安全加固** - 配置文件安全验证、环境变量支持、加密存储
+- **🚀 Nginx 代理** - 内置 Nginx 配置，支持 gzip 压缩和健康检查
+- **📱 URL Scheme 支持** - 支持快速配置链接，方便 Claude Desktop/Claude Code 使用
 
 ## 快速开始
 
 ### 环境要求
 
-- Python 3.8+
-- Node.js 18+
-- npm 或 yarn
+- **Python 3.9+** (推荐 3.10+)
+- **Node.js 18+** (推荐 20+)
+- **npm/pnpm/yarn** (推荐 pnpm)
+- **Docker & Docker Compose** (可选，用于容器化部署)
 
-### 启动服务
+### 快速启动（3种方式）
 
-#### 方式一：一键启动（推荐）
+#### 🐳 方式一：Docker Compose 一键部署（推荐）
 
 ```bash
-# 在项目根目录运行
-# 注意：需要分别启动后端和前端服务
+# 克隆项目
+git clone <your-repo-url>
+cd anthropic-openai-bridge
 
-# 终端 1：启动后端
-cd backend
-bash start.sh
+# 启动所有服务（后端 + 前端）
+docker-compose up -d
 
-# 终端 2：启动前端
-cd frontend
-bash start.sh
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f frontend
+docker-compose logs -f backend
 ```
 
-#### 方式二：分别启动
+服务将在以下端口启动：
+- **前端管理界面**: http://localhost:5173
+- **后端 API**: http://localhost:8000 (内部网络，仅 Docker 可访问)
+- **API 文档**: http://localhost:8000/docs
+
+**自定义前端端口**：
+```bash
+EXPOSE_PORT=5175 docker-compose up -d
+```
+
+#### 💻 方式二：本地开发启动
 
 **1. 启动后端服务**
 ```bash
 cd backend
 bash start.sh
-# 或者直接运行
+# 或直接运行
 python start_proxy.py
 ```
-
-后端将在 http://localhost:8000 启动
-- API 文档：http://localhost:8000/docs
-- API 规范：http://localhost:8000/redoc
 
 **2. 启动前端服务（新终端）**
 ```bash
 cd frontend
-bash start.sh
-# 或者指定端口
-bash start.sh -- --port 5175
-# 或者直接运行
-npm install  # 首次运行需要安装依赖
-npm run dev
+pnpm install  # 首次运行需要安装依赖
+pnpm dev
+# 或指定端口
+pnpm dev -- --port 5175
 ```
 
-前端将在 http://localhost:5173 启动（默认端口，可通过 --port 参数修改）
+#### 📦 方式三：后端开发模式
+
+```bash
+cd backend
+# 开发模式（自动重载）
+python start_proxy.py --reload
+
+# 自定义主机和端口
+python start_proxy.py --host 127.0.0.1 --port 3000
+
+# 调试模式
+python start_proxy.py --log-level debug
+```
 
 ### 首次登录
 
@@ -100,34 +125,58 @@ cd backend
 pip install -r requirements.txt
 ```
 
-### 配置供应商
 
-#### 通过 Web 界面配置（推荐）
+### 配置供应商（重要）
 
-1. 登录管理界面后，访问"供应商"页面
-2. 点击"添加供应商"按钮
-3. 填写供应商信息（名称、Base URL、API Key等）
-4. 配置模型列表（大、中、小三个类别）
-5. 保存配置
+**启动前必须先配置供应商信息！**
 
-#### 通过配置文件
+#### 方式一：通过配置文件（推荐）
 
-1. 编辑 `backend/provider.json` 文件，配置您的 AI 供应商信息
-2. 设置环境变量来存储 API 密钥（推荐方式）
+编辑 `backend/provider.json` 文件，配置您的 AI 供应商信息：
 
 ```bash
+# 设置环境变量（推荐方式）
 export QWEN_API_KEY="your-qwen-api-key"
 export MODELSCOPE_API_KEY="your-modelscope-api-key"
 export AIPING_API_KEY="your-aiping-api-key"
+export MOONSHOT_API_KEY="your-moonshot-api-key"
+
+# 在 provider.json 中使用环境变量格式
+# "api_key": "${QWEN_API_KEY}"
 ```
 
-在 `backend/provider.json` 中使用环境变量：
+**当前支持的供应商类型：**
 
-```json
-{
-  "api_key": "${QWEN_API_KEY}"
-}
-```
+1. **通义千问 (Qwen)** - 阿里云 DashScope
+   - Base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`
+   - 支持 OpenAI 格式
+
+2. **ModelScope** - 魔搭社区模型服务
+   - Base URL: `https://api-inference.modelscope.cn/v1/`
+   - 支持 OpenAI 格式
+
+3. **AI Ping** - AI Ping 平台
+   - Base URL: `https://aiping.cn/api/v1`
+   - 支持 OpenAI 格式
+
+4. **Moonshot AI** - Moonshot AI (Kimi)
+   - Base URL: `https://api.moonshot.cn/v1`
+   - 支持 OpenAI 格式
+
+5. **Anthropic 直连** - 支持 Anthropic API 格式
+   - Base URL: `https://api.anthropic.com` 或供应商提供的 Anthropic 格式端点
+   - 设置 `"api_format": "anthropic"`
+
+#### 方式二：通过 Web 界面配置
+
+1. 启动服务后登录管理界面
+2. 访问"供应商"页面
+3. 点击"添加供应商"按钮
+4. 填写供应商信息（名称、Base URL、API Key等）
+5. 配置模型列表（大、中、小三个类别）
+6. 保存配置
+
+**注意**：Web 界面配置需要服务先启动，因此首次启动前建议先通过配置文件设置至少一个供应商。
 
 ### 配置 Claude Code
 
@@ -417,30 +466,49 @@ pytest tests/ --cov=app
 anthropic-openai-bridge/
 ├── backend/                    # 后端服务
 │   ├── app/
-│   │   ├── api/               # API 路由
+│   │   ├── api/               # API 路由层
 │   │   │   ├── auth.py        # 用户认证 API
 │   │   │   ├── api_keys.py    # API Key 管理 API
 │   │   │   ├── config.py      # 配置管理 API
 │   │   │   ├── health.py      # 健康检查 API
-│   │   │   ├── providers.py  # 供应商管理 API
+│   │   │   ├── providers.py   # 供应商管理 API
 │   │   │   └── stats.py       # 性能统计 API
-│   │   ├── main.py            # FastAPI 应用入口
-│   │   ├── auth.py             # 认证和授权模块
-│   │   ├── database.py        # 数据库管理
-│   │   ├── converter.py       # Anthropic ↔ OpenAI 格式转换
-│   │   ├── client.py          # OpenAI 客户端封装
-│   │   ├── model_manager.py   # 模型选择和供应商管理
-│   │   ├── config.py          # 配置管理
-│   │   ├── config_hot_reload.py # 配置热重载
-│   │   ├── circuit_breaker.py # 熔断器实现
-│   │   ├── cache.py           # 缓存管理
+│   │   ├── services/          # 业务逻辑层
+│   │   │   ├── message_service.py      # 消息处理服务（请求分发、供应商选择等）
+│   │   │   ├── auth_service.py         # 认证授权服务
+│   │   │   ├── api_key_service.py      # API Key 管理服务
+│   │   │   └── stats_service.py        # 统计服务
+│   │   ├── converters/        # 格式转换层
+│   │   │   ├── anthropic_to_openai.py  # Anthropic 转 OpenAI 格式
+│   │   │   └── openai_to_anthropic.py  # OpenAI 转 Anthropic 格式
+│   │   ├── config/            # 配置管理
+│   │   │   └── main.py        # 统一配置管理（熔断器、缓存、可观测性等）
+│   │   ├── database/          # 数据库层
+│   │   │   ├── base.py        # 数据库基类
+│   │   │   ├── api_keys.py    # API Key 数据表
+│   │   │   ├── request_logs.py # 请求日志表
+│   │   │   └── stats.py       # 统计数据表
+│   │   ├── cache/             # 缓存实现
+│   │   │   ├── __init__.py    # 缓存抽象接口
+│   │   │   ├── memory_cache.py # 内存缓存
+│   │   │   ├── redis_cache.py  # Redis 缓存
+│   │   │   └── smart_cache.py  # 智能缓存管理器
+│   │   ├── tracing/           # 链路追踪和可观测性
+│   │   │   └── tracing_system.py # TracingSystem 实现
+│   │   ├── models/            # 数据模型
+│   │   │   ├── __init__.py    # 通用模型
+│   │   │   ├── auth.py        # 认证相关模型
+│   │   │   ├── api_keys.py    # API Key 模型
+│   │   │   └── stats.py       # 统计模型
 │   │   ├── security.py        # 安全工具函数
-│   │   ├── models.py          # 数据模型定义
+│   │   ├── circuit_breaker.py # 熔断器实现（主动健康检查）
+│   │   ├── client.py          # OpenAI 客户端封装
 │   │   ├── retry.py           # 重试机制
-│   │   └── utils.py           # 工具函数
+│   │   └── main.py            # FastAPI 应用入口
 │   ├── data/                  # 数据目录（数据库文件）
 │   ├── requirements.txt       # Python 依赖
 │   ├── provider.json          # 供应商配置文件（需自行创建）
+│   ├── provider.json.example  # 配置文件示例
 │   ├── start_proxy.py         # 代理服务启动脚本
 │   └── start.sh               # 后端启动脚本
 │
@@ -879,6 +947,84 @@ npm run build
 9. **认证安全**：首次登录后请立即修改默认管理员密码，生产环境请设置强密码的 `JWT_SECRET_KEY`
 10. **API Key 管理**：API Key 创建后无法再次查看完整 Key，请妥善保管。建议定期轮换 API Key
 
-## 许可证
+## 📜 许可证
 
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
+MIT License - 详情请查看 [LICENSE](LICENSE) 文件
+
+```
+MIT License
+
+Copyright (c) 2025 Anthropic OpenAI Bridge
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 第三方依赖
+
+- **后端依赖**：[requirements.txt](backend/requirements.txt)
+- **前端依赖**：[package.json](frontend/package.json)
+
+## 🔗 相关链接
+
+- **项目主页**：<https://github.com/your-username/anthropic-openai-bridge>
+- **问题反馈**：<https://github.com/your-username/anthropic-openai-bridge/issues>
+- **功能建议**：<https://github.com/your-username/anthropic-openai-bridge/discussions>
+- **API 文档**：<http://localhost:8000/docs>
+
+## 🎯 路线图
+
+### v1.3.0 (规划中)
+- [ ] **多语言支持** - 支持中文界面
+- [ ] **插件系统** - 支持自定义插件扩展功能
+- [ ] **指标仪表板** - 详细的性能和使用指标
+- [ ] **告警系统** - 支持邮件/Webhook 告警
+
+### v1.4.0 (规划中)
+- [ ] **集群部署** - 支持多节点部署
+- [ ] **Kubernetes** - 原生 K8s 支持
+- [ ] **灰度发布** - 支持 A/B 测试
+- [ ] **负载均衡** - 内置负载均衡算法
+
+### v2.0.0 (长期规划)
+- [ ] **微服务架构** - 完全微服务化
+- [ ] **实时协作** - 多用户实时编辑配置
+- [ ] **AI 模型市场** - 内置模型市场
+- [ ] **GraphQL 支持** - 支持 GraphQL 查询
+
+## 🏆 致谢
+
+感谢以下开源项目：
+- [FastAPI](https://fastapi.tiangolo.com/) - 现代化 Python Web 框架
+- [Svelte](https://svelte.dev/) - 新一代前端框架
+- [Docker](https://www.docker.com/) - 容器化平台
+- [SQLAlchemy](https://www.sqlalchemy.org/) - Python SQL 工具包
+- [Pydantic](https://pydantic-docs.helpmanual.io/) - 数据验证库
+- [Nginx](https://www.nginx.com/) - 高性能 Web 服务器
+
+特别感谢所有贡献者和用户！
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给个 Star 支持一下！**
+
+Made with ❤️ by Anthropic OpenAI Bridge Team
+
+</div>
