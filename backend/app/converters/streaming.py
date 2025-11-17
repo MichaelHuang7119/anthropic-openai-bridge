@@ -374,8 +374,7 @@ async def convert_openai_stream_to_anthropic_async(
                             # Only join the string when we need to parse
                             buffer_str = ''.join(tool_call["args_buffer"])
                             try:
-                                import json
-                                json.loads(buffer_str)
+                                json_module.loads(buffer_str)
                                 # If parsing succeeds and we haven't sent this JSON yet
                                 yield {
                                     "type": "content_block_delta",
@@ -388,7 +387,7 @@ async def convert_openai_stream_to_anthropic_async(
                                 tool_call["json_sent"] = True
                                 # Cache the joined string to avoid re-joining
                                 tool_call["args_str"] = buffer_str
-                            except json.JSONDecodeError:
+                            except json_module.JSONDecodeError:
                                 # JSON is incomplete, continue accumulating
                                 pass
         
@@ -487,8 +486,7 @@ async def convert_openai_stream_to_anthropic_async(
                 # Use cached string if available, otherwise join
                 buffer_str = tool_data.get("args_str") or ''.join(tool_data["args_buffer"])
                 try:
-                    import json
-                    json.loads(buffer_str)
+                    json_module.loads(buffer_str)
                     yield {
                         "type": "content_block_delta",
                         "index": tool_data["claude_index"],

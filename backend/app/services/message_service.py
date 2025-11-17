@@ -176,7 +176,6 @@ class MessageService:
 
                                 # Try to extract token info from cached response
                                 try:
-                                    import json
                                     if isinstance(cached_response, str):
                                         cached_data = json.loads(cached_response)
                                     else:
