@@ -604,10 +604,12 @@ class MessageService:
                                 f"Streaming request to {provider_config.name} (OpenAI format) completed without any chunks. "
                                 f"Model: {actual_model}, Request ID: {request_id}"
                             )
-                            # Even if no chunks were received, we should still send [DONE]
+                            # Even if no chunks were received, we should still send message_stop
                             # to properly close the stream, but log it for debugging
 
-                        yield f"data: [DONE]\n\n"
+                            # 使用标准的message_stop事件代替[DONE]标记
+                            # 保持与SSE格式的一致性
+                            yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
 
                         # Log successful streaming request to database
                         db = get_database()
@@ -1435,9 +1437,9 @@ class MessageService:
                     # Even if no chunks were received, we should still send message_stop
                     # to properly close the stream, but log it for debugging
 
-                # 使用标准的message_stop事件代替[DONE]标记
-                # 保持与SSE格式的一致性
-                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                    # 使用标准的message_stop事件代替[DONE]标记
+                    # 保持与SSE格式的一致性
+                    yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
             except Exception as e:
                 logger.error(f"Error in streaming response from {provider_config.name}: {e}", exc_info=True)
                 # 标准化错误响应格式，符合Claude客户端期望

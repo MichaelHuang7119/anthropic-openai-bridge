@@ -2,36 +2,45 @@
 
 一个基于 FastAPI 和 Svelte 5 的高性能 AI 模型代理服务，支持多供应商配置和管理。
 
-## 项目简介
+## ✨ 项目简介
 
 Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthropic 兼容的 API 端点，并将请求转发到支持 OpenAI 兼容接口的后端供应商（如通义千问、ModelScope、AI Ping、Anthropic 等）。通过统一的 API 接口，您可以轻松切换不同的 AI 模型供应商，而无需修改客户端代码。
 
-本项目提供：
-- **🚀 Web 管理界面** - 基于 Svelte 5 的现代化管理界面，支持深色/浅色主题切换
-- **🔐 双层认证系统** - 管理面板认证（邮箱密码）+ 服务 API 认证（API Key）
-- **🔑 API Key 生命周期管理** - 支持创建、禁用、删除 API Key，支持用户关联和最后使用时间追踪
-- **🏢 多供应商支持** - 支持多个 AI 供应商，支持优先级/随机回退机制
-- **💓 智能健康监控** - 四种状态（健康、部分健康、不健康、未检查），手动检查模式节省 API 调用
-- **🎨 可视化配置** - 通过 Web 界面轻松配置供应商和模型，支持大/中/小模型分类
-- **⚡ 高性能流式响应** - 支持 Server-Sent Events (SSE) 流式输出，优化响应速度
-- **🔧 完整工具调用** - 全面的工具调用（Function Calling）支持，包括参数验证和错误处理
-- **🖼️ 多模态输入** - 支持文本和图片输入，兼容 Anthropic 和 OpenAI 格式
-- **📊 Token 计数服务** - 独立的 token 计数端点，帮助控制成本
-- **🗺️ 智能模型映射** - 自动模型映射（haiku→small, sonnet→middle, opus→big）
-- **🚦 全局 Token 限制** - 可配置的全局 max_tokens/min_tokens 限制
-- **🔍 健康检查系统** - 内置健康检查端点，支持单个/批量检查
-- **📝 完善的日志** - 彩色输出日志，支持慢请求检测和错误追踪
-- **🔄 自动重试机制** - 支持超时和连接错误的指数退避重试
-- **🔄 熔断器模式** - 支持熔断器模式，快速失败防止级联故障
-- **💬 友好的提示** - Toast 消息提示，操作反馈清晰
-- **🔗 Anthropic 直连** - 支持直接连接 Anthropic API 格式提供商（无需转换）
-- **📈 性能监控** - 详细的请求日志、性能统计和 Token 使用追踪
-- **🔧 增强的缓存** - 支持内存和 Redis 缓存，可配置 TTL 和排除参数
-- **🛡️ 安全加固** - 配置文件安全验证、环境变量支持、加密存储
-- **🚀 Nginx 代理** - 内置 Nginx 配置，支持 gzip 压缩和健康检查
-- **📱 URL Scheme 支持** - 支持快速配置链接，方便 Claude Desktop/Claude Code 使用
+## 🚀 核心功能
 
-## 快速开始
+### 🔥 高性能架构
+- **异步数据库** - aiosqlite + 连接池，消除阻塞，提升并发能力 10-100 倍
+- **HTTP 连接池优化** - 支持 10k QPS，Keepalive 连接优化
+- **多级缓存架构** - L1（内存）+ L2（Redis）缓存，显著提升响应速度
+
+### 🛡️ 企业级安全
+- **JWT 密钥强制管理** - 生产环境必须配置，否则生成临时密钥并警告
+- **加密密钥管理** - ENCRYPTION_KEY 支持，敏感数据加密存储
+- **强密码策略** - 至少 12 字符，管理员密码检查
+
+### 🌐 现代管理界面
+- **Svelte 5 + TypeScript** - 现代化前端框架，类型安全
+- **PWA 支持** - 离线访问、安装到主屏幕、后台同步
+- **深色/浅色主题** - 用户体验优化
+- **代码分割** - 优化首屏加载速度
+
+### 🔧 智能管理
+- **OpenTelemetry 集成** - 分布式追踪和监控
+- **健康监控** - 手动检查模式，节省 API 调用
+- **自动故障转移** - 优先级/随机回退机制
+- **熔断器模式** - 快速失败防止级联故障
+
+### 📊 运营监控
+- **性能统计** - 请求日志、Token 使用追踪
+- **压力测试** - 内置 10k QPS 压力测试脚本
+- **实时日志** - 彩色输出，错误追踪
+
+### 🏢 多供应商支持
+- **统一 API 接口** - 支持 Anthropic 兼容格式
+- **直连模式** - 支持 Anthropic API 格式提供商（无需转换）
+- **智能模型映射** - haiku→small, sonnet→middle, opus→big
+
+## 🏃‍♂️ 快速开始
 
 ### 环境要求
 
@@ -40,9 +49,9 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 - **npm/pnpm/yarn** (推荐 pnpm)
 - **Docker & Docker Compose** (可选，用于容器化部署)
 
-### 快速启动（3种方式）
+### 🚀 一键部署（推荐）
 
-#### 🐳 方式一：Docker Compose 一键部署（推荐）
+#### Docker Compose 方式
 
 ```bash
 # 克隆项目
@@ -60,19 +69,20 @@ docker-compose logs -f frontend
 docker-compose logs -f backend
 ```
 
-服务将在以下端口启动：
+服务启动后：
 - **前端管理界面**: http://localhost:5173
-- **后端 API**: http://localhost:8000 (内部网络，仅 Docker 可访问)
 - **API 文档**: http://localhost:8000/docs
 
-**自定义前端端口**：
+#### 自定义前端端口
+
 ```bash
 EXPOSE_PORT=5175 docker-compose up -d
 ```
 
-#### 💻 方式二：本地开发启动
+#### 本地开发方式
 
 **1. 启动后端服务**
+
 ```bash
 cd backend
 bash start.sh
@@ -81,6 +91,7 @@ python start_proxy.py
 ```
 
 **2. 启动前端服务（新终端）**
+
 ```bash
 cd frontend
 pnpm install  # 首次运行需要安装依赖
@@ -89,85 +100,113 @@ pnpm dev
 pnpm dev -- --port 5175
 ```
 
-#### 📦 方式三：后端开发模式
-
-```bash
-cd backend
-# 开发模式（自动重载）
-python start_proxy.py --reload
-
-# 自定义主机和端口
-python start_proxy.py --host 127.0.0.1 --port 3000
-
-# 调试模式
-python start_proxy.py --log-level debug
-```
-
-### 首次登录
+### 🔑 首次登录
 
 1. 访问前端管理界面：http://localhost:5173
 2. 系统会自动跳转到登录页面
 3. 使用默认管理员账号登录：
    - **邮箱**：`admin@example.com`
    - **密码**：`admin123`
-4. 登录后建议立即修改密码（通过管理员账号创建新用户或修改现有用户）
 
-**注意**：默认管理员账号可通过环境变量配置：
+> **重要**：首次登录后请立即修改密码！生产环境需要设置强密码。
+
+### ⚙️ 配置必需环境变量
+
+**生产环境必须设置以下环境变量**：
+
 ```bash
-export ADMIN_EMAIL="your-admin@example.com"
+# 必需 - JWT 密钥
+export JWT_SECRET_KEY="your-strong-secret-key-here"
+
+# 推荐 - 加密密钥（用于敏感数据加密）
+export ENCRYPTION_KEY="your-fernet-encryption-key-here"
+
+# 推荐 - 管理员密码（至少 12 字符）
 export ADMIN_PASSWORD="your-secure-password"
+
+# 性能优化 - 数据库连接池
+export DB_POOL_SIZE=20
+export DB_POOL_TIMEOUT=30.0
+
+# 性能优化 - HTTP 连接池
+export HTTP_MAX_KEEPALIVE_CONNECTIONS=100
+export HTTP_MAX_CONNECTIONS=500
+export HTTP_KEEPALIVE_EXPIRY=60
+
+# 性能优化 - 缓存配置
+export CACHE_TYPE=multi
+export CACHE_MULTI_LEVEL=true
+export REDIS_URL=redis://localhost:6379/0
+export CACHE_MAX_SIZE=1000
+export CACHE_DEFAULT_TTL=3600
+
+# 可选 - 监控配置
+export ENABLE_TELEMETRY=true
+export OTLP_ENDPOINT=http://jaeger:4318
+export SERVICE_VERSION=1.0.0
 ```
 
-### 安装依赖（仅后端）
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-
-### 配置供应商（重要）
+### 🏢 配置 AI 供应商
 
 **启动前必须先配置供应商信息！**
 
-#### 方式一：通过配置文件（推荐）
-
-编辑 `backend/provider.json` 文件，配置您的 AI 供应商信息：
+#### 方式一：通过环境变量（推荐）
 
 ```bash
-# 设置环境变量（推荐方式）
+# 设置环境变量
 export QWEN_API_KEY="your-qwen-api-key"
 export MODELSCOPE_API_KEY="your-modelscope-api-key"
 export AIPING_API_KEY="your-aiping-api-key"
 export MOONSHOT_API_KEY="your-moonshot-api-key"
-
-# 在 provider.json 中使用环境变量格式
-# "api_key": "${QWEN_API_KEY}"
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
 
-**当前支持的供应商类型：**
+#### 方式二：配置文件
 
-1. **通义千问 (Qwen)** - 阿里云 DashScope
-   - Base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`
-   - 支持 OpenAI 格式
+编辑 `backend/provider.json` 文件：
 
-2. **ModelScope** - 魔搭社区模型服务
-   - Base URL: `https://api-inference.modelscope.cn/v1/`
-   - 支持 OpenAI 格式
+```json
+{
+  "providers": [
+    {
+      "name": "qwen",
+      "enabled": true,
+      "priority": 1,
+      "api_key": "${QWEN_API_KEY}",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "timeout": 60,
+      "max_retries": 1,
+      "models": {
+        "big": ["qwen-plus", "qwen-max"],
+        "middle": ["qwen-turbo"],
+        "small": ["qwen-plus"]
+      }
+    },
+    {
+      "name": "anthropic-direct",
+      "enabled": true,
+      "priority": 2,
+      "api_key": "${ANTHROPIC_API_KEY}",
+      "base_url": "https://api.anthropic.com",
+      "api_format": "anthropic",
+      "timeout": 60,
+      "max_retries": 1,
+      "models": {
+        "big": ["claude-3-opus-20240229"],
+        "middle": ["claude-3-sonnet-20240229"],
+        "small": ["claude-3-haiku-20240307"]
+      }
+    }
+  ],
+  "fallback_strategy": "priority",
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "recovery_timeout": 60
+  }
+}
+```
 
-3. **AI Ping** - AI Ping 平台
-   - Base URL: `https://aiping.cn/api/v1`
-   - 支持 OpenAI 格式
-
-4. **Moonshot AI** - Moonshot AI (Kimi)
-   - Base URL: `https://api.moonshot.cn/v1`
-   - 支持 OpenAI 格式
-
-5. **Anthropic 直连** - 支持 Anthropic API 格式
-   - Base URL: `https://api.anthropic.com` 或供应商提供的 Anthropic 格式端点
-   - 设置 `"api_format": "anthropic"`
-
-#### 方式二：通过 Web 界面配置
+#### 方式三：Web 界面配置
 
 1. 启动服务后登录管理界面
 2. 访问"供应商"页面
@@ -176,11 +215,7 @@ export MOONSHOT_API_KEY="your-moonshot-api-key"
 5. 配置模型列表（大、中、小三个类别）
 6. 保存配置
 
-**注意**：Web 界面配置需要服务先启动，因此首次启动前建议先通过配置文件设置至少一个供应商。
-
-### 配置 Claude Code
-
-在 Claude Code 中使用本服务，需要：
+### 🔑 配置 Claude Code
 
 1. **创建 API Key**：
    - 登录管理界面
@@ -196,124 +231,9 @@ ANTHROPIC_BASE_URL=http://localhost:5175
 ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # 使用创建的 API Key
 ```
 
-**注意**：`ANTHROPIC_BASE_URL` 需要替换为实际的前端服务地址（如果前端运行在其他端口，请相应修改）。
+## 📚 API 使用示例
 
-### 环境变量配置
-
-#### 后端环境变量
-
-- **ADMIN_EMAIL**: 默认管理员邮箱（默认: `admin@example.com`）
-- **ADMIN_PASSWORD**: 默认管理员密码（默认: `admin123`）
-- **JWT_SECRET_KEY**: JWT Token 密钥（默认: `your-secret-key-change-this-in-production`）
-- **MAX_TOKENS_LIMIT**: 全局最大 `max_tokens` 限制（默认: `1000000`）
-- **MIN_TOKENS_LIMIT**: 全局最小 `max_tokens` 限制（默认: `100`）
-- **PROVIDER_CONFIG_PATH**: 供应商配置文件路径（默认: `./provider.json`）
-- **HOST**: 服务器绑定地址（默认: `0.0.0.0`）
-- **PORT**: 服务器端口（默认: `8000`）
-- **LOG_LEVEL**: 日志级别（默认: `info`）
-- **DATABASE_PATH**: 数据库文件路径（默认: `./data/app.db`）
-
-这些限制会应用到所有供应商，所有请求的 `max_tokens` 都会被限制在 `[MIN_TOKENS_LIMIT, MAX_TOKENS_LIMIT]` 范围内。
-
-### 模型映射
-
-项目支持自动模型映射：
-
-- `haiku` → 映射到供应商配置中的 `small` 类别
-- `sonnet` → 映射到供应商配置中的 `middle` 类别
-- `opus` → 映射到供应商配置中的 `big` 类别
-
-详细的配置说明请参考 [CONFIGURATION.md](./CONFIGURATION.md)。
-
-## 认证和授权
-
-### 认证机制
-
-项目采用双重认证机制：
-
-1. **管理面板认证**（邮箱密码登录）
-   - 用于访问 Web 管理界面
-   - 使用 JWT Token 进行身份验证
-   - 支持管理员和普通用户两种角色
-   - 只有管理员可以创建新用户和管理 API Key
-
-2. **服务 API 认证**（API Key）
-   - 用于访问 `/v1/messages` 等服务端点
-   - 使用 API Key 进行身份验证
-   - API Key 通过管理界面创建和管理
-   - 每个 API Key 可以关联用户信息（名称、邮箱）
-
-### 默认管理员账号
-
-首次启动时，系统会自动创建默认管理员用户：
-- **邮箱**：`admin@example.com`（可通过 `ADMIN_EMAIL` 环境变量配置）
-- **密码**：`admin123`（可通过 `ADMIN_PASSWORD` 环境变量配置）
-
-**安全提示**：首次登录后请立即修改默认密码！
-
-### API Key 管理
-
-1. **创建 API Key**：
-   - 登录管理界面
-   - 访问"API Key 管理"页面
-   - 点击"创建 API Key"
-   - 填写名称和邮箱（可选）
-   - 保存生成的 API Key（创建后无法再次查看）
-
-2. **使用 API Key**：
-   - 在请求头中添加：`X-API-Key: sk-xxxxxxxxxxxxx`
-   - 或在查询参数中添加：`?api_key=sk-xxxxxxxxxxxxx`
-
-3. **管理 API Key**：
-   - 查看所有 API Key 列表
-   - 启用/禁用 API Key
-   - 删除 API Key
-   - 查看最后使用时间
-
-详细说明请参考 [AUTH_SETUP.md](./AUTH_SETUP.md)。
-
-## 运行服务
-
-### 使用启动脚本（推荐）
-
-```bash
-# 默认配置启动（监听 0.0.0.0:8000，禁用自动重载）
-python start_proxy.py
-
-# 自定义主机和端口
-python start_proxy.py --host 127.0.0.1 --port 3000
-
-# 通过环境变量配置
-HOST=127.0.0.1 PORT=3000 python start_proxy.py
-
-# 开发环境：启用自动重载
-python start_proxy.py --reload
-
-# 自定义日志级别
-python start_proxy.py --log-level debug
-```
-
-### 启动脚本选项
-
-`start_proxy.py` 脚本支持以下选项：
-
-- `--host HOST`: 绑定主机地址（默认: `0.0.0.0`，或使用 HOST 环境变量）
-- `--port PORT`: 绑定端口（默认: `8000`，或使用 PORT 环境变量）
-- `--reload`: 启用代码变更自动重载（默认: `False`）
-- `--no-reload`: 禁用自动重载
-- `--log-level LEVEL`: 设置日志级别（默认: `info`，可选: `critical`, `error`, `warning`, `info`, `debug`, `trace`）
-
-启动脚本会自动检查端口是否可用，如果端口已被占用，会提供有用的错误信息和解决方案。
-
-### 使用 uvicorn 直接启动
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-## API 使用示例
-
-### 非流式请求
+### 基础消息请求
 
 ```bash
 curl -X POST http://localhost:8000/v1/messages \
@@ -324,23 +244,6 @@ curl -X POST http://localhost:8000/v1/messages \
     "messages": [{"role": "user", "content": "你好！"}],
     "max_tokens": 100
   }'
-```
-
-响应示例：
-```json
-{
-  "id": "msg_xxx",
-  "type": "message",
-  "role": "assistant",
-  "content": [{"type": "text", "text": "你好！很高兴为你服务。"}],
-  "model": "haiku",
-  "stop_reason": "end_turn",
-  "stop_sequence": null,
-  "usage": {
-    "input_tokens": 5,
-    "output_tokens": 10
-  }
-}
 ```
 
 ### 流式请求
@@ -356,8 +259,6 @@ curl -X POST http://localhost:8000/v1/messages \
     "stream": true
   }'
 ```
-
-流式响应使用 Server-Sent Events (SSE) 格式，每个数据块以 `data: ` 开头。
 
 ### 工具调用（Function Calling）
 
@@ -423,358 +324,82 @@ curl -X POST http://localhost:8000/v1/messages/count_tokens \
   }'
 ```
 
-响应示例：
-```json
-{
-  "model": "haiku",
-  "input_tokens": 5
-}
-```
+## 🏗️ 部署指南
 
-### 健康检查
+### 🐳 Docker Compose（开发/测试环境）
 
 ```bash
-curl http://localhost:8000/health
+# 启动所有服务
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 
-响应：
-```json
-{
-  "status": "healthy"
-}
-```
+### ☸️ Kubernetes（生产环境）
 
-## 测试
+参考 [k8s/README.md](./k8s/README.md) 获取详细的 Kubernetes 部署指南。
 
 ```bash
-# 运行所有测试
-pytest tests/
+# 应用所有配置
+kubectl apply -f k8s/
 
-# 运行特定测试文件
-pytest tests/test_messages.py
-
-# 运行测试并显示详细输出
-pytest tests/ -v
-
-# 运行测试并显示覆盖率
-pytest tests/ --cov=app
+# 查看部署状态
+kubectl get pods -n anthropic-bridge
 ```
 
-## 项目结构
+### 🧪 性能测试
 
-```
-anthropic-openai-bridge/
-├── backend/                    # 后端服务
-│   ├── app/
-│   │   ├── api/               # API 路由层
-│   │   │   ├── auth.py        # 用户认证 API
-│   │   │   ├── api_keys.py    # API Key 管理 API
-│   │   │   ├── config.py      # 配置管理 API
-│   │   │   ├── health.py      # 健康检查 API
-│   │   │   ├── providers.py   # 供应商管理 API
-│   │   │   └── stats.py       # 性能统计 API
-│   │   ├── services/          # 业务逻辑层
-│   │   │   ├── message_service.py      # 消息处理服务（请求分发、供应商选择等）
-│   │   │   ├── auth_service.py         # 认证授权服务
-│   │   │   ├── api_key_service.py      # API Key 管理服务
-│   │   │   └── stats_service.py        # 统计服务
-│   │   ├── converters/        # 格式转换层
-│   │   │   ├── anthropic_to_openai.py  # Anthropic 转 OpenAI 格式
-│   │   │   └── openai_to_anthropic.py  # OpenAI 转 Anthropic 格式
-│   │   ├── config/            # 配置管理
-│   │   │   └── main.py        # 统一配置管理（熔断器、缓存、可观测性等）
-│   │   ├── database/          # 数据库层
-│   │   │   ├── base.py        # 数据库基类
-│   │   │   ├── api_keys.py    # API Key 数据表
-│   │   │   ├── request_logs.py # 请求日志表
-│   │   │   └── stats.py       # 统计数据表
-│   │   ├── cache/             # 缓存实现
-│   │   │   ├── __init__.py    # 缓存抽象接口
-│   │   │   ├── memory_cache.py # 内存缓存
-│   │   │   ├── redis_cache.py  # Redis 缓存
-│   │   │   └── smart_cache.py  # 智能缓存管理器
-│   │   ├── tracing/           # 链路追踪和可观测性
-│   │   │   └── tracing_system.py # TracingSystem 实现
-│   │   ├── models/            # 数据模型
-│   │   │   ├── __init__.py    # 通用模型
-│   │   │   ├── auth.py        # 认证相关模型
-│   │   │   ├── api_keys.py    # API Key 模型
-│   │   │   └── stats.py       # 统计模型
-│   │   ├── security.py        # 安全工具函数
-│   │   ├── circuit_breaker.py # 熔断器实现（主动健康检查）
-│   │   ├── client.py          # OpenAI 客户端封装
-│   │   ├── retry.py           # 重试机制
-│   │   └── main.py            # FastAPI 应用入口
-│   ├── data/                  # 数据目录（数据库文件）
-│   ├── requirements.txt       # Python 依赖
-│   ├── provider.json          # 供应商配置文件（需自行创建）
-│   ├── provider.json.example  # 配置文件示例
-│   ├── start_proxy.py         # 代理服务启动脚本
-│   └── start.sh               # 后端启动脚本
-│
-├── frontend/                   # 前端管理界面
-│   ├── src/
-│   │   ├── lib/
-│   │   │   ├── components/    # 组件
-│   │   │   │   ├── ui/        # 基础 UI 组件
-│   │   │   │   │   ├── Button.svelte
-│   │   │   │   │   ├── Card.svelte
-│   │   │   │   │   ├── Badge.svelte
-│   │   │   │   │   ├── Input.svelte
-│   │   │   │   │   └── Toast.svelte
-│   │   │   │   └── layout/   # 布局组件
-│   │   │   │       └── Header.svelte
-│   │   │   ├── services/      # API 服务层
-│   │   │   │   ├── api.ts     # API 客户端
-│   │   │   │   ├── auth.ts    # 认证服务
-│   │   │   │   ├── apiKeys.ts # API Key 服务
-│   │   │   │   ├── providers.ts
-│   │   │   │   ├── health.ts
-│   │   │   │   ├── config.ts
-│   │   │   │   └── stats.ts
-│   │   │   ├── stores/        # Svelte 状态管理
-│   │   │   │   ├── toast.ts
-│   │   │   │   └── theme.ts
-│   │   │   ├── types/         # TypeScript 类型定义
-│   │   │   └── styles/        # 全局样式
-│   │   └── routes/            # SvelteKit 路由
-│   │       ├── +layout.svelte
-│   │       ├── +page.svelte   # 首页（仪表板）
-│   │       ├── login/         # 登录页面
-│   │       │   └── +page.svelte
-│   │       ├── api-keys/      # API Key 管理页面
-│   │       │   └── +page.svelte
-│   │       ├── providers/     # 供应商管理页面
-│   │       │   └── +page.svelte
-│   │       ├── health/        # 健康监控页面
-│   │       │   └── +page.svelte
-│   │       ├── config/        # 配置页面
-│   │       │   └── +page.svelte
-│   │       └── stats/         # 性能监控页面
-│   │           └── +page.svelte
-│   ├── package.json           # Node.js 依赖
-│   ├── svelte.config.js       # SvelteKit 配置
-│   ├── vite.config.ts         # Vite 配置
-│   ├── tsconfig.json          # TypeScript 配置
-│   ├── nginx.conf             # Nginx 配置（用于 Docker）
-│   ├── Dockerfile             # 前端 Dockerfile
-│   └── start.sh               # 前端启动脚本
-│
-├── docker-compose.yml         # Docker Compose 配置
-├── LICENSE                    # MIT 许可证
-├── pytest.ini                 # pytest 配置
-├── tests/                      # 测试文件
-├── AUTH_SETUP.md              # 认证系统说明文档
-└── README.md                   # 项目说明文档
+```bash
+# 安装依赖
+pip install aiohttp
+
+# 运行压力测试（目标 10k QPS）
+python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
 ```
 
-## 功能特性
+### 🔄 CI/CD 流水线
 
-### 后端功能
+项目配置了 GitHub Actions CI/CD 流水线，支持自动化测试、构建和部署：
 
-#### 用户认证 API
-- `POST /api/auth/login` - 用户登录（邮箱密码）
-- `POST /api/auth/register` - 注册新用户（需要管理员权限）
-- `GET /api/auth/me` - 获取当前用户信息
-
-#### API Key 管理 API
-- `GET /api/api-keys` - 获取所有 API Key 列表
-- `GET /api/api-keys/{id}` - 获取指定 API Key 详情
-- `POST /api/api-keys` - 创建新 API Key
-- `PUT /api/api-keys/{id}` - 更新 API Key
-- `DELETE /api/api-keys/{id}` - 删除 API Key
-
-#### 供应商管理 API
-- `GET /api/providers` - 获取所有供应商列表（需要管理员权限）
-- `POST /api/providers` - 创建新供应商（需要管理员权限）
-- `PUT /api/providers/{name}` - 更新供应商配置（需要管理员权限）
-- `DELETE /api/providers/{name}` - 删除供应商（需要管理员权限）
-- `POST /api/providers/{name}/test` - 测试供应商连接（需要管理员权限）
-
-#### 健康检查 API
-- `GET /api/health` - 获取所有供应商健康状态（需要管理员权限）
-- `GET /api/health/{name}` - 获取指定供应商健康状态（需要管理员权限）
-
-#### 配置管理 API
-- `GET /api/config` - 获取全局配置（需要管理员权限）
-- `PUT /api/config` - 更新全局配置（需要管理员权限）
-
-#### 性能统计 API
-- `GET /api/stats/requests` - 获取请求日志统计（需要管理员权限）
-- `GET /api/stats/token-usage` - 获取 Token 使用统计（需要管理员权限）
-- `GET /api/stats/summary` - 获取性能摘要统计（需要管理员权限）
-
-#### 服务 API（需要 API Key）
-- `POST /v1/messages` - 发送消息请求
-- `POST /v1/messages/count_tokens` - 计算 Token 数量
-
-### 前端功能
-
-#### 登录页面
-- 邮箱密码登录
-- 自动跳转到首页
-- 显示默认管理员账号提示
-
-#### API Key 管理页面
-- 创建 API Key（支持名称和邮箱关联）
-- 查看所有 API Key 列表
-- 启用/禁用 API Key
-- 删除 API Key
-- 查看最后使用时间
-- 复制 API Key（仅在创建时显示）
-
-#### 供应商管理页面
-- 查看所有供应商列表
-- 查看供应商健康状态（健康、部分健康、不健康、未检查）
-- 添加新供应商
-- 编辑现有供应商
-- 删除供应商
-- 测试供应商连接（显示响应时间）
-
-#### 健康监控页面
-- 手动刷新健康状态（零自动请求，节省 API 调用和 Token）
-- 查看总体健康状态
-- 查看每个供应商的详细健康信息
-- 显示最后检查时间和响应时间
-
-#### 配置页面
-- 配置全局回退策略（优先级/随机）
-- 配置熔断器参数（失败阈值、恢复超时）
-
-#### 性能监控页面
-- 查看请求日志统计
-- 查看 Token 使用统计
-- 查看性能摘要
-- 按供应商筛选和统计
-- 优化的分页加载（默认显示最近100条记录，支持"增加1000条"按钮扩展）
-
-#### 首页仪表板
-- 供应商统计概览
-- 健康状态总览
-- 系统信息
-- Claude Code 配置说明（自动显示当前服务地址）
-
-## 技术栈
-
-### 后端
-- **FastAPI** - 现代、快速的 Web 框架
-- **Pydantic** - 数据验证和设置管理
-- **OpenAI SDK** - 与 OpenAI 兼容的 API 交互
-- **Uvicorn** - ASGI 服务器
-- **SQLite** - 数据库（开发环境）
-- **bcrypt** - 密码哈希
-- **python-jose** - JWT Token 处理
-- **pytest** - 测试框架
-
-### 前端
-- **Svelte 5** - 新一代前端框架
-- **SvelteKit** - Svelte 应用框架
-- **TypeScript** - 类型安全的 JavaScript
-- **Vite** - 快速的前端构建工具
-
-## 供应商配置说明
-
-### 供应商配置示例
-
-编辑 `backend/provider.json` 文件：
-
-```json
-{
-  "providers": [
-    {
-      "name": "qwen",
-      "enabled": true,
-      "priority": 1,
-      "api_key": "${QWEN_API_KEY}",
-      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-      "timeout": 60,
-      "max_retries": 1,
-      "models": {
-        "big": ["qwen-plus", "qwen-max"],
-        "middle": ["qwen-turbo"],
-        "small": ["qwen-plus"]
-      }
-    }
-  ],
-  "fallback_strategy": "priority",
-  "circuit_breaker": {
-    "failure_threshold": 5,
-    "recovery_timeout": 60
-  }
-}
+```bash
+# GitHub Actions 流水线包含以下阶段：
+# 1. 测试阶段：运行后端和前端测试
+# 2. 构建阶段：自动构建 Docker 镜像
+# 3. 部署阶段：自动部署到 Kubernetes（仅 main 分支）
 ```
 
-### 参数说明
+CI/CD 配置文件位于：`.github/workflows/ci-cd.yml`
 
-| 参数 | 说明 |
-|------|------|
-| `name` | 供应商名称（唯一标识符） |
-| `enabled` | 是否启用该供应商 |
-| `priority` | 优先级（数字越小优先级越高） |
-| `api_key` | API 密钥（支持环境变量 `${VAR_NAME}`） |
-| `base_url` | API 基础 URL |
-| `timeout` | 请求超时时间（秒） |
-| `max_retries` | 最大重试次数 |
-| `models` | 模型配置，分为大、中、小三个类别 |
-| `api_format` | API 格式（'openai' 或 'anthropic'，默认为 'openai'） |
+### 📊 监控
 
-### 供应商支持
+#### OpenTelemetry
 
-项目支持多个 AI 供应商，当前支持的供应商包括：
+如果启用了 OpenTelemetry，可以通过以下方式查看追踪和指标：
 
-- **Anthropic Claude** - Anthropic 官方 API
-- **OpenAI** - OpenAI GPT 系列
-- **通义千问 (Qwen)** - 阿里云 DashScope
-- **ModelScope** - 魔搭社区模型服务
-- **AI Ping** - AI Ping 平台
+1. **Jaeger**：查看分布式追踪
+2. **Prometheus**：查看指标（需要配置 Prometheus exporter）
 
-每个供应商都支持：
-- 优先级配置（数字越小优先级越高）
-- 自动故障转移
-- 独立的超时和重试配置
-- 自定义 HTTP 请求头
-- API 格式选择（OpenAI 或 Anthropic 格式）
+#### 健康检查
 
-### Anthropic 直连功能
+- 后端：`http://localhost:8000/health`
+- 前端：`http://localhost:5175/`
 
-项目新增了 Anthropic 直连功能，支持直接连接到 Anthropic API 格式的提供商，无需进行格式转换。通过在供应商配置中设置 `"api_format": "anthropic"`，可以启用此功能。
+## 🏛️ 项目架构
 
-示例配置：
-```json
-{
-  "name": "anthropic-direct",
-  "enabled": true,
-  "priority": 1,
-  "api_key": "${ANTHROPIC_API_KEY}",
-  "base_url": "https://api.anthropic.com",
-  "api_format": "anthropic",
-  "timeout": 60,
-  "max_retries": 1,
-  "models": {
-    "big": ["claude-3-opus-20240229"],
-    "middle": ["claude-3-sonnet-20240229"],
-    "small": ["claude-3-haiku-20240307"]
-  }
-}
-```
-
-## 架构设计
-
-### 代理模式架构
+### 整体架构
 
 ```
 客户端请求 → 代理服务器 → 供应商API
      ↑                          ↓
   前端管理界面 ← 统一接口 ← 响应处理
 ```
-
-#### 优势
-- 统一 API 接口
-- 多供应商管理
-- 故障转移
-- 负载均衡
-- 集中化配置
-- 安全认证和授权
 
 ### 请求流程
 
@@ -785,20 +410,130 @@ anthropic-openai-bridge/
 5. 接收响应并返回给客户端
 6. 前端管理界面实时监控健康状态
 
-## 错误处理
+### 项目结构
 
-项目提供了完善的错误处理机制：
+```
+anthropic-openai-bridge/
+├── backend/                    # 后端服务
+│   ├── app/
+│   │   ├── api/               # API 路由层
+│   │   ├── services/          # 业务逻辑层
+│   │   ├── database/          # 数据库层（异步 + 连接池）
+│   │   ├── cache/             # 多级缓存实现
+│   │   ├── infrastructure/    # 基础设施层
+│   │   └── config/            # 配置管理
+│   ├── requirements.txt       # Python 依赖
+│   ├── provider.json          # 供应商配置文件
+│   └── start_proxy.py         # 启动脚本
+│
+├── frontend/                   # 前端管理界面
+│   ├── src/
+│   │   ├── lib/               # 组件和工具
+│   │   └── routes/            # SvelteKit 路由
+│   ├── package.json           # Node.js 依赖
+│   └── static/                # PWA 静态资源
+│
+├── k8s/                       # Kubernetes 配置
+├── scripts/                   # 工具脚本（负载测试等）
+├── docker-compose.yml         # Docker Compose 配置
+└── README.md                  # 项目文档
+```
 
-- **401 Unauthorized** - 未认证或 API Key 无效
-- **403 Forbidden** - 权限不足
-- **429 Rate Limit Error** - 请求频率超限
-- **502 Bad Gateway** - 供应商 API 错误
-- **503 Service Unavailable** - 连接错误
-- **500 Internal Server Error** - 内部服务器错误
+## 🛠️ 技术栈
 
-所有错误响应都包含详细的错误信息和供应商名称，便于调试和问题定位。
+### 后端
+- **FastAPI** - 现代、快速的 Web 框架
+- **aiosqlite** - 异步数据库操作 + 连接池
+- **httpx** - HTTP 客户端，支持连接池优化
+- **Pydantic** - 数据验证和设置管理
+- **OpenTelemetry** - 分布式追踪和监控
+- **pytest** - 测试框架
 
-## 常见问题
+### 前端
+- **Svelte 5** - 新一代前端框架
+- **SvelteKit** - Svelte 应用框架
+- **TypeScript** - 类型安全的 JavaScript
+- **Vite** - 快速的前端构建工具 + 代码分割
+- **PWA** - 离线支持和应用安装
+
+### 基础设施
+- **Docker** - 容器化平台
+- **Kubernetes** - 生产环境部署
+- **Redis** - 缓存服务
+- **Nginx** - 反向代理和负载均衡
+
+## 🔧 环境变量配置
+
+### 必需变量
+
+| 变量名 | 说明 | 默认值 | 备注 |
+|--------|------|--------|------|
+| `JWT_SECRET_KEY` | JWT Token 密钥 | - | 生产环境**必须**设置 |
+| `ENCRYPTION_KEY` | 数据加密密钥 | - | 推荐设置 |
+| `ADMIN_PASSWORD` | 管理员密码 | `admin123` | 建议设置强密码 |
+| `ADMIN_EMAIL` | 管理员邮箱 | `admin@example.com` | - |
+
+### 性能优化变量
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `DB_POOL_SIZE` | 数据库连接池大小 | `10` |
+| `DB_POOL_TIMEOUT` | 连接池超时时间 | `30.0` |
+| `HTTP_MAX_KEEPALIVE_CONNECTIONS` | Keepalive 连接数 | `50` |
+| `HTTP_MAX_CONNECTIONS` | 最大连接数 | `200` |
+| `HTTP_KEEPALIVE_EXPIRY` | Keepalive 过期时间 | `60` |
+| `CACHE_TYPE` | 缓存类型 | `memory` |
+| `CACHE_MULTI_LEVEL` | 启用多级缓存 | `false` |
+| `CACHE_MAX_SIZE` | 内存缓存最大条目数 | `1000` |
+| `CACHE_DEFAULT_TTL` | 默认 TTL | `3600` |
+| `REDIS_URL` | Redis 连接 URL | `redis://localhost:6379/0` |
+
+### 监控配置
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `ENABLE_TELEMETRY` | 启用 OpenTelemetry | `false` |
+| `OTLP_ENDPOINT` | OTLP 导出端点 | - |
+| `SERVICE_VERSION` | 服务版本号 | `1.0.0` |
+
+## 🧪 测试
+
+### 单元测试和集成测试
+
+```bash
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试文件
+pytest tests/test_messages.py
+pytest tests/test_converter.py
+pytest tests/test_assistant_tool_use.py
+pytest tests/test_count_tokens.py
+pytest tests/test_performance.py
+pytest tests/test_tool_use_format.py
+
+# 运行测试并显示详细输出
+pytest tests/ -v
+
+# 运行测试并显示覆盖率
+pytest tests/ --cov=app
+
+# 性能压力测试
+python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
+```
+
+### 测试文件说明
+
+- **test_messages.py** - 消息处理和 API 端点测试
+- **test_converter.py** - 格式转换器测试
+- **test_assistant_tool_use.py** - 工具调用功能测试
+- **test_count_tokens.py** - Token 计数功能测试
+- **test_performance.py** - 性能和并发测试
+- **test_tool_use_format.py** - 工具调用格式测试
+
+测试配置文件：`pytest.ini`
+
+## ❓ 常见问题
 
 ### Q: 如何添加新的 AI 供应商？
 
@@ -810,7 +545,7 @@ A: 系统根据 `priority` 字段选择供应商，优先级越高（数字越�
 
 ### Q: 如何监控供应商健康状态？
 
-A: 登录管理界面，访问"健康监控"页面，点击"刷新状态"按钮进行手动检查。系统会显示总体状态（健康、部分健康、不健康、未检查）和每个供应商的详细信息。健康检查仅在手动点击时进行，不会自动请求，最大化节省 API 调用和 Token 消耗。
+A: 登录管理界面，访问"健康监控"页面，点击"刷新状态"按钮进行手动检查。系统会显示总体状态（健康、部分健康、不健康、未检查）和每个供应商的详细信息。健康检查仅在手动点击时进行，最大化节省 API 调用和 Token 消耗。
 
 ### Q: 如何创建 API Key？
 
@@ -827,127 +562,146 @@ A: 如果忘记了管理员密码，可以：
 
 A: 登录管理界面，访问"API Key 管理"页面，找到对应的 API Key，点击"禁用"或"删除"按钮。建议定期轮换 API Key 以提高安全性。
 
-## 部署
+### Q: 生产环境如何优化性能？
 
-### Docker 部署（推荐）
+A: 请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的生产环境配置建议，包括：
+- 设置必需的 `JWT_SECRET_KEY` 和 `ENCRYPTION_KEY`
+- 配置数据库和 HTTP 连接池
+- 启用多级缓存
+- 配置 OpenTelemetry 监控
 
-#### 1. 构建并启动所有服务
+## 🔒 安全注意事项
+
+1. **生产环境必须设置**：
+   - `JWT_SECRET_KEY` - 强随机密钥
+   - `ENCRYPTION_KEY` - 加密密钥（用于敏感数据）
+   - `ADMIN_PASSWORD` - 至少 12 字符的强密码
+
+2. **API 密钥安全**：建议使用环境变量存储 API 密钥，不要将密钥直接写入配置文件
+
+3. **HTTPS 配置**：生产环境请配置 TLS/SSL 证书
+
+4. **访问控制**：使用防火墙或 Ingress 规则限制访问
+
+5. **密钥管理**：使用专业的密钥管理服务（如 Kubernetes Secrets、HashiCorp Vault）
+
+## 📁 配置文件说明
+
+### 环境变量配置
+
+**主要配置文件**：
+
+- **`.env.example`** - Docker Compose 环境变量示例
+  ```bash
+  # 前端暴露端口（映射到宿主机端口）
+  EXPOSE_PORT=5173
+  ```
+
+- **`backend/.env`** - 后端环境变量配置（需手动创建）
+
+### 供应商配置示例
+
+**`backend/provider.json.example`** - 供应商配置模板：
+
+```json
+{
+  "providers": [
+    {
+      "name": "example-provider",
+      "enabled": false,
+      "priority": 1,
+      "api_key": "your-api-key-here",
+      "base_url": "https://api.example.com/v1",
+      "timeout": 180,
+      "max_retries": 2,
+      "custom_headers": {},
+      "models": {
+        "big": ["claude-opus"],
+        "middle": ["claude-sonnet"],
+        "small": ["claude-haiku"]
+      },
+      "api_format": "openai",
+      "max_tokens_limit": 32768
+    }
+  ],
+  "fallback_strategy": "priority"
+}
+```
+
+### 配置文件说明
+
+| 配置文件 | 说明 | 用途 |
+|---------|------|------|
+| `.env.example` | Docker 环境变量示例 | Docker Compose 部署配置 |
+| `backend/provider.json` | 供应商配置文件 | 主配置文件（需配置） |
+| `backend/provider.json.example` | 供应商配置模板 | 配置参考 |
+| `pytest.ini` | 测试配置 | pytest 测试框架配置 |
+| `docker-compose.yml` | Docker Compose 配置 | 容器编排配置 |
+| `.github/workflows/ci-cd.yml` | CI/CD 配置 | 自动化构建部署 |
+
+## 🛠️ 工具脚本
+
+### 性能测试脚本
+
+**`scripts/load_test.py`** - 高性能负载测试工具：
 
 ```bash
-# 在项目根目录运行
-docker-compose up -d
+# 基本用法
+python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
+
+# 高级参数
+python scripts/load_test.py \
+  --url http://localhost:5175 \
+  --qps 10000 \
+  --duration 60 \
+  --concurrency 100 \
+  --api-key sk-test-key \
+  --model haiku
 ```
 
-这将自动构建并启动：
-- 后端服务：http://localhost:8000（仅内部网络，不暴露到宿主机）
-- 前端管理界面：http://localhost:5173（默认端口，可通过 EXPOSE_PORT 环境变量修改）
+**脚本特性**：
+- 异步并发请求
+- 可配置 QPS 和持续时间
+- 详细的性能统计（响应时间、成功率、QPS 等）
+- 支持自定义 API Key 和模型
 
-#### 自定义前端端口
+### 启动脚本
 
+**三种启动方式**：
+
+1. **项目根目录启动脚本**：
 ```bash
-# 设置环境变量
-export EXPOSE_PORT=5175
-
-# 启动服务
-docker-compose up -d
+# 一键启动（启动后端和前端）
+bash start.sh
 ```
 
-前端将在 http://localhost:5175 启动。
-
-#### 2. 查看服务状态
-
+2. **后端启动脚本**：
 ```bash
-# 查看所有服务状态
-docker-compose ps
+# 使用默认配置启动后端
+bash backend/start.sh
 
-# 查看服务日志
-docker-compose logs -f
-
-# 查看特定服务日志
-docker-compose logs -f backend
-docker-compose logs -f frontend
+# 或直接运行 Python 脚本
+python backend/start_proxy.py
 ```
 
-#### 3. 停止服务
-
+3. **前端启动脚本**：
 ```bash
-# 停止所有服务
-docker-compose down
+# 启动前端开发服务器
+bash frontend/start.sh
 
-# 停止并删除数据卷
-docker-compose down -v
+# 或直接运行
+pnpm --prefix frontend dev
 ```
 
-#### 4. 重新构建镜像
+### 依赖管理
 
-```bash
-# 重新构建并启动
-docker-compose up -d --build
-```
-
-#### 5. 环境变量配置
-
-创建 `.env` 文件来配置环境变量：
-
-```bash
-# .env 文件示例
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=your-secure-password
-JWT_SECRET_KEY=your-jwt-secret-key
-QWEN_API_KEY=your-qwen-api-key
-MODELSCOPE_API_KEY=your-modelscope-api-key
-AIPING_API_KEY=your-aiping-api-key
-MAX_TOKENS_LIMIT=1000000
-MIN_TOKENS_LIMIT=100
-```
-
-然后在 `docker-compose.yml` 中添加：
-
-```yaml
-services:
-  backend:
-    environment:
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - QWEN_API_KEY=${QWEN_API_KEY}
-      - MODELSCOPE_API_KEY=${MODELSCOPE_API_KEY}
-      - AIPING_API_KEY=${AIPING_API_KEY}
-      - MAX_TOKENS_LIMIT=${MAX_TOKENS_LIMIT}
-      - MIN_TOKENS_LIMIT=${MIN_TOKENS_LIMIT}
-```
-
-### 手动部署
-
-#### 1. 部署后端
-
+**`backend/requirements.txt`** - Python 依赖包：
 ```bash
 cd backend
-python start_proxy.py
+pip install -r requirements.txt
 ```
 
-#### 2. 部署前端
-
-```bash
-cd frontend
-npm run build
-# 将 build 目录部署到 Web 服务器
-```
-
-## 注意事项
-
-1. **API 密钥安全**：建议使用环境变量存储 API 密钥，不要将密钥直接写入配置文件。`provider.json` 文件已添加到 `.gitignore`，避免意外提交敏感信息
-2. **Token 限制**：所有请求的 `max_tokens` 都会被限制在全局配置的范围内
-3. **供应商兼容性**：某些供应商可能不支持所有 OpenAI 参数（如 `tool_choice`），系统会自动过滤不支持的参数
-4. **流式响应**：流式响应使用 SSE 格式，客户端需要正确处理 `data: ` 前缀。系统支持实时 Token 消耗显示
-5. **生产环境**：生产环境部署时建议禁用自动重载（`--no-reload`）并配置适当的日志级别
-6. **健康检查**：健康检查采用手动模式，不会自动请求，避免不必要的 API 调用和 Token 消耗
-7. **Docker 部署**：后端服务默认不暴露端口到宿主机，仅通过前端 Nginx 代理访问，提高安全性
-8. **Claude Code 配置**：前端管理界面会自动显示当前服务地址，方便配置 `ANTHROPIC_BASE_URL`
-9. **认证安全**：首次登录后请立即修改默认管理员密码，生产环境请设置强密码的 `JWT_SECRET_KEY`
-10. **API Key 管理**：API Key 创建后无法再次查看完整 Key，请妥善保管。建议定期轮换 API Key
-
-## 📜 许可证
+## 📄 许可证
 
 MIT License - 详情请查看 [LICENSE](LICENSE) 文件
 
@@ -975,31 +729,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### 第三方依赖
-
-- **后端依赖**：[requirements.txt](backend/requirements.txt)
-- **前端依赖**：[package.json](frontend/package.json)
-
 ## 🔗 相关链接
 
 - **项目主页**：<https://github.com/your-username/anthropic-openai-bridge>
 - **问题反馈**：<https://github.com/your-username/anthropic-openai-bridge/issues>
 - **功能建议**：<https://github.com/your-username/anthropic-openai-bridge/discussions>
 - **API 文档**：<http://localhost:8000/docs>
+- **部署指南**：请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **优化总结**：请查看 [OPTIMIZATION_SUMMARY.md](./OPTIMIZATION_SUMMARY.md)
+- **Kubernetes 部署**：请查看 [k8s/README.md](./k8s/README.md)
 
-## 🎯 路线图
+## 🗺️ 路线图
 
-### v1.3.0 (规划中)
+### v1.4.0 (规划中)
 - [ ] **多语言支持** - 支持中文界面
 - [ ] **插件系统** - 支持自定义插件扩展功能
 - [ ] **指标仪表板** - 详细的性能和使用指标
 - [ ] **告警系统** - 支持邮件/Webhook 告警
 
-### v1.4.0 (规划中)
+### v1.5.0 (规划中)
 - [ ] **集群部署** - 支持多节点部署
-- [ ] **Kubernetes** - 原生 K8s 支持
-- [ ] **灰度发布** - 支持 A/B 测试
 - [ ] **负载均衡** - 内置负载均衡算法
+- [ ] **灰度发布** - 支持 A/B 测试
+- [ ] **自动扩缩容** - 基于负载的动态扩缩容
 
 ### v2.0.0 (长期规划)
 - [ ] **微服务架构** - 完全微服务化
@@ -1016,6 +768,8 @@ SOFTWARE.
 - [SQLAlchemy](https://www.sqlalchemy.org/) - Python SQL 工具包
 - [Pydantic](https://pydantic-docs.helpmanual.io/) - 数据验证库
 - [Nginx](https://www.nginx.com/) - 高性能 Web 服务器
+- [OpenTelemetry](https://opentelemetry.io/) - 可观测性标准
+- [Kubernetes](https://kubernetes.io/) - 容器编排平台
 
 特别感谢所有贡献者和用户！
 

@@ -41,6 +41,11 @@ async def convert_openai_stream_to_anthropic_async(
     usage_data = {"input_tokens": initial_input_tokens, "output_tokens": 0}
     last_sent_usage = {"input_tokens": initial_input_tokens, "output_tokens": 0}  # Track last sent usage for real-time updates
     
+    # Extended thinking support
+    thinking_content_blocks = {}  # Maps content block index -> thinking data
+    current_thinking_block = None  # Track current thinking block index
+    thinking_signature = None  # Store signature for thinking block
+    
     # Send initial SSE events IMMEDIATELY (per claude-code-proxy pattern for better responsiveness)
     # This allows the client to know the request has started processing right away
     yield {
@@ -58,16 +63,8 @@ async def convert_openai_stream_to_anthropic_async(
     }
     message_started = True
     
-    # Always start text block immediately after message_start (per claude-code-proxy)
-    yield {
-        "type": "content_block_start",
-        "index": text_block_index,
-        "content_block": {
-            "type": "text",
-            "text": ""
-        }
-    }
-    text_block_started = True
+    # Don't start text block immediately - wait for actual content
+    # Thinking block will be started first if thinking content is available
     
     # Send ping event immediately after initial events (per claude-code-proxy pattern)
     # This helps keep the connection alive and provides faster initial response
@@ -120,6 +117,20 @@ async def convert_openai_stream_to_anthropic_async(
             except Exception:
                 pass
         
+        # Extract thinking signature from chunk if available
+        # Some providers send signature in the final chunk
+        thinking_signature = None
+        if isinstance(chunk, dict):
+            thinking_signature = chunk.get("signature") or chunk.get("thinking_signature")
+        elif hasattr(chunk, 'signature'):
+            thinking_signature = getattr(chunk, 'signature', None)
+        elif hasattr(chunk, 'thinking_signature'):
+            thinking_signature = getattr(chunk, 'thinking_signature', None)
+        
+        # Store signature if we have a thinking block and received a signature
+        if thinking_signature and current_thinking_block is not None:
+            thinking_content_blocks[current_thinking_block]["signature"] = thinking_signature
+        
         # Extract usage data if found and send real-time updates (per claude-code-proxy pattern)
         # When OpenAI API provides usage data (usually in final chunk with stream_options.include_usage=True),
         # update both input_tokens (more accurate than estimation) and output_tokens
@@ -163,17 +174,8 @@ async def convert_openai_stream_to_anthropic_async(
         # Send real-time usage update if it changed (per claude-code-proxy pattern)
         # This allows clients to see token consumption in real-time
         # Send update whenever output_tokens increases (real-time progress)
-        if usage_updated and (usage_data["output_tokens"] > last_sent_usage["output_tokens"] or 
-                             usage_data["input_tokens"] != last_sent_usage["input_tokens"]):
-            yield {
-                "type": "message_delta",
-                "delta": {
-                    "stop_reason": None,
-                    "stop_sequence": None
-                },
-                "usage": usage_data
-            }
-            last_sent_usage = usage_data.copy()
+        # BUT: Don't send message_delta during content streaming to avoid event ordering issues
+        # Only send usage updates in the final message_delta
         
         # Handle OpenAI SDK response objects
         # Support multiple chunk formats: SDK objects, dicts, etc.
@@ -189,14 +191,70 @@ async def convert_openai_stream_to_anthropic_async(
             except:
                 pass
         
-        # If chunk has usage but no choices, continue to next chunk
-        # This is expected for the final usage chunk
+        # If chunk has usage but no choices, check for special content types
+        # This is expected for the final usage chunk, but also for thinking content
         if not choices:
             chunks_without_choices += 1
-            # However, we should still check if this is a dict chunk with direct content
-            # Some APIs might send content in a different format
+            
+            # Check for thinking content in chunks without choices (aiping format)
+            thinking_content = None
+            if hasattr(chunk, 'thinking'):
+                thinking_content = chunk.thinking
+            elif isinstance(chunk, dict):
+                for attr in ['thinking', 'reasoning', 'reasoning_content', 'thought']:
+                    if attr in chunk:
+                        thinking_content = chunk[attr]
+                        break
+            
+            if thinking_content:
+                has_content_chunks = True
+                
+                # Initialize thinking block if not already started
+                if current_thinking_block is None:
+                    current_thinking_block = text_block_index + 1
+                    thinking_content_blocks[current_thinking_block] = {
+                        "thinking": "",
+                        "signature": None
+                    }
+                    
+                    # Send content_block_start for thinking
+                    yield {
+                        "type": "content_block_start",
+                        "index": current_thinking_block,
+                        "content_block": {
+                            "type": "thinking",
+                            "thinking": ""
+                        }
+                    }
+                
+                # Accumulate and send thinking content
+                if isinstance(thinking_content, str):
+                    thinking_content_blocks[current_thinking_block]["thinking"] += thinking_content
+                    
+                    # Send thinking_delta event
+                    yield {
+                        "type": "content_block_delta",
+                        "index": current_thinking_block,
+                        "delta": {
+                            "type": "thinking_delta",
+                            "thinking": thinking_content
+                        }
+                    }
+                continue
+            
+            # Check for signature in chunks without choices
+            signature = None
+            if hasattr(chunk, 'signature'):
+                signature = chunk.signature
+            elif isinstance(chunk, dict):
+                signature = chunk.get('signature') or chunk.get('thinking_signature')
+            
+            if signature and current_thinking_block is not None:
+                thinking_content_blocks[current_thinking_block]["signature"] = signature
+                continue
+            
+            # Check for direct content in chunk (non-standard format)
             if isinstance(chunk, dict):
-                # Check for direct content in chunk (non-standard format)
                 direct_content = chunk.get('content') or chunk.get('text')
                 if direct_content:
                     has_content_chunks = True
@@ -208,6 +266,8 @@ async def convert_openai_stream_to_anthropic_async(
                             "text": direct_content
                         }
                     }
+                    continue
+            
             # Log at DEBUG level why we're skipping this chunk
             if chunk_logger.isEnabledFor(logging.DEBUG):
                 chunk_logger.debug(
@@ -255,18 +315,113 @@ async def convert_openai_stream_to_anthropic_async(
             elif hasattr(delta, attr):
                 return getattr(delta, attr)
             return default
+        def get_choice_attr(attr, default=None):
+            if isinstance(choice, dict):
+                return choice.get(attr, default)
+            elif hasattr(choice, attr):
+                return getattr(choice, attr)
+            return default
         
         # Handle text delta (message_start and content_block_start already sent above)
         content = get_delta_attr('content')
         # Also check if content is directly in choice (some API formats)
         if not content:
-            if isinstance(choice, dict):
-                content = choice.get('content') or choice.get('text')
-            elif hasattr(choice, 'content'):
-                content = getattr(choice, 'content', None)
+            content = get_choice_attr('content') or get_choice_attr('text')
         
+        # Handle thinking content (extended thinking feature)
+        # Check multiple possible attribute names for thinking content
+        thinking_content = None
+        
+        # First check if thinking is directly in the chunk (some providers send it at top level)
+        # This is the most common format for thinking content
+        if hasattr(chunk, 'thinking'):
+            thinking_content = chunk.thinking
+            if thinking_content and logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Found thinking content in chunk attribute: {str(thinking_content)[:50]}...")
+        if not thinking_content and isinstance(chunk, dict):
+            for attr in ['thinking', 'reasoning', 'reasoning_content', 'thought']:
+                if attr in chunk:
+                    thinking_content = chunk[attr]
+                    if thinking_content and logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"Found thinking content in chunk dict: {str(thinking_content)[:50]}...")
+                    break
+        
+        # Then check delta attributes (OpenAI SDK format)
+        if not thinking_content:
+            for attr in ['thinking', 'reasoning', 'reasoning_content', 'thought']:
+                thinking_content = get_delta_attr(attr)
+                if thinking_content:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"Found thinking content in delta: {str(thinking_content)[:50]}...")
+                    break
+        
+        # Finally check choice attributes (some API formats)
+        if not thinking_content:
+            for attr in ['thinking', 'reasoning', 'reasoning_content', 'thought']:
+                thinking_content = get_choice_attr(attr)
+                if thinking_content:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"Found thinking content in choice: {str(thinking_content)[:50]}...")
+                    break
+            
+        # Process thinking content if available
+        if thinking_content:
+            has_content_chunks = True
+            
+            # Initialize thinking block if not already started
+            if current_thinking_block is None:
+                current_thinking_block = text_block_index + 1
+                thinking_content_blocks[current_thinking_block] = {
+                    "thinking": "",
+                    "signature": None
+                }
+                
+                # Send content_block_start for thinking
+                yield {
+                    "type": "content_block_start",
+                    "index": current_thinking_block,
+                    "content_block": {
+                        "type": "thinking",
+                        "thinking": ""
+                    }
+                }
+            
+            # Accumulate thinking content
+            if isinstance(thinking_content, str):
+                thinking_content_blocks[current_thinking_block]["thinking"] += thinking_content
+                
+                # Send thinking_delta event
+                yield {
+                    "type": "content_block_delta",
+                    "index": current_thinking_block,
+                    "delta": {
+                        "type": "thinking_delta",
+                        "thinking": thinking_content
+                    }
+                }
+        
+        # Handle regular text content
         if content:
             has_content_chunks = True
+            
+            # Start text block if not already started
+            if not text_block_started:
+                # If we have a thinking block, text block comes after it
+                if current_thinking_block is not None:
+                    text_block_index = current_thinking_block + 1
+                else:
+                    text_block_index = 0
+                
+                yield {
+                    "type": "content_block_start",
+                    "index": text_block_index,
+                    "content_block": {
+                        "type": "text",
+                        "text": ""
+                    }
+                }
+                text_block_started = True
+            
             yield {
                 "type": "content_block_delta",
                 "index": text_block_index,
@@ -331,11 +486,15 @@ async def convert_openai_stream_to_anthropic_async(
                     tool_call["claude_index"] = claude_index
                     tool_call["started"] = True
                     
+                    # Determine content block type - check if this is a server tool
+                    tool_name = tool_call["name"]
+                    is_server_tool = tool_name in ["web_search", "web_search_20250305"]
+                    
                     yield {
                         "type": "content_block_start",
                         "index": claude_index,
                         "content_block": {
-                            "type": "tool_use",
+                            "type": "server_tool_use" if is_server_tool else "tool_use",
                             "id": tool_call["id"],
                             "name": tool_call["name"],
                             "input": {}
@@ -470,13 +629,38 @@ async def convert_openai_stream_to_anthropic_async(
                 f"Received {chunk_count} chunks but none contained content. "
                 f"This might indicate the API returned only usage/metadata chunks."
             )
+
+    # Send signature_delta for thinking block if we have one
+    if current_thinking_block is not None:
+        thinking_data = thinking_content_blocks.get(current_thinking_block, {})
+        signature = thinking_data.get("signature")
+        
+        if signature:
+            # Send signature_delta event before content_block_stop
+            yield {
+                "type": "content_block_delta",
+                "index": current_thinking_block,
+                "delta": {
+                    "type": "signature_delta",
+                    "signature": signature
+                }
+            }
     
-    # Send final SSE events
-    # Per claude-code-proxy: Always stop text block (even if empty)
+    # Send final SSE events in correct order
+    # First, stop all content blocks (text and tools)
+    
+    # Stop text block
     yield {
         "type": "content_block_stop",
         "index": text_block_index
     }
+    
+    # Stop thinking block if exists
+    if current_thinking_block is not None:
+        yield {
+            "type": "content_block_stop",
+            "index": current_thinking_block
+        }
     
     # Stop all tool blocks
     for tool_data in current_tool_calls.values():
@@ -511,7 +695,7 @@ async def convert_openai_stream_to_anthropic_async(
             "index": tool_data["claude_index"]
         }
     
-    # Send message_delta with stop_reason and usage
+    # Send message_delta with stop_reason and usage (AFTER all content_block_stop events)
     yield {
         "type": "message_delta",
         "delta": {

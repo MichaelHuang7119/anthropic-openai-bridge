@@ -37,7 +37,17 @@ class AnthropicClient:
             api_key = os.getenv(var_name, "")
 
         # Configure timeout
-        timeout_config = provider.timeout
+        # For streaming responses, we need to handle read timeout differently
+        # Read timeout applies to the time between receiving chunks, not the total request time
+        if isinstance(provider.timeout, int):
+            timeout_config = httpx.Timeout(
+                connect=30.0,                    # 30 seconds to establish connection
+                read=float(provider.timeout),    # Use provider timeout for reading chunks (default 180s)
+                write=30.0,                      # 30 seconds for write operations
+                pool=60.0                        # 60 seconds for pool operations
+            )
+        else:
+            timeout_config = provider.timeout
 
         # Create httpx client with connection pooling
         # Determine authentication header format
@@ -187,6 +197,14 @@ class AnthropicClient:
                 logger.debug(f"Full error response: {error_text}")
                 logger.debug(f"Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
             raise
+        except httpx.TimeoutException as e:
+            # Handle timeout errors specifically
+            logger.error(
+                f"Timeout error from {self.provider.name}: {type(e).__name__} | "
+                f"URL: {url} | Model: {payload.get('model')} | "
+                f"Suggestion: Consider increasing timeout value or checking provider availability"
+            )
+            raise
         except Exception as e:
             logger.error(f"Error making request to {self.provider.name}: {e}")
             raise
@@ -204,16 +222,8 @@ class AnthropicClient:
         url = f"{self.base_url}/v1/messages"
         
         # Prepare request payload
-        # Only include fields that the API expects
-        # Remove fields that shouldn't be in the request body
         payload = request.copy()
-        # Don't include stream in the request body - it's handled by the HTTP client
-        # Some APIs may reject requests with unexpected fields
-        if "stream" in payload:
-            del payload["stream"]
-        # Also remove provider field if present (it's for internal routing only)
-        if "provider" in payload:
-            del payload["provider"]
+        payload["stream"] = stream
         
         try:
             if stream:
@@ -390,6 +400,14 @@ class AnthropicClient:
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(f"Full error response: {error_text}")
                 logger.debug(f"Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+            raise
+        except httpx.TimeoutException as e:
+            # Handle timeout errors specifically
+            logger.error(
+                f"Timeout error from {self.provider.name}: {type(e).__name__} | "
+                f"URL: {url} | Model: {payload.get('model')} | "
+                f"Suggestion: Consider increasing timeout value or checking provider availability"
+            )
             raise
         except Exception as e:
             logger.error(f"Error making request to {self.provider.name}: {e}")
