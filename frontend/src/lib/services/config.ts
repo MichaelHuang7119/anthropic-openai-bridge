@@ -9,5 +9,5 @@ export const configService = {
 
   async update(config: GlobalConfig): Promise<{ success: boolean; message: string }> {
     return apiClient.put('/api/config', config);
-  }
+  },
 };

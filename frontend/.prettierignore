@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.svelte-kit/
+build/
+dist/
+.vercel/
+
+# Configuration files (don't format these)
+package.json
+package-lock.json
+.prettierrc.json
+.prettierignore
+.eslintignore
+.eslintrc.json
+eslint.config.js
+tsconfig.json
+vite.config.ts
+svelte.config.js
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Package manager files
+yarn.lock
+pnpm-lock.yaml
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated files
+static/manifest.json
+src/service-worker.js
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Temporary folders
+tmp/
+temp/

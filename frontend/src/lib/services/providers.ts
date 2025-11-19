@@ -15,7 +15,11 @@ export const providerService = {
     return apiClient.post('/api/providers', data);
   },
 
-  async update(name: string, data: ProviderFormData, api_format?: string): Promise<{ success: boolean; message: string }> {
+  async update(
+    name: string,
+    data: ProviderFormData,
+    api_format?: string
+  ): Promise<{ success: boolean; message: string }> {
     // Use query parameter for precise provider identification when api_format is specified
     const url = api_format
       ? `/api/providers/${encodeURIComponent(name)}?api_format=${encodeURIComponent(api_format)}`
@@ -35,11 +39,15 @@ export const providerService = {
     return apiClient.post(`/api/providers/${encodeURIComponent(name)}/test`);
   },
 
-  async toggleEnabled(name: string, enabled: boolean, api_format?: string): Promise<{ success: boolean; message: string }> {
+  async toggleEnabled(
+    name: string,
+    enabled: boolean,
+    api_format?: string
+  ): Promise<{ success: boolean; message: string }> {
     // Use query parameter for precise provider identification when api_format is specified
     const url = api_format
       ? `/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}&api_format=${encodeURIComponent(api_format)}`
       : `/api/providers/${encodeURIComponent(name)}/enable?enabled=${enabled}`;
     return apiClient.patch(url);
-  }
+  },
 };

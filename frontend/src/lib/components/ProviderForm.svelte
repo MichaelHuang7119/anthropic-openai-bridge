@@ -6,7 +6,7 @@
 
   export let provider: Provider | null = null; // null for create, provider object for edit
   export let loading = false;
-  export let apiFormat: string | undefined = undefined; // API format for precise identification when editing
+  export let apiFormat: 'openai' | 'anthropic' | undefined = undefined; // API format for precise identification when editing
 
   const dispatch = createEventDispatcher<{
     save: { provider: Provider; api_format?: string };
@@ -49,11 +49,11 @@
         small: [...(provider.models.small || [])]
       },
       // Use the provided api_format or the provider's api_format, default to 'openai' if neither
-      api_format: provider.api_format || apiFormat || 'openai'
+      api_format: (provider.api_format || apiFormat || 'openai') as 'openai' | 'anthropic'
     };
   } else if (apiFormat) {
     // When creating new provider, set default api_format from prop
-    formData.api_format = apiFormat;
+    formData.api_format = apiFormat as 'openai' | 'anthropic';
   }
 
   let errors: Record<string, string> = {};
@@ -281,7 +281,6 @@
           id="timeout"
           type="number"
           bind:value={formData.timeout}
-          min="1"
           required
         />
         {#if errors.timeout}
@@ -297,7 +296,6 @@
           id="max_retries"
           type="number"
           bind:value={formData.max_retries}
-          min="0"
           required
         />
         {#if errors.max_retries}
@@ -315,7 +313,6 @@
           id="priority"
           type="number"
           bind:value={formData.priority}
-          min="1"
           required
         />
         <small>数字越小优先级越高 (1为最高)</small>

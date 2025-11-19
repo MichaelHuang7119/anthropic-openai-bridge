@@ -1,13 +1,13 @@
 /// <reference types="@sveltejs/kit" />
-import { build, files, version } from '$service-worker';
+import { build, files, version } from "$service-worker";
 
 const CACHE_NAME = `cache-${version}`;
 const ASSETS = [
   ...build, // the app itself
-  ...files  // everything in `static`
+  ...files, // everything in `static`
 ];
 
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   // Create a new cache and add all files to it
   async function addFilesToCache() {
     const cache = await caches.open(CACHE_NAME);
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(addFilesToCache());
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   // Remove previous cached data from disk
   async function deleteOldCaches() {
     for (const key of await caches.keys()) {
@@ -28,12 +28,15 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(deleteOldCaches());
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   // Ignore non-GET requests
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== "GET") return;
 
   // Ignore API requests - always fetch from network
-  if (event.request.url.includes('/api/') || event.request.url.includes('/v1/')) {
+  if (
+    event.request.url.includes("/api/") ||
+    event.request.url.includes("/v1/")
+  ) {
     return;
   }
 
@@ -52,12 +55,12 @@ self.addEventListener('fetch', (event) => {
     // For everything else, try the network first, but fall back to cache
     try {
       const response = await fetch(event.request);
-      
+
       // Cache successful responses
       if (response.status === 200) {
         cache.put(event.request, response.clone());
       }
-      
+
       return response;
     } catch (error) {
       // If network fails, try cache
@@ -65,7 +68,7 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      
+
       throw error;
     }
   }
@@ -74,15 +77,13 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Handle background sync (optional)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync') {
+self.addEventListener("sync", (event) => {
+  if (event.tag === "background-sync") {
     event.waitUntil(doBackgroundSync());
   }
 });
 
 async function doBackgroundSync() {
   // Implement background sync logic here
-  console.log('Background sync triggered');
+  console.log("Background sync triggered");
 }
-
-

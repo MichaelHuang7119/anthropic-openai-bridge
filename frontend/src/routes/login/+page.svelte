@@ -55,7 +55,7 @@
     }
   }
 
-  function handleKeyPress(event: KeyboardEvent) {
+  function handleKeyPress(event: any) {
     if (event.key === 'Enter') {
       handleSubmit();
     }

@@ -96,7 +96,7 @@ class AuthService {
       console.debug('[Auth] Token found, creating Authorization header');
     }
     return {
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     };
   }
 
@@ -107,9 +107,9 @@ class AuthService {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -118,11 +118,11 @@ class AuthService {
     }
 
     const data: LoginResponse = await response.json();
-    
+
     // 存储 token 和用户信息
     this.setToken(data.access_token);
     this.setUser(data.user);
-    
+
     // 验证 token 已存储
     if (browser) {
       const storedToken = localStorage.getItem(TOKEN_KEY);
@@ -131,7 +131,7 @@ class AuthService {
       } else {
         console.error('[Auth] Token storage verification failed', {
           stored: storedToken?.substring(0, 20) + '...',
-          expected: data.access_token.substring(0, 20) + '...'
+          expected: data.access_token.substring(0, 20) + '...',
         });
       }
     }
@@ -160,7 +160,7 @@ class AuthService {
 
     try {
       const response = await fetch('/api/auth/me', {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       });
 
       if (!response.ok) {

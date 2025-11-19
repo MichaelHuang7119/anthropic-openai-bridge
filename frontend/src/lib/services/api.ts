@@ -22,27 +22,24 @@ export class ApiClient {
     if (typeof window !== 'undefined' && (window as any).__API_KEY__) {
       return (window as any).__API_KEY__;
     }
-    
+
     // 从 localStorage 获取（运行时）
     if (typeof window !== 'undefined') {
       return localStorage.getItem('api_key');
     }
-    
+
     return null;
   }
 
-  private async request<T>(
-    url: string,
-    options: RequestOptions = {}
-  ): Promise<T> {
+  private async request<T>(url: string, options: RequestOptions = {}): Promise<T> {
     const fullUrl = this.baseUrl + url;
-    
+
     // 添加认证头
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {})
+      ...((options.headers as Record<string, string>) || {}),
     };
-    
+
     // 添加 JWT Token（用于管理面板 API）
     const authHeaders = authService.getAuthHeaders();
     if (authHeaders['Authorization']) {
@@ -53,21 +50,24 @@ export class ApiClient {
     } else if (typeof window !== 'undefined' && url.startsWith('/api/')) {
       // 只在浏览器环境和管理 API 请求时警告
       console.warn('[API] No auth token available for request:', url);
-      console.warn('[API] localStorage token:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
+      console.warn(
+        '[API] localStorage token:',
+        localStorage.getItem('auth_token') ? 'exists' : 'missing'
+      );
     }
-    
+
     // 添加 API Key（如果存在，用于服务 API）
     const apiKey = this.getApiKey();
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
     }
-    
+
     try {
       const response = await fetch(fullUrl, {
         headers,
         ...options,
         // 确保 signal 被传递
-        signal: options.signal
+        signal: options.signal,
       });
 
       // 如果请求被取消，抛出 AbortError
@@ -80,7 +80,10 @@ export class ApiClient {
         if (typeof window !== 'undefined') {
           console.error('[API] 401 Unauthorized for:', url);
           console.error('[API] Request headers:', JSON.stringify(headers, null, 2));
-          console.error('[API] Token in localStorage:', localStorage.getItem('auth_token') ? 'exists' : 'missing');
+          console.error(
+            '[API] Token in localStorage:',
+            localStorage.getItem('auth_token') ? 'exists' : 'missing'
+          );
         }
         authService.logout();
         throw new Error('Unauthorized - Please login again');
@@ -94,10 +97,12 @@ export class ApiClient {
           if (error.detail) {
             if (Array.isArray(error.detail)) {
               // FastAPI 验证错误格式: [{loc: [...], msg: "...", type: "..."}]
-              const errors = error.detail.map((e: any) => {
-                const field = e.loc?.join('.') || 'unknown';
-                return `${field}: ${e.msg}`;
-              }).join(', ');
+              const errors = error.detail
+                .map((e: any) => {
+                  const field = e.loc?.join('.') || 'unknown';
+                  return `${field}: ${e.msg}`;
+                })
+                .join(', ');
               errorMessage = errors || errorMessage;
             } else if (typeof error.detail === 'string') {
               errorMessage = error.detail;
@@ -146,7 +151,7 @@ export class ApiClient {
     return this.request<T>(url, {
       ...options,
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined
+      body: data ? JSON.stringify(data) : undefined,
     });
   }
 
@@ -154,7 +159,7 @@ export class ApiClient {
     return this.request<T>(url, {
       ...options,
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined
+      body: data ? JSON.stringify(data) : undefined,
     });
   }
 
@@ -166,7 +171,7 @@ export class ApiClient {
     return this.request<T>(url, {
       ...options,
       method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined
+      body: data ? JSON.stringify(data) : undefined,
     });
   }
 }

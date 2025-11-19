@@ -7,17 +7,17 @@ function createThemeStore() {
   // 默认主题：从 localStorage 读取，如果没有则使用系统偏好
   const getInitialTheme = (): Theme => {
     if (!browser) return 'light';
-    
+
     const stored = localStorage.getItem('theme') as Theme | null;
     if (stored === 'light' || stored === 'dark') {
       return stored;
     }
-    
+
     // 检查系统偏好
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
-    
+
     return 'light';
   };
 
@@ -33,7 +33,7 @@ function createThemeStore() {
       set(theme);
     },
     toggle: () => {
-      update((current) => {
+      update(current => {
         const newTheme = current === 'light' ? 'dark' : 'light';
         if (browser) {
           localStorage.setItem('theme', newTheme);
@@ -47,9 +47,9 @@ function createThemeStore() {
         const theme = getInitialTheme();
         document.documentElement.setAttribute('data-theme', theme);
         set(theme);
-        
+
         // 监听系统主题变化
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
           const stored = localStorage.getItem('theme');
           if (!stored) {
             const newTheme = e.matches ? 'dark' : 'light';
@@ -58,9 +58,8 @@ function createThemeStore() {
           }
         });
       }
-    }
+    },
   };
 }
 
 export const theme = createThemeStore();
-

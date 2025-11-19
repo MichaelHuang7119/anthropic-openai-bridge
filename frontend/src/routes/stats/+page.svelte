@@ -876,7 +876,7 @@
                       callbacks: {
                         label: (context) => {
                           const label = context.dataset.label || '';
-                          const value = label === '成本估算' ? formatCurrency(context.parsed.y) : formatNumber(context.parsed.y);
+                          const value = label === '成本估算' ? formatCurrency(context.parsed.y!) : formatNumber(context.parsed.y!);
                           return `${label}: ${value}`;
                         }
                       }
@@ -938,7 +938,7 @@
                     tooltip: {
                       callbacks: {
                         label: (context) => {
-                          return `Token 使用量: ${formatNumber(context.parsed.y)}`;
+                          return `Token 使用量: ${formatNumber(context.parsed.y!)}`;
                         }
                       }
                     }
@@ -980,7 +980,6 @@
                   placeholder="搜索供应商..."
                   bind:value={tokenUsageProviderFilter}
                   on:input={handleTokenUsageFilterChange}
-                  class="filter-input"
                 />
               </div>
 
@@ -991,7 +990,6 @@
                   placeholder="搜索模型..."
                   bind:value={tokenUsageModelFilter}
                   on:input={handleTokenUsageFilterChange}
-                  class="filter-input"
                 />
               </div>
 
@@ -1088,7 +1086,6 @@
                 placeholder="搜索供应商..."
                 bind:value={filterProvider}
                 on:input={handleFilterChange}
-                class="filter-input"
               />
             </div>
             
@@ -1099,7 +1096,6 @@
                 placeholder="搜索模型..."
                 bind:value={filterModel}
                 on:input={handleFilterChange}
-                class="filter-input"
               />
             </div>
             

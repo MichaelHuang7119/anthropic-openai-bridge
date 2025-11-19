@@ -9,5 +9,5 @@ export const healthService = {
 
   async getProvider(name: string): Promise<ProviderHealth> {
     return apiClient.get<ProviderHealth>(`/api/health/${encodeURIComponent(name)}`);
-  }
+  },
 };

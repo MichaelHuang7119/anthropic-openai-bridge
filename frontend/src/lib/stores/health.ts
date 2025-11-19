@@ -9,11 +9,14 @@ const LAST_CHECK_KEY = 'last_health_check_time';
 const initialHealthStatus: HealthStatus = {
   status: 'error',
   timestamp: '',
-  providers: []
+  providers: [],
 };
 
 // 从localStorage读取数据
-function loadFromStorage(): { healthData: HealthStatus, lastCheck: Date | null } {
+function loadFromStorage(): {
+  healthData: HealthStatus;
+  lastCheck: Date | null;
+} {
   if (!browser) {
     return { healthData: initialHealthStatus, lastCheck: null };
   }
@@ -63,7 +66,7 @@ export const healthStatus = writable<HealthStatus>(healthData);
 
 // 订阅healthStatus变化并保存到localStorage
 if (browser) {
-  healthStatus.subscribe((data) => {
+  healthStatus.subscribe(data => {
     // 如果有实际的健康数据才保存
     if (data.providers && data.providers.length > 0) {
       saveToStorage(data);
@@ -76,7 +79,7 @@ export const lastHealthCheck = writable<Date | null>(lastCheck);
 
 // 订阅lastHealthCheck变化并保存到localStorage
 if (browser) {
-  lastHealthCheck.subscribe((time) => {
+  lastHealthCheck.subscribe(time => {
     if (time) {
       saveLastCheckTime(time);
     }

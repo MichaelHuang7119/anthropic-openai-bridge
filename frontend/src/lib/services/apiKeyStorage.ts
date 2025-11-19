@@ -89,7 +89,7 @@ export function hasFullApiKey(keyId: number): boolean {
  */
 export function removeFullApiKey(keyId: number): void {
   if (!browser) return;
-  
+
   try {
     const storageKey = `${STORAGE_PREFIX}${keyId}`;
     localStorage.removeItem(storageKey);
@@ -103,7 +103,7 @@ export function removeFullApiKey(keyId: number): void {
  */
 export function clearAllFullApiKeys(): void {
   if (!browser) return;
-  
+
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
@@ -115,4 +115,3 @@ export function clearAllFullApiKeys(): void {
     console.error('Failed to clear API keys from localStorage:', error);
   }
 }
-

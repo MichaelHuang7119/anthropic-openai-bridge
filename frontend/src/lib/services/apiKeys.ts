@@ -1,6 +1,11 @@
 import { apiClient } from './api';
 import type { RequestOptions } from './api';
-import type { APIKey, CreateAPIKeyRequest, CreateAPIKeyResponse, UpdateAPIKeyRequest } from '$types/apiKey';
+import type {
+  APIKey,
+  CreateAPIKeyRequest,
+  CreateAPIKeyResponse,
+  UpdateAPIKeyRequest,
+} from '$types/apiKey';
 
 export interface APIKeyListResponse {
   data: APIKey[];
@@ -11,19 +16,26 @@ export interface APIKeyListResponse {
 }
 
 export const apiKeysService = {
-  async getAll(params?: {
-    limit?: number;
-    offset?: number;
-    name_filter?: string;
-    is_active?: boolean;
-  }, options?: RequestOptions): Promise<APIKeyListResponse> {
+  async getAll(
+    params?: {
+      limit?: number;
+      offset?: number;
+      name_filter?: string;
+      is_active?: boolean;
+    },
+    options?: RequestOptions
+  ): Promise<APIKeyListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     if (params?.name_filter) queryParams.append('name_filter', params.name_filter);
-    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.is_active !== undefined)
+      queryParams.append('is_active', params.is_active.toString());
 
-    const response = await apiClient.get<APIKeyListResponse>(`/api/api-keys?${queryParams.toString()}`, options);
+    const response = await apiClient.get<APIKeyListResponse>(
+      `/api/api-keys?${queryParams.toString()}`,
+      options
+    );
     // response 本身就是 APIKeyListResponse，直接返回
     return response;
   },
@@ -42,5 +54,5 @@ export const apiKeysService = {
 
   async delete(id: number): Promise<{ message: string }> {
     return apiClient.delete<{ message: string }>(`/api/api-keys/${id}`);
-  }
+  },
 };
