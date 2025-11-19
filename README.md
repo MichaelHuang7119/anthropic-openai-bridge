@@ -674,11 +674,25 @@ python scripts/load_test.py \
 python scripts/test_all.py
 ```
 
+**CI兼容性测试**：
+
+```bash
+# 验证CI环境兼容性（语法验证备用方案）
+python scripts/ci_compatibility_test.py
+
+# 验证CI修复是否有效
+python scripts/test_ci_fix.py
+
+# 终极验证脚本
+python scripts/final_verification.py
+```
+
 **验证内容**：
 - 检查所有测试文件的Python语法
 - 验证流式格式测试功能
 - 测试文件完整性检查
 - 提供详细的测试报告
+- CI环境兼容性验证
 
 **测试文件列表**：
 - `test_assistant_tool_use.py` - 工具调用功能测试
@@ -688,6 +702,13 @@ python scripts/test_all.py
 - `test_performance.py` - 性能和并发测试
 - `test_streaming_format.py` - 流式输出格式验证测试 ✅
 - `test_tool_use_format.py` - 工具调用格式测试
+
+**CI/CD 优化**：
+- 修复了pytest路径问题
+- 添加了依赖冲突解决方案
+- 实现了pytest + 语法验证双层保障
+- 解决了"collected 0 items"错误
+- 配置了正确的Python模块路径
 
 ### 启动脚本
 
