@@ -1,5 +1,5 @@
-# 使用 Node.js 18 alpine 镜像作为构建阶段
-FROM node:18-alpine AS builder
+# 使用 Node.js 22 镜像作为构建阶段
+FROM node:22 AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -37,13 +37,16 @@ COPY . .
 RUN pnpm run build
 
 # 生产阶段：使用 nginx 提供静态文件
-FROM nginx:alpine
+FROM nginx:latest
 
-# 安装时区数据并设置时区为 Asia/Shanghai（中国标准时间 UTC+8）
-RUN apk add --no-cache tzdata && \
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+# 设置时区（Debian/Ubuntu 方式）
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
-    apk del tzdata
+    dpkg-reconfigure -f noninteractive tzdata && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Asia/Shanghai
 
