@@ -16,7 +16,7 @@ async def init_default_admin():
     
     # Check if any admin user exists
     admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    admin_password = os.getenv("ADMIN_PASSWORD")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
     
     # Require strong password in production
     if not admin_password:
