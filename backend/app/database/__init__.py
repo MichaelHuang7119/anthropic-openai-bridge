@@ -8,6 +8,7 @@ from .config_changes import ConfigChangesManager
 from .token_usage import TokenUsageManager
 from .users import UsersManager
 from .api_keys import APIKeysManager
+from .conversations import ConversationsManager
 
 
 class DatabaseManager:
@@ -23,7 +24,7 @@ class DatabaseManager:
         self.core = DatabaseCore(db_path)
         self.encryption = EncryptionManager()
         self._initialized = False
-        
+
         # Initialize managers
         self.request_logs = RequestLogsManager(self.core)
         self.health_history = HealthHistoryManager(self.core)
@@ -31,6 +32,7 @@ class DatabaseManager:
         self.token_usage = TokenUsageManager(self.core)
         self.users = UsersManager(self.core)
         self.api_keys = APIKeysManager(self.core)
+        self.conversations = ConversationsManager(self.core)
     
     async def initialize(self):
         """Initialize database schema asynchronously."""
@@ -188,5 +190,6 @@ __all__ = [
     "TokenUsageManager",
     "UsersManager",
     "APIKeysManager",
+    "ConversationsManager",
 ]
 

@@ -11,6 +11,7 @@
   // 导航项配置
   const navItems = [
     { href: '/', label: '首页' },
+    { href: '/chat', label: '聊天' },
     { href: '/providers', label: '供应商' },
     { href: '/health', label: '健康监控' },
     { href: '/config', label: '配置' },

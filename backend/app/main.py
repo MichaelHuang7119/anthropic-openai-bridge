@@ -11,6 +11,7 @@ from .api.config import router as config_router
 from .api.stats import router as stats_router
 from .api.auth import router as auth_router
 from .api.api_keys import router as api_keys_router
+from .api.conversations import router as conversations_router
 from .routes.messages import create_messages_router
 from .routes.health import router as health_router
 from .lifecycle import startup_event, shutdown_event
@@ -103,6 +104,7 @@ app.include_router(providers_router)
 app.include_router(api_health_router)
 app.include_router(config_router)
 app.include_router(stats_router)
+app.include_router(conversations_router)
 
 
 @app.on_event("startup")

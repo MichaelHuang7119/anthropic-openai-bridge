@@ -217,6 +217,56 @@ class DatabaseCore:
             ON api_keys(user_id)
         """)
 
+        # Create conversations table for chat history
+        await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                provider_name TEXT,
+                api_format TEXT,
+                model TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conversations_user_id
+            ON conversations(user_id)
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conversations_updated_at
+            ON conversations(updated_at DESC)
+        """)
+
+        # Create conversation_messages table for storing chat messages
+        await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                model TEXT,
+                input_tokens INTEGER,
+                output_tokens INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            )
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
+            ON conversation_messages(conversation_id)
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_created_at
+            ON conversation_messages(created_at)
+        """)
+
         await conn.commit()
 
         logger.info(f"Database initialized at {self.db_path}")
