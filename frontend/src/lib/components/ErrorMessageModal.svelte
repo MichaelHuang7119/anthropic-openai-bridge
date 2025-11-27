@@ -51,8 +51,8 @@
 </script>
 
 {#if show && errorMessage}
-  <div class="modal-overlay" on:click={handleOverlayClick}>
-    <div class="modal-content" on:click|stopPropagation>
+  <div class="modal-overlay" role="button" tabindex="0" on:click={handleOverlayClick} on:keydown={(e) => e.key === 'Escape' && handleOverlayClick()}>
+    <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <h2>{title}</h2>
         <div class="header-actions">

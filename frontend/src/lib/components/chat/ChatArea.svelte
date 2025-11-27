@@ -1,14 +1,20 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { tick } from 'svelte';
-  import MessageBubble from './MessageBubble.svelte';
-  import MessageInput from './MessageInput.svelte';
-  import { chatService, type ConversationDetail, type Message } from '$services/chatService';
-  import { theme } from '$stores/theme';
-  import { authService } from '$services/auth';
+  import { createEventDispatcher, onMount } from "svelte";
+  import { tick } from "svelte";
+  import MessageBubble from "./MessageBubble.svelte";
+  import MessageInput from "./MessageInput.svelte";
+  import {
+    chatService,
+    type ConversationDetail,
+    type Message,
+  } from "$services/chatService";
+  import { theme } from "$stores/theme";
+  import { authService } from "$services/auth";
 
   export let conversation: ConversationDetail | null = null;
   export let selectedModel: any = null;
+  export let selectedProvider: string = "";
+  export let selectedApiFormat: string = "";
 
   const dispatch = createEventDispatcher<{
     conversationUpdate: { conversation: ConversationDetail };
@@ -18,13 +24,18 @@
   let messages: Message[] = [];
   let isLoading = false;
   let streamingMessage: string | null = null;
+  let streamingThinking: string | null = null;
   let error: string | null = null;
   let messagesContainer: HTMLDivElement;
+  let userScrolledUp = false; // Track if user manually scrolled up
+  let isAtBottom = true; // Track if user is at bottom
 
   // Load messages when conversation changes
   $: if (conversation) {
+    console.log("ChatArea: conversation changed:", conversation);
     loadMessages();
   } else {
+    console.log("ChatArea: no conversation");
     messages = [];
   }
 
@@ -36,114 +47,207 @@
       const detail = await chatService.getConversation(conversation.id);
       messages = detail.messages || [];
     } catch (err) {
-      error = err instanceof Error ? err.message : '加载消息失败';
-      console.error('Failed to load messages:', err);
+      error = err instanceof Error ? err.message : "加载消息失败";
+      console.error("Failed to load messages:", err);
     } finally {
       isLoading = false;
       // Scroll to bottom after loading
+      userScrolledUp = false;
       await tick();
       scrollToBottom();
     }
   }
 
-  // Auto-scroll to bottom when new messages arrive
-  $: if (messages.length > 0 || streamingMessage) {
-    tick().then(() => scrollToBottom());
+  // Check if user is near bottom of scroll container
+  function checkIfAtBottom() {
+    if (!messagesContainer) return true;
+
+    const threshold = 100; // pixels from bottom
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    return distanceFromBottom < threshold;
+  }
+
+  // Handle scroll events to detect user scrolling up
+  function handleScroll() {
+    if (!messagesContainer) return;
+
+    isAtBottom = checkIfAtBottom();
+
+    // If user scrolled up from bottom, mark it
+    if (!isAtBottom) {
+      userScrolledUp = true;
+    } else {
+      userScrolledUp = false;
+    }
+  }
+
+  // Auto-scroll to bottom only if user hasn't scrolled up
+  $: if (messages.length > 0 || streamingMessage || streamingThinking) {
+    tick().then(() => {
+      // Only auto-scroll if user is at bottom or hasn't manually scrolled up
+      if (!userScrolledUp && isAtBottom) {
+        scrollToBottom();
+      }
+    });
   }
 
   function scrollToBottom() {
     if (messagesContainer) {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      userScrolledUp = false;
+      isAtBottom = true;
     }
   }
 
   async function handleSendMessage(event: { message: string }) {
-    if (!conversation || !authService.getApiKey()) {
-      error = '请选择对话并配置API Key';
+    if (!conversation) {
+      error = "请选择对话";
+      return;
+    }
+
+    if (!authService.isAuthenticated()) {
+      error = "请先登录";
       return;
     }
 
     if (!selectedModel) {
-      error = '请选择模型';
+      error = "请选择模型";
+      return;
+    }
+
+    // Use currently selected model configuration instead of conversation's saved config
+    const useProvider = selectedProvider || conversation.provider_name || null;
+    const useApiFormat = selectedApiFormat || conversation.api_format || null;
+    const useModel = selectedModel || conversation.model || null;
+
+    if (!useModel) {
+      error = "请选择模型";
       return;
     }
 
     const userMessage = event.message;
     error = null;
 
+    // Reset scroll state when sending new message
+    userScrolledUp = false;
+    isAtBottom = true;
+
+    console.log("ChatArea: Sending message with config:", {
+      provider: useProvider,
+      apiFormat: useApiFormat,
+      model: useModel,
+    });
+
     try {
       // Add user message to UI
       const userMsg: Message = {
         id: Date.now(),
-        role: 'user',
+        role: "user",
         content: userMessage,
-        model: conversation.model || null
+        model: useModel,
       };
       messages = [...messages, userMsg];
 
       // Add to database
+      console.log("ChatArea: Adding message to database:", {
+        conversationId: conversation.id,
+        role: "user",
+        content: userMessage,
+        model: useModel,
+      });
       await chatService.addMessage(
         conversation.id,
-        'user',
+        "user",
         userMessage,
-        conversation.model || null
+        useModel,
       );
 
-      // Send to AI
-      streamingMessage = '';
+      // Send to AI with current selected configuration
+      streamingMessage = "";
+      streamingThinking = "";
       isLoading = true;
 
       await chatService.sendChatMessage(
         {
           ...conversation,
-          messages: messages
+          provider_name: useProvider,
+          api_format: useApiFormat,
+          model: useModel,
+          messages: messages,
         },
         userMessage,
-        (chunk) => {
-          streamingMessage += chunk;
+        (chunk, thinking) => {
+          if (chunk) {
+            streamingMessage += chunk;
+          }
+          if (thinking !== undefined) {
+            streamingThinking = thinking;
+          }
         },
-        async () => {
+        async (usage) => {
           // On complete
           const assistantMessage = streamingMessage;
+          const thinkingContent = streamingThinking;
           streamingMessage = null;
+          streamingThinking = null;
           isLoading = false;
 
           if (assistantMessage) {
-            // Add assistant message to UI
+            // Add assistant message to UI (with thinking content and usage)
             const assistantMsg: Message = {
               id: Date.now() + 1,
-              role: 'assistant',
+              role: "assistant",
               content: assistantMessage,
-              model: conversation.model || null
+              thinking: thinkingContent || undefined,
+              model: useModel,
+              input_tokens: usage?.input_tokens || null,
+              output_tokens: usage?.output_tokens || null,
+              created_at: new Date().toISOString(),
             };
             messages = [...messages, assistantMsg];
 
-            // Add to database
-            await chatService.addMessage(
+            // Add to database (with thinking content and usage)
+            const savedMessage = await chatService.addMessage(
               conversation.id,
-              'assistant',
+              "assistant",
               assistantMessage,
-              conversation.model || null
+              useModel,
+              thinkingContent || undefined,
+              usage?.input_tokens,
+              usage?.output_tokens,
             );
 
-            // Update conversation
-            const updatedConversation = await chatService.getConversation(conversation.id);
-            conversation = updatedConversation;
-            dispatch('conversationUpdate', { conversation });
+            // Update the temporary message with the actual saved message data
+            if (savedMessage) {
+              // Replace the temporary message with the saved one
+              messages = messages.map((msg) =>
+                msg.id === assistantMsg.id ? savedMessage : msg,
+              );
+
+              // Update conversation messages
+              conversation = {
+                ...conversation,
+                messages: messages,
+              };
+              dispatch("conversationUpdate", { conversation });
+            }
           }
         },
         (err) => {
           error = err.message;
           streamingMessage = null;
+          streamingThinking = null;
           isLoading = false;
-          dispatch('error', { message: err.message });
-        }
+          dispatch("error", { message: err.message });
+        },
       );
     } catch (err) {
-      error = err instanceof Error ? err.message : '发送消息失败';
+      error = err instanceof Error ? err.message : "发送消息失败";
       streamingMessage = null;
       isLoading = false;
-      dispatch('error', { message: error });
+      dispatch("error", { message: error });
     }
   }
 
@@ -156,7 +260,11 @@
 </script>
 
 <div class="chat-area">
-  <div class="messages-container" bind:this={messagesContainer}>
+  <div
+    class="messages-container"
+    bind:this={messagesContainer}
+    onscroll={handleScroll}
+  >
     {#if !conversation}
       <div class="welcome">
         <h2>欢迎使用 AI 聊天</h2>
@@ -164,13 +272,13 @@
       </div>
     {:else if isLoading && messages.length === 0}
       <div class="loading">
-        <div class="spinner" />
+        <div class="spinner"></div>
         <p>加载消息中...</p>
       </div>
     {:else if error}
       <div class="error">
         <p>{error}</p>
-        <button on:click={loadMessages}>重试</button>
+        <button onclick={loadMessages}>重试</button>
       </div>
     {:else if messages.length === 0}
       <div class="empty">
@@ -182,32 +290,48 @@
           {message}
           showModel={true}
           showTokens={true}
-          on:retry={handleRetry}
+          providerName={conversation.provider_name}
+          apiFormat={conversation.api_format}
+          onretry={handleRetry}
         />
       {/each}
 
-      {#if streamingMessage !== null}
+      {#if streamingMessage !== null || streamingThinking !== null}
         <MessageBubble
           message={{
             id: Date.now(),
-            role: 'assistant',
-            content: streamingMessage,
-            model: conversation.model || null
+            role: "assistant",
+            content: streamingMessage || "",
+            thinking: streamingThinking || undefined,
+            model: selectedModel || conversation.model || null,
           }}
           isStreaming={true}
           showModel={true}
           showTokens={false}
+          providerName={conversation.provider_name}
+          apiFormat={conversation.api_format}
         />
       {/if}
     {/if}
   </div>
+
+  <!-- Scroll to bottom button -->
+  {#if userScrolledUp && !isAtBottom}
+    <button
+      class="scroll-to-bottom"
+      onclick={scrollToBottom}
+      title="滚动到底部"
+    >
+      ↓
+    </button>
+  {/if}
 
   <div class="input-container">
     {#if conversation}
       <MessageInput
         disabled={isLoading}
         placeholder="输入消息..."
-        on:send={handleSendMessage}
+        onsend={handleSendMessage}
       />
     {:else}
       <div class="no-conversation-prompt">
@@ -222,18 +346,36 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     height: 100%;
+    position: relative;
   }
 
   .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 1.5rem;
-    background: var(--bg-secondary);
+    overflow-x: hidden;
+    padding: 2rem;
+    padding-bottom: 2rem;
+    background: linear-gradient(
+      to bottom,
+      var(--bg-secondary) 0%,
+      var(--bg-primary) 100%
+    );
+    min-height: 0;
+    scroll-behavior: smooth;
   }
 
+  .input-container {
+    flex-shrink: 0;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Custom scrollbar */
   .messages-container::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
 
   .messages-container::-webkit-scrollbar-track {
@@ -242,10 +384,19 @@
 
   .messages-container::-webkit-scrollbar-thumb {
     background: var(--border-color);
-    border-radius: 3px;
+    border-radius: 4px;
+    transition: background 0.2s;
   }
 
-  .welcome, .loading, .empty, .error {
+  .messages-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  /* Empty states */
+  .welcome,
+  .loading,
+  .empty,
+  .error {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -253,53 +404,179 @@
     height: 100%;
     text-align: center;
     color: var(--text-secondary);
+    padding: 2rem;
   }
 
   .welcome h2 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .welcome p {
+    font-size: 1rem;
+    opacity: 0.8;
+  }
+
+  .empty {
+    opacity: 0.7;
+  }
+
+  .empty p {
+    font-size: 1rem;
   }
 
   .spinner {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border: 3px solid var(--border-color);
     border-top: 3px solid var(--primary-color);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
     margin-bottom: 1rem;
   }
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .error {
+    color: #ef4444;
   }
 
   .error button {
     margin-top: 1rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
   }
 
-  .input-container {
-    background: var(--bg-primary);
-    border-top: 1px solid var(--border-color);
+  .error button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+
+  .scroll-to-bottom {
+    position: absolute;
+    bottom: 6rem;
+    right: 2rem;
+    width: 44px;
+    height: 44px;
+    background: var(--primary-color);
+    color: white;
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    z-index: 10;
+    animation: fadeInUp 0.3s ease-out;
+  }
+
+  .scroll-to-bottom:hover {
+    background: white;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .scroll-to-bottom:active {
+    transform: translateY(0) scale(0.98);
+    background: white;
+    color: var(--primary-color);
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .no-conversation-prompt {
     padding: 2rem;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    opacity: 0.7;
   }
 
+  /* Tablet styles */
+  @media (max-width: 1024px) {
+    .messages-container {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Mobile styles */
   @media (max-width: 768px) {
     .messages-container {
       padding: 1rem;
+      background: var(--bg-secondary);
+    }
+
+    .welcome h2 {
+      font-size: 1.5rem;
+    }
+
+    .welcome p {
+      font-size: 0.9rem;
+    }
+
+    .messages-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .scroll-to-bottom {
+      bottom: 5rem;
+      right: 1rem;
+      width: 40px;
+      height: 40px;
+      font-size: 1.25rem;
+    }
+  }
+
+  /* Small mobile styles */
+  @media (max-width: 480px) {
+    .messages-container {
+      padding: 0.75rem;
     }
 
     .welcome h2 {
       font-size: 1.25rem;
+    }
+
+    .scroll-to-bottom {
+      bottom: 4.5rem;
+      right: 0.75rem;
+      width: 36px;
+      height: 36px;
+      font-size: 1.125rem;
     }
   }
 </style>

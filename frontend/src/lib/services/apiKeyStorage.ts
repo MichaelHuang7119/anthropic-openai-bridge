@@ -3,10 +3,10 @@
  * 用于在创建时保存完整 API Key 到 localStorage，以便后续安全地显示和复制
  * 在清除浏览器缓存后，会尝试从后端接口获取完整 API Key
  */
-import { browser } from '$app/environment';
-import { apiClient } from './api';
+import { browser } from "$app/environment";
+import { apiClient } from "./api";
 
-const STORAGE_PREFIX = 'api_key_full_';
+const STORAGE_PREFIX = "api_key_full_";
 
 /**
  * 保存完整 API Key 到 localStorage
@@ -20,7 +20,7 @@ export function saveFullApiKey(keyId: number, fullKey: string): void {
     const storageKey = `${STORAGE_PREFIX}${keyId}`;
     localStorage.setItem(storageKey, fullKey);
   } catch (error) {
-    console.error('Failed to save API key to localStorage:', error);
+    console.error("Failed to save API key to localStorage:", error);
   }
 }
 
@@ -42,8 +42,12 @@ export async function getFullApiKey(keyId: number): Promise<string | null> {
     }
 
     // 如果没有缓存，尝试从后端接口获取
-    console.debug(`[API Key] Key ${keyId} not in localStorage, fetching from server...`);
-    const response = await apiClient.get<{ api_key: string }>(`/api/api-keys/${keyId}/full`);
+    console.debug(
+      `[API Key] Key ${keyId} not in localStorage, fetching from server...`,
+    );
+    const response = await apiClient.get<{ api_key: string }>(
+      `/api/api-keys/${keyId}/full`,
+    );
     const fullKey = response.api_key;
 
     // 保存到 localStorage
@@ -51,7 +55,7 @@ export async function getFullApiKey(keyId: number): Promise<string | null> {
 
     return fullKey;
   } catch (error) {
-    console.error('Failed to get API key:', error);
+    console.error("Failed to get API key:", error);
     return null;
   }
 }
@@ -68,7 +72,7 @@ export function getFullApiKeyLocal(keyId: number): string | null {
     const storageKey = `${STORAGE_PREFIX}${keyId}`;
     return localStorage.getItem(storageKey);
   } catch (error) {
-    console.error('Failed to get API key from localStorage:', error);
+    console.error("Failed to get API key from localStorage:", error);
     return null;
   }
 }
@@ -89,12 +93,12 @@ export function hasFullApiKey(keyId: number): boolean {
  */
 export function removeFullApiKey(keyId: number): void {
   if (!browser) return;
-  
+
   try {
     const storageKey = `${STORAGE_PREFIX}${keyId}`;
     localStorage.removeItem(storageKey);
   } catch (error) {
-    console.error('Failed to remove API key from localStorage:', error);
+    console.error("Failed to remove API key from localStorage:", error);
   }
 }
 
@@ -103,16 +107,15 @@ export function removeFullApiKey(keyId: number): void {
  */
 export function clearAllFullApiKeys(): void {
   if (!browser) return;
-  
+
   try {
     const keys = Object.keys(localStorage);
-    keys.forEach(key => {
+    keys.forEach((key) => {
       if (key.startsWith(STORAGE_PREFIX)) {
         localStorage.removeItem(key);
       }
     });
   } catch (error) {
-    console.error('Failed to clear API keys from localStorage:', error);
+    console.error("Failed to clear API keys from localStorage:", error);
   }
 }
-

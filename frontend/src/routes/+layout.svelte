@@ -53,7 +53,7 @@
   }
 </script>
 
-<div class="app">
+<div class="app" class:chat-layout={$page.url.pathname === '/chat'}>
   {#if $page.url.pathname !== '/login'}
     <Header title="Anthropic OpenAI Bridge 管理界面" subtitle="供应商管理与监控系统">
       <nav slot="nav">
@@ -91,6 +91,18 @@
     flex: 1;
     background: var(--bg-secondary);
     padding: 2rem 0;
+    min-height: 0;
+  }
+
+  :global(.chat-layout) .main {
+    padding: 0;
+  }
+
+  :global(.chat-layout) {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   @media (max-width: 768px) {

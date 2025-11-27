@@ -17,7 +17,7 @@ export interface CreateAPIKeyRequest {
 
 export interface CreateAPIKeyResponse {
   id: number;
-  api_key: string;  // 只在创建时返回完整Key
+  api_key: string; // 只在创建时返回完整Key
   key_prefix: string;
   name: string;
   email?: string;
@@ -29,4 +29,3 @@ export interface UpdateAPIKeyRequest {
   email?: string;
   is_active?: boolean;
 }
-

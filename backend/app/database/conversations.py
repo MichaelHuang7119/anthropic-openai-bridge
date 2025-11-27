@@ -159,7 +159,7 @@ class ConversationsManager:
             # Get messages
             await cursor.execute(
                 """
-                SELECT id, role, content, model, input_tokens, output_tokens, created_at
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -175,6 +175,7 @@ class ConversationsManager:
                         "role": msg_row["role"],
                         "content": msg_row["content"],
                         "model": msg_row["model"],
+                        "thinking": msg_row["thinking"],
                         "input_tokens": msg_row["input_tokens"],
                         "output_tokens": msg_row["output_tokens"],
                         "created_at": msg_row["created_at"],
@@ -260,6 +261,7 @@ class ConversationsManager:
         role: str,
         content: str,
         model: Optional[str] = None,
+        thinking: Optional[str] = None,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
     ) -> Optional[int]:
@@ -271,6 +273,7 @@ class ConversationsManager:
             role: Message role ('user' or 'assistant')
             content: Message content
             model: Model used for this message
+            thinking: Extended thinking content (optional)
             input_tokens: Input token count
             output_tokens: Output token count
 
@@ -284,10 +287,10 @@ class ConversationsManager:
             await cursor.execute(
                 """
                 INSERT INTO conversation_messages
-                (conversation_id, role, content, model, input_tokens, output_tokens)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (conversation_id, role, content, model, thinking, input_tokens, output_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-                (conversation_id, role, content, model, input_tokens, output_tokens),
+                (conversation_id, role, content, model, thinking, input_tokens, output_tokens),
             )
 
             # Update conversation updated_at
@@ -326,7 +329,7 @@ class ConversationsManager:
             cursor = await conn.cursor()
 
             query = """
-                SELECT id, role, content, model, input_tokens, output_tokens, created_at
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -349,6 +352,7 @@ class ConversationsManager:
                         "role": row["role"],
                         "content": row["content"],
                         "model": row["model"],
+                        "thinking": row["thinking"],
                         "input_tokens": row["input_tokens"],
                         "output_tokens": row["output_tokens"],
                         "created_at": row["created_at"],

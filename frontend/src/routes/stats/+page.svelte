@@ -974,8 +974,9 @@
         <div class="filters">
             <div class="filter-row">
               <div class="filter-group">
-                <label>供应商:</label>
+                <label for="token-provider-filter">供应商:</label>
                 <Input
+                  id="token-provider-filter"
                   type="text"
                   placeholder="搜索供应商..."
                   bind:value={tokenUsageProviderFilter}
@@ -985,8 +986,9 @@
               </div>
 
               <div class="filter-group">
-                <label>模型:</label>
+                <label for="token-model-filter">模型:</label>
                 <Input
+                  id="token-model-filter"
                   type="text"
                   placeholder="搜索模型..."
                   bind:value={tokenUsageModelFilter}
@@ -1082,8 +1084,9 @@
       <div class="filters">
           <div class="filter-row">
             <div class="filter-group">
-              <label>供应商:</label>
+              <label for="request-provider-filter">供应商:</label>
               <Input
+                id="request-provider-filter"
                 type="text"
                 placeholder="搜索供应商..."
                 bind:value={filterProvider}
@@ -1091,10 +1094,11 @@
                 class="filter-input"
               />
             </div>
-            
+
             <div class="filter-group">
-              <label>模型:</label>
+              <label for="request-model-filter">模型:</label>
               <Input
+                id="request-model-filter"
                 type="text"
                 placeholder="搜索模型..."
                 bind:value={filterModel}
@@ -1102,10 +1106,10 @@
                 class="filter-input"
               />
             </div>
-            
+
             <div class="filter-group">
-              <label>状态:</label>
-              <select class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
+              <label for="request-status-filter">状态:</label>
+              <select id="request-status-filter" class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
                 <option value="all">全部</option>
                 <option value="success">成功</option>
                 <option value="failed">失败</option>
@@ -1153,9 +1157,12 @@
                     <td class="error-cell">
                       {#if request.error_message}
                         {@const truncated = truncateError(request.error_message)}
-                        <span 
-                          class="error-preview clickable" 
+                        <span
+                          class="error-preview clickable"
+                          role="button"
+                          tabindex="0"
                           on:click={() => showErrorMessage(request)}
+                          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && showErrorMessage(request)}
                           title="点击查看完整错误信息"
                         >
                           {truncated}
@@ -1388,12 +1395,6 @@
     overflow: hidden;
   }
 
-  .error-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
   .error-preview {
     font-size: 0.875rem;
     color: var(--danger-color, #dc3545);
@@ -1455,11 +1456,6 @@
     height: 2.5rem;
   }
 
-  .filter-input {
-    height: 2.5rem;
-    min-width: 180px;
-  }
-
   .filter-group label {
     font-size: 0.875rem;
     color: var(--text-secondary);
@@ -1483,21 +1479,6 @@
   .filter-select:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
-  }
-
-  .clear-button {
-    margin-left: auto;
-    align-self: center;
-    height: 2.5rem;
-    flex-shrink: 0;
-    min-width: 80px;
-  }
-
-  .filter-info {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--border-color, #e9ecef);
   }
 
   .pagination {
@@ -1542,37 +1523,13 @@
     padding: 1rem;
   }
 
-  .load-more-button {
-    min-width: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.2s ease;
-  }
-
   .loading-spinner {
     animation: spin 1s linear infinite;
-  }
-
-  .more-icon {
-    transition: transform 0.2s ease;
-  }
-
-  .load-more-button:hover .more-icon {
-    transform: scale(1.1);
   }
 
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
-  }
-
-  .info-text {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    text-align: center;
-    padding: 2rem;
   }
 
   .loading {

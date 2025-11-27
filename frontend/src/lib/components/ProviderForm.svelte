@@ -348,7 +348,7 @@
     <!-- Large Models -->
     <div class="model-section">
       <div class="model-header">
-        <label>大模型 (Big Models)</label>
+        <h3>大模型 (Big Models)</h3>
         <Button size="sm" on:click={() => addModel('big')} title="添加大模型" class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -403,7 +403,7 @@
     <!-- Middle Models -->
     <div class="model-section">
       <div class="model-header">
-        <label>中模型 (Middle Models)</label>
+        <h3>中模型 (Middle Models)</h3>
         <Button size="sm" on:click={() => addModel('middle')} title="添加中模型" class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -458,7 +458,7 @@
     <!-- Small Models -->
     <div class="model-section">
       <div class="model-header">
-        <label>小模型 (Small Models)</label>
+        <h3>小模型 (Small Models)</h3>
         <Button size="sm" on:click={() => addModel('small')} title="添加小模型" class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -641,10 +641,11 @@
     align-items: center;
   }
 
-  .model-header label {
+  .model-header h3 {
     font-weight: 500;
     color: var(--text-primary, #495057);
     font-size: 0.875rem;
+    margin: 0;
   }
 
   .model-list {

@@ -257,6 +257,13 @@ class DatabaseCore:
             )
         """)
 
+        # Add thinking column if it doesn't exist (migration)
+        await cursor.execute("PRAGMA table_info(conversation_messages)")
+        columns = [row['name'] for row in await cursor.fetchall()]
+        if 'thinking' not in columns:
+            await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN thinking TEXT")
+            logger.info("Added thinking column to conversation_messages table")
+
         await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
             ON conversation_messages(conversation_id)

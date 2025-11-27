@@ -249,14 +249,14 @@ async def get_current_api_user(
 ) -> Dict[str, Any]:
     """
     Get current authenticated API user (for service API).
-    Only accepts API keys.
-    
+    Accepts both API keys and JWT tokens (for admin users).
+
     In development mode (DEV_MODE=true), allows access without API key or with any API key string.
     No validation is performed in development mode.
-    
+
     Optimization: If an API key is provided but invalid, return error immediately
     instead of trying other authentication methods.
-    
+
     Raises:
         HTTPException: If authentication fails (only in production mode)
     """
@@ -270,9 +270,9 @@ async def get_current_api_user(
             "user_id": None,
             "type": "dev"
         }
-    
-    # Production mode: require valid API key
-    # Try API key from header
+
+    # Production mode: require valid API key or JWT token
+    # Try API key from header first
     if request:
         api_key = request.headers.get("X-API-Key")
         if api_key:
@@ -288,7 +288,7 @@ async def get_current_api_user(
                     "Retry-After": "0",  # Tell client not to retry authentication errors
                 },
             )
-        
+
         # Try API key from query parameter
         api_key = request.query_params.get("api_key")
         if api_key:
@@ -304,8 +304,8 @@ async def get_current_api_user(
                     "Retry-After": "0",  # Tell client not to retry authentication errors
                 },
             )
-    
-    # Try Bearer token (for backward compatibility)
+
+    # Try Bearer token (could be API key or JWT token)
     if credentials:
         token = credentials.credentials
         # Check if it's an API key format (starts with sk-)
@@ -322,11 +322,37 @@ async def get_current_api_user(
                     "Retry-After": "0",  # Tell client not to retry authentication errors
                 },
             )
-    
-    # No API key provided
+        else:
+            # Try JWT token (for admin users)
+            user = verify_jwt_token(token)
+            if user:
+                # Verify user is active
+                db = get_database()
+                user_data = await db.get_user_by_id(user["user_id"])
+                if user_data and user_data.get("is_active"):
+                    logger.info(f"JWT token authentication successful for user {user_data['email']}")
+                    return {
+                        "user_id": user_data["id"],
+                        "email": user_data["email"],
+                        "name": user_data.get("name"),
+                        "is_admin": user_data.get("is_admin", False),
+                        "type": "jwt"
+                    }
+            # JWT token was provided but invalid
+            logger.warning(f"Invalid JWT token provided to API endpoint")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={
+                    "WWW-Authenticate": "Bearer",
+                    "Retry-After": "0",
+                },
+            )
+
+    # No authentication provided
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="API key required",
+        detail="API key or authentication token required",
         headers={
             "WWW-Authenticate": "Bearer",
             "Retry-After": "0",  # Tell client not to retry authentication errors

@@ -379,7 +379,10 @@
                   {@const truncated = truncateError(provider.error)}
                   <span
                     class="error-value clickable"
+                    role="button"
+                    tabindex="0"
                     on:click={() => showErrorMessage(provider.name, provider.error || '')}
+                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && showErrorMessage(provider.name, provider.error || '')}
                     title="点击查看完整错误信息"
                   >
                     {truncated}
@@ -538,13 +541,6 @@
   .filter-select:focus {
     outline: 2px solid var(--primary-color, #007bff);
     outline-offset: 2px;
-  }
-
-  .clear-button {
-    margin-left: auto;
-    align-self: center;
-    height: 2.5rem;
-    flex-shrink: 0;
   }
 
   .pagination {

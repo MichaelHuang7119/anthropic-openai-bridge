@@ -1,4 +1,4 @@
-import { authService } from './auth';
+import { authService } from "./auth";
 
 export interface ModelChoice {
   providerName: string;
@@ -22,8 +22,9 @@ export interface ConversationDetail extends Conversation {
 
 export interface Message {
   id: number;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
+  thinking?: string; // Extended thinking content
   model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
@@ -40,33 +41,41 @@ export interface ChatState {
 }
 
 class ChatService {
-  private baseUrl = '/api';
+  private baseUrl = "/api";
 
   /**
    * Get all conversations for current user
    */
-  async getConversations(limit: number = 50, offset: number = 0): Promise<Conversation[]> {
+  async getConversations(
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<Conversation[]> {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const response = await fetch(`${this.baseUrl}/conversations?limit=${limit}&offset=${offset}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(
+        `${this.baseUrl}/conversations?limit=${limit}&offset=${offset}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to fetch conversations' }));
-        throw new Error(error.detail || 'Failed to fetch conversations');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to fetch conversations" }));
+        throw new Error(error.detail || "Failed to fetch conversations");
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Failed to get conversations:', error);
+      console.error("Failed to get conversations:", error);
       throw error;
     }
   }
@@ -78,19 +87,24 @@ class ChatService {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const response = await fetch(`${this.baseUrl}/conversations/${conversationId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(
+        `${this.baseUrl}/conversations/${conversationId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to fetch conversation' }));
-        throw new Error(error.detail || 'Failed to fetch conversation');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to fetch conversation" }));
+        throw new Error(error.detail || "Failed to fetch conversation");
       }
 
       return await response.json();
@@ -107,36 +121,38 @@ class ChatService {
     title: string,
     providerName: string,
     apiFormat: string,
-    model: string
+    model: string,
   ): Promise<Conversation> {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
       const response = await fetch(`${this.baseUrl}/conversations`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           title,
           provider_name: providerName,
           api_format: apiFormat,
-          model
-        })
+          model,
+        }),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to create conversation' }));
-        throw new Error(error.detail || 'Failed to create conversation');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to create conversation" }));
+        throw new Error(error.detail || "Failed to create conversation");
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Failed to create conversation:', error);
+      console.error("Failed to create conversation:", error);
       throw error;
     }
   }
@@ -144,25 +160,33 @@ class ChatService {
   /**
    * Update conversation title
    */
-  async updateConversation(conversationId: number, title: string): Promise<Conversation> {
+  async updateConversation(
+    conversationId: number,
+    title: string,
+  ): Promise<Conversation> {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const response = await fetch(`${this.baseUrl}/conversations/${conversationId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${this.baseUrl}/conversations/${conversationId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title }),
         },
-        body: JSON.stringify({ title })
-      });
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to update conversation' }));
-        throw new Error(error.detail || 'Failed to update conversation');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to update conversation" }));
+        throw new Error(error.detail || "Failed to update conversation");
       }
 
       return await response.json();
@@ -179,19 +203,24 @@ class ChatService {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const response = await fetch(`${this.baseUrl}/conversations/${conversationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await fetch(
+        `${this.baseUrl}/conversations/${conversationId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to delete conversation' }));
-        throw new Error(error.detail || 'Failed to delete conversation');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to delete conversation" }));
+        throw new Error(error.detail || "Failed to delete conversation");
       }
     } catch (error) {
       console.error(`Failed to delete conversation ${conversationId}:`, error);
@@ -204,45 +233,61 @@ class ChatService {
    */
   async addMessage(
     conversationId: number,
-    role: 'user' | 'assistant',
+    role: "user" | "assistant",
     content: string,
     model?: string,
+    thinking?: string,
     inputTokens?: number,
-    outputTokens?: number
+    outputTokens?: number,
   ): Promise<Message> {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const params = new URLSearchParams({
+      const requestBody: {
+        role: string;
+        content: string;
+        model?: string;
+        thinking?: string;
+        input_tokens?: number;
+        output_tokens?: number;
+      } = {
         role,
-        content
-      });
+        content,
+      };
 
-      if (model) params.append('model', model);
-      if (inputTokens !== undefined) params.append('input_tokens', inputTokens.toString());
-      if (outputTokens !== undefined) params.append('output_tokens', outputTokens.toString());
+      if (model) requestBody.model = model;
+      if (thinking) requestBody.thinking = thinking;
+      if (inputTokens !== undefined) requestBody.input_tokens = inputTokens;
+      if (outputTokens !== undefined) requestBody.output_tokens = outputTokens;
 
       const response = await fetch(
-        `${this.baseUrl}/conversations/${conversationId}/messages?${params}`,
+        `${this.baseUrl}/conversations/${conversationId}/messages`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        },
       );
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to add message' }));
-        throw new Error(error.detail || 'Failed to add message');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to add message" }));
+        throw new Error(error.detail || "Failed to add message");
       }
 
       return await response.json();
     } catch (error) {
-      console.error(`Failed to add message to conversation ${conversationId}:`, error);
+      console.error(
+        `Failed to add message to conversation ${conversationId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -250,30 +295,40 @@ class ChatService {
   /**
    * Get messages for a conversation
    */
-  async getMessages(conversationId: number, limit?: number): Promise<Message[]> {
+  async getMessages(
+    conversationId: number,
+    limit?: number,
+  ): Promise<Message[]> {
     try {
       const token = authService.getToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
 
-      const url = new URL(`${this.baseUrl}/conversations/${conversationId}/messages`);
-      if (limit) url.searchParams.append('limit', limit.toString());
+      const url = new URL(
+        `${this.baseUrl}/conversations/${conversationId}/messages`,
+      );
+      if (limit) url.searchParams.append("limit", limit.toString());
 
       const response = await fetch(url.toString(), {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to fetch messages' }));
-        throw new Error(error.detail || 'Failed to fetch messages');
+        const error = await response
+          .json()
+          .catch(() => ({ detail: "Failed to fetch messages" }));
+        throw new Error(error.detail || "Failed to fetch messages");
       }
 
       return await response.json();
     } catch (error) {
-      console.error(`Failed to get messages for conversation ${conversationId}:`, error);
+      console.error(
+        `Failed to get messages for conversation ${conversationId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -284,105 +339,188 @@ class ChatService {
   async sendChatMessage(
     conversation: ConversationDetail,
     message: string,
-    onStream: (chunk: string) => void,
-    onComplete: () => void,
-    onError: (error: Error) => void
+    onStream: (chunk: string, thinking?: string) => void,
+    onComplete: (usage?: {
+      input_tokens: number;
+      output_tokens: number;
+    }) => void,
+    onError: (error: Error) => void,
   ): Promise<void> {
     try {
-      const apiKey = authService.getApiKey();
-      if (!apiKey) {
-        throw new Error('No API key configured');
+      const token = authService.getAuthHeaders().Authorization;
+      if (!token) {
+        throw new Error("Not authenticated");
       }
 
       if (!conversation.model) {
-        throw new Error('No model selected');
+        throw new Error("No model selected");
       }
 
       // Prepare messages (all messages from conversation + new message)
+      // Filter out messages with missing content
+      console.log(
+        "chatService: All conversation messages:",
+        conversation.messages,
+      );
+      const filteredMessages = conversation.messages.filter(
+        (msg) => msg.content && msg.content.trim(),
+      );
+      console.log("chatService: Filtered messages:", filteredMessages);
+
       const messages = [
-        ...conversation.messages.map(msg => ({
+        ...filteredMessages.map((msg) => ({
           role: msg.role,
-          content: msg.content
+          content: msg.content,
         })),
         {
-          role: 'user',
-          content: message
-        }
+          role: "user",
+          content: message,
+        },
       ];
+
+      console.log("chatService: Final messages to send:", messages);
 
       const requestBody = {
         model: conversation.model,
         messages: messages,
         max_tokens: 4096,
-        stream: true
+        stream: true,
       };
 
-      const response = await fetch('/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
+      // Add provider and api_format to headers if available
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...authService.getAuthHeaders(),
+      };
+
+      if (conversation.provider_name) {
+        headers["X-Provider-Name"] = conversation.provider_name;
+      }
+      if (conversation.api_format) {
+        headers["X-API-Format"] = conversation.api_format;
+      }
+
+      console.log("chatService: Request headers:", headers);
+      console.log("chatService: Request body:", requestBody);
+
+      const response = await fetch("/v1/messages", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: { message: 'Failed to send message' } }));
-        throw new Error(error.error?.message || 'Failed to send message');
+        const error = await response
+          .json()
+          .catch(() => ({ error: { message: "Failed to send message" } }));
+        throw new Error(error.error?.message || "Failed to send message");
       }
 
       if (!response.body) {
-        throw new Error('No response body');
+        throw new Error("No response body");
       }
 
       // Handle streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
-      let buffer = '';
+      let buffer = "";
+      let currentThinking = ""; // Accumulate thinking content
+      let usage: { input_tokens: number; output_tokens: number } | undefined;
 
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
-          onComplete();
+          onComplete(usage);
           break;
         }
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+        for (const block of lines) {
+          if (!block.trim()) continue;
 
-            if (data === '[DONE]') {
-              onComplete();
-              return;
+          // Parse SSE format: event: type\ndata: json
+          const eventLines = block.split("\n");
+          let eventData = null;
+
+          for (const line of eventLines) {
+            if (line.startsWith("data: ")) {
+              eventData = line.slice(6).trim();
             }
+          }
 
-            try {
-              const parsed = JSON.parse(data);
+          // If no explicit event type, check if data starts with "data: "
+          if (!eventData && block.startsWith("data: ")) {
+            eventData = block.slice(6).trim();
+          }
 
-              // Handle different event types
-              if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-                onStream(parsed.delta.text);
-              } else if (parsed.type === 'message_start' && parsed.message?.usage) {
-                // Message started, could track usage here
-                console.log('Message started with usage:', parsed.message.usage);
-              } else if (parsed.type === 'message_stop') {
-                onComplete();
-                return;
+          if (!eventData) continue;
+
+          if (eventData === "[DONE]") {
+            onComplete(usage);
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(eventData);
+
+            // Handle different event types
+            if (parsed.type === "content_block_delta") {
+              // Handle thinking content
+              if (
+                parsed.delta?.type === "thinking_delta" &&
+                parsed.delta?.thinking
+              ) {
+                currentThinking += parsed.delta.thinking;
+                // Send both empty text and thinking update
+                onStream("", currentThinking);
               }
-            } catch (e) {
-              console.error('Failed to parse SSE data:', data, e);
+              // Handle regular text content
+              else if (parsed.delta?.text) {
+                onStream(parsed.delta.text, currentThinking);
+              }
+            } else if (parsed.type === "content_block_start") {
+              // Reset thinking when a new thinking block starts
+              if (parsed.content_block?.type === "thinking") {
+                currentThinking = "";
+              }
+            } else if (
+              parsed.type === "message_start" &&
+              parsed.message?.usage
+            ) {
+              // Capture usage information
+              usage = {
+                input_tokens: parsed.message.usage.input_tokens || 0,
+                output_tokens: parsed.message.usage.output_tokens || 0,
+              };
+              console.log("Message started with usage:", usage);
+            } else if (parsed.type === "message_delta" && parsed.usage) {
+              // Update usage information if provided in delta
+              usage = {
+                input_tokens:
+                  parsed.usage.input_tokens || usage?.input_tokens || 0,
+                output_tokens:
+                  parsed.usage.output_tokens || usage?.output_tokens || 0,
+              };
+              console.log("Usage updated:", usage);
+            } else if (parsed.type === "message_stop") {
+              onComplete(usage);
+              return;
+            } else if (parsed.type === "ping") {
+              // Ignore ping events
+              continue;
             }
+          } catch (e) {
+            console.error("Failed to parse SSE data:", eventData, e);
           }
         }
       }
     } catch (error) {
-      console.error('Failed to send chat message:', error);
+      console.error("Failed to send chat message:", error);
       onError(error instanceof Error ? error : new Error(String(error)));
     }
   }
@@ -392,8 +530,8 @@ class ChatService {
    */
   generateTitle(message: string): string {
     // Take first 50 characters, remove newlines, add ellipsis if needed
-    const trimmed = message.replace(/\n/g, ' ').trim();
-    return trimmed.length > 50 ? trimmed.slice(0, 50) + '...' : trimmed;
+    const trimmed = message.replace(/\n/g, " ").trim();
+    return trimmed.length > 50 ? trimmed.slice(0, 50) + "..." : trimmed;
   }
 }
 

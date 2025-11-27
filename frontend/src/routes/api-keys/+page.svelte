@@ -77,7 +77,7 @@
 
   // 分页相关
   let currentPage = 1;
-  const pageSize = 5;
+  const pageSize = 10;
   let totalPages = 1;
   let totalCount = 0;
   let loadingKeys = false;
@@ -585,7 +585,6 @@
                           )
                             ? 'expanded'
                             : ''}"
-                          tabindex="0"
                         >
                           {getDisplayKeyText(key.id, key.key_prefix)}
                         </code>
@@ -881,8 +880,21 @@
 
 <!-- Create API Key Modal -->
 {#if showCreateForm}
-  <div class="modal-overlay" on:click={handleCloseCreateForm}>
-    <div class="modal-content" on:click|stopPropagation>
+  <div
+    class="modal-overlay"
+    role="button"
+    tabindex="0"
+    on:click={() => {}}
+    on:keydown={() => {}}
+  >
+    <div
+      class="modal-content"
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+    >
       <h2>创建 API Key</h2>
 
       <form on:submit|preventDefault={handleSaveCreate} class="create-form">
@@ -1041,13 +1053,6 @@
   .filter-select:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
-  }
-
-  .clear-button {
-    margin-left: auto;
-    align-self: center;
-    height: 2.5rem;
-    flex-shrink: 0;
   }
 
   .pagination {

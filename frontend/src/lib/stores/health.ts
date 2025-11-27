@@ -1,19 +1,22 @@
-import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
-import type { HealthStatus } from '$types/health';
+import { writable } from "svelte/store";
+import { browser } from "$app/environment";
+import type { HealthStatus } from "$types/health";
 
-const STORAGE_KEY = 'health_check_data';
-const LAST_CHECK_KEY = 'last_health_check_time';
+const STORAGE_KEY = "health_check_data";
+const LAST_CHECK_KEY = "last_health_check_time";
 
 // 初始健康状态
 const initialHealthStatus: HealthStatus = {
-  status: 'error',
-  timestamp: '',
-  providers: []
+  status: "error",
+  timestamp: "",
+  providers: [],
 };
 
 // 从localStorage读取数据
-function loadFromStorage(): { healthData: HealthStatus, lastCheck: Date | null } {
+function loadFromStorage(): {
+  healthData: HealthStatus;
+  lastCheck: Date | null;
+} {
   if (!browser) {
     return { healthData: initialHealthStatus, lastCheck: null };
   }
@@ -28,7 +31,7 @@ function loadFromStorage(): { healthData: HealthStatus, lastCheck: Date | null }
       return { healthData, lastCheck };
     }
   } catch (error) {
-    console.error('Failed to load health data from localStorage:', error);
+    console.error("Failed to load health data from localStorage:", error);
   }
 
   return { healthData: initialHealthStatus, lastCheck: null };
@@ -41,7 +44,7 @@ function saveToStorage(data: HealthStatus) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save health data to localStorage:', error);
+    console.error("Failed to save health data to localStorage:", error);
   }
 }
 
@@ -51,7 +54,7 @@ function saveLastCheckTime(time: Date) {
   try {
     localStorage.setItem(LAST_CHECK_KEY, time.toISOString());
   } catch (error) {
-    console.error('Failed to save last check time to localStorage:', error);
+    console.error("Failed to save last check time to localStorage:", error);
   }
 }
 
@@ -93,6 +96,6 @@ export function clearHealthData() {
     healthStatus.set(initialHealthStatus);
     lastHealthCheck.set(null);
   } catch (error) {
-    console.error('Failed to clear health data:', error);
+    console.error("Failed to clear health data:", error);
   }
 }

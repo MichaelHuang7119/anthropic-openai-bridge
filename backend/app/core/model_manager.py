@@ -15,8 +15,31 @@ class ModelManager:
         """Initialize model manager."""
         self.config = config
     
+    def get_provider_by_name(self, provider_name: str, api_format: Optional[str] = None) -> Optional[ProviderConfig]:
+        """
+        Get provider configuration by name and optionally api_format.
+
+        Args:
+            provider_name: Name of the provider
+            api_format: Optional API format ('openai' or 'anthropic'). If None, returns first match by name.
+
+        Returns:
+            ProviderConfig if found and enabled, None otherwise
+        """
+        providers = self.config.get_enabled_providers()
+        for provider in providers:
+            if provider.name == provider_name:
+                # If api_format is specified, must match
+                if api_format is not None:
+                    if provider.api_format == api_format:
+                        return provider
+                else:
+                    # If api_format not specified, return first match
+                    return provider
+        return None
+
     def get_provider_and_model(
-        self, 
+        self,
         anthropic_model: str,
         exclude_providers: Optional[List[str]] = None,
         exclude_models: Optional[Dict[str, List[str]]] = None,
@@ -24,19 +47,19 @@ class ModelManager:
     ) -> Tuple[ProviderConfig, str]:
         """
         Get provider and actual model name for given Anthropic model.
-        
+
         Rotates through all models in a category within the same provider
         before switching to the next provider.
-        
+
         Args:
             anthropic_model: Anthropic model name (haiku, sonnet, opus)
             exclude_providers: List of provider names to skip
             exclude_models: Dict mapping provider names to lists of model names to skip
             preferred_provider: Optional provider name to use (if specified, only search in this provider)
-            
+
         Returns:
             Tuple of (ProviderConfig, actual_model_name)
-            
+
         Raises:
             ValueError: If no suitable provider/model found
         """

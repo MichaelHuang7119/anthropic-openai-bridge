@@ -1,18 +1,30 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { chatService, type ModelChoice } from '$services/chatService';
-  import { providerService } from '$services/providers';
-  import { theme } from '$stores/theme';
+  import { createEventDispatcher, onMount } from "svelte";
+  import { chatService, type ModelChoice } from "$services/chatService";
+  import { providerService } from "$services/providers";
+  import { theme } from "$stores/theme";
 
-  export let selectedModel: ModelChoice | null = null;
-  export let selectedProvider: string = '';
-  export let selectedApiFormat: string = '';
-  export let selectedModelName: string = '';
-  export let selectedCategory: string = 'middle';
+  interface Props {
+    selectedModel?: ModelChoice | null;
+    selectedProvider?: string;
+    selectedApiFormat?: string;
+    selectedModelName?: string;
+    selectedCategory?: string;
+    onModelSelected?: (modelChoice: ModelChoice) => void;
+  }
 
   const dispatch = createEventDispatcher<{
     modelSelected: ModelChoice;
   }>();
+
+  let {
+    selectedModel = $bindable(null),
+    selectedProvider = $bindable(""),
+    selectedApiFormat = $bindable(""),
+    selectedModelName = $bindable(""),
+    selectedCategory = $bindable("middle"),
+    onModelSelected,
+  }: Props = $props();
 
   interface ProviderConfig {
     name: string;
@@ -22,40 +34,88 @@
       middle?: string[];
       small?: string[];
     };
+    enabled?: boolean;
   }
 
-  let providers: ProviderConfig[] = [];
-  let modelCategories: string[] = ['big', 'middle', 'small'];
+  let providers = $state<ProviderConfig[]>([]);
+  let modelCategories = $state(["big", "middle", "small"]);
 
-  let loading = true;
-  let error: string | null = null;
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+
+  // Computed sorted providers for display
+  let sortedProviders: ProviderConfig[] = $derived(
+    [...providers].sort((a, b) => {
+      // Primary sort: by provider name (alphabetically, case-insensitive)
+      const nameCompare = a.name
+        .toLowerCase()
+        .localeCompare(b.name.toLowerCase());
+      if (nameCompare !== 0) return nameCompare;
+
+      // Secondary sort: by API format (anthropic first, then openai)
+      const formatOrder = { anthropic: 0, openai: 1 };
+      const aOrder = formatOrder[a.api_format as keyof typeof formatOrder] ?? 2;
+      const bOrder = formatOrder[b.api_format as keyof typeof formatOrder] ?? 2;
+      return aOrder - bOrder;
+    }),
+  );
 
   // Get available models for current selection
-  // Depends on: selectedCategory, selectedProvider, selectedApiFormat
-  $: availableModels = selectedCategory && getAvailableModels();
-
   function getAvailableModels(): string[] {
-    if (!selectedProvider || !selectedApiFormat) return [];
+    // Return empty array if selection is incomplete (normal during initialization)
+    if (!selectedProvider || !selectedApiFormat || !selectedCategory) {
+      return [];
+    }
 
-    const provider = providers.find(p => p.name === selectedProvider && p.api_format === selectedApiFormat);
-    if (!provider) return [];
+    const provider = providers.find((p) => {
+      return p.name === selectedProvider && p.api_format === selectedApiFormat;
+    });
 
-    const models = provider.models[selectedCategory as keyof ProviderConfig['models']];
+    if (!provider) {
+      // Only log if providers are loaded but provider not found (indicates a real issue)
+      if (providers.length > 0) {
+        console.warn("Provider not found:", {
+          selectedProvider,
+          selectedApiFormat,
+          availableProviders: providers.map((p) => ({
+            name: p.name,
+            format: p.api_format,
+          })),
+        });
+      }
+      return [];
+    }
+
+    const models =
+      provider.models[selectedCategory as keyof ProviderConfig["models"]];
     return models || [];
   }
 
-  // Update model selection when dropdowns change
-  $: selectedProvider, selectedApiFormat, selectedModelName, updateModelSelection()
+  // Compute available models reactively
+  let availableModels: string[] = $derived(getAvailableModels());
 
-  function updateModelSelection() {
-    const modelChoice: ModelChoice = {
-      providerName: selectedProvider,
-      apiFormat: selectedApiFormat,
-      model: selectedModelName
-    };
-    selectedModel = modelChoice;
-    dispatch('modelSelected', modelChoice);
-  }
+  // Reset model selection when provider, category, or available models change
+  $effect(() => {
+    // Auto-select first available model if current selection is invalid
+    if (
+      availableModels.length > 0 &&
+      (!selectedModelName || !availableModels.includes(selectedModelName))
+    ) {
+      selectedModelName = availableModels[0];
+    }
+
+    // Dispatch model selection event
+    if (selectedProvider && selectedApiFormat && selectedModelName) {
+      const modelChoice: ModelChoice = {
+        providerName: selectedProvider,
+        apiFormat: selectedApiFormat,
+        model: selectedModelName,
+      };
+      selectedModel = modelChoice;
+      dispatch("modelSelected", modelChoice);
+      console.log("Model selected:", modelChoice);
+    }
+  });
 
   onMount(async () => {
     try {
@@ -66,23 +126,80 @@
       providers = providersData.filter((p: ProviderConfig) => p.enabled);
 
       if (providers.length > 0) {
-        // Set defaults
-        selectedProvider = providers[0].name;
-        selectedApiFormat = providers[0].api_format;
+        // If provider/format/model are already set (from conversation), validate and find category
+        if (selectedProvider && selectedApiFormat && selectedModelName) {
+          const provider = providers.find(
+            (p) =>
+              p.name === selectedProvider && p.api_format === selectedApiFormat,
+          );
 
-        // Find first available model
-        for (const category of modelCategories) {
-          const models = providers[0].models[category as keyof ProviderConfig['models']];
-          if (models && models.length > 0) {
-            selectedCategory = category;
-            selectedModelName = models[0];
-            break;
+          if (provider) {
+            // Find which category contains the selected model
+            let foundCategory = false;
+            for (const category of modelCategories) {
+              const models =
+                provider.models[category as keyof ProviderConfig["models"]];
+              if (models && models.includes(selectedModelName)) {
+                selectedCategory = category;
+                foundCategory = true;
+                console.log(
+                  `Found model "${selectedModelName}" in category "${category}"`,
+                );
+                break;
+              }
+            }
+
+            // If model not found in any category, fall back to defaults
+            if (!foundCategory) {
+              console.warn(
+                `Model "${selectedModelName}" not found in provider "${selectedProvider}", using defaults`,
+              );
+              selectedProvider = "";
+              selectedApiFormat = "";
+              selectedModelName = "";
+            }
+          } else {
+            // Provider not found or not enabled, fall back to defaults
+            console.warn(
+              `Provider "${selectedProvider}" (${selectedApiFormat}) not found or not enabled, using defaults`,
+            );
+            selectedProvider = "";
+            selectedApiFormat = "";
+            selectedModelName = "";
+          }
+        }
+
+        // Set defaults if not already set or if validation failed
+        if (!selectedProvider) {
+          selectedProvider = providers[0].name;
+        }
+        if (!selectedApiFormat) {
+          selectedApiFormat = providers[0].api_format;
+        }
+
+        // Find first available model if not set
+        if (!selectedModelName) {
+          const provider =
+            providers.find(
+              (p) =>
+                p.name === selectedProvider &&
+                p.api_format === selectedApiFormat,
+            ) || providers[0];
+
+          for (const category of modelCategories) {
+            const models =
+              provider.models[category as keyof ProviderConfig["models"]];
+            if (models && models.length > 0) {
+              selectedCategory = category;
+              selectedModelName = models[0];
+              break;
+            }
           }
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load providers';
-      console.error('Failed to load providers:', err);
+      error = err instanceof Error ? err.message : "Failed to load providers";
+      console.error("Failed to load providers:", err);
     } finally {
       loading = false;
     }
@@ -90,16 +207,22 @@
 
   function handleProviderChange(event: Event) {
     const select = event.target as HTMLSelectElement;
-    selectedProvider = select.value;
+    const value = select.value;
+
+    // Value format: "name||api_format"
+    const [name, apiFormat] = value.split("||");
+    selectedProvider = name;
+    selectedApiFormat = apiFormat;
 
     // Reset model selection
-    const provider = providers.find(p => p.name === selectedProvider);
+    const provider = providers.find(
+      (p) => p.name === name && p.api_format === apiFormat,
+    );
     if (provider) {
-      selectedApiFormat = provider.api_format;
-
       // Find first available model
       for (const category of modelCategories) {
-        const models = provider.models[category as keyof ProviderConfig['models']];
+        const models =
+          provider.models[category as keyof ProviderConfig["models"]];
         if (models && models.length > 0) {
           selectedCategory = category;
           selectedModelName = models[0];
@@ -112,6 +235,17 @@
   function handleModelChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     selectedModelName = select.value;
+  }
+
+  function handleCategoryChange(event: Event) {
+    // Category change already handled by bind:value, but we need to reset model selection
+    const select = event.target as HTMLSelectElement;
+    selectedCategory = select.value;
+
+    // Reset model to first available one in the new category
+    if (availableModels.length > 0) {
+      selectedModelName = availableModels[0];
+    }
   }
 </script>
 
@@ -127,11 +261,14 @@
         <select
           id="provider-select"
           class="select"
-          bind:value={selectedProvider}
-          on:change={handleProviderChange}
+          onchange={handleProviderChange}
         >
-          {#each providers as provider}
-            <option value={provider.name}>
+          {#each sortedProviders as provider}
+            <option
+              value={`${provider.name}||${provider.api_format}`}
+              selected={selectedProvider === provider.name &&
+                selectedApiFormat === provider.api_format}
+            >
               {provider.name} ({provider.api_format})
             </option>
           {/each}
@@ -140,7 +277,12 @@
 
       <div class="selector-group">
         <label for="category-select">模型类别</label>
-        <select id="category-select" class="select" bind:value={selectedCategory}>
+        <select
+          id="category-select"
+          class="select"
+          bind:value={selectedCategory}
+          onchange={handleCategoryChange}
+        >
           <option value="big">大模型</option>
           <option value="middle">中等模型</option>
           <option value="small">小模型</option>
@@ -153,7 +295,7 @@
           id="model-select"
           class="select"
           bind:value={selectedModelName}
-          on:change={handleModelChange}
+          onchange={handleModelChange}
         >
           {#each availableModels as model}
             <option value={model}>{model}</option>
@@ -166,8 +308,12 @@
 
     {#if selectedModel}
       <div class="model-info">
-        <span class="provider">供应商: <strong>{selectedModel.providerName}</strong></span>
-        <span class="format">API格式: <strong>{selectedModel.apiFormat}</strong></span>
+        <span class="provider"
+          >供应商: <strong>{selectedModel.providerName}</strong></span
+        >
+        <span class="format"
+          >API格式: <strong>{selectedModel.apiFormat}</strong></span
+        >
         <span class="model">模型: <strong>{selectedModel.model}</strong></span>
       </div>
     {/if}
@@ -245,7 +391,8 @@
     font-weight: 600;
   }
 
-  .loading, .error {
+  .loading,
+  .error {
     padding: 1rem;
     text-align: center;
     border-radius: 0.375rem;

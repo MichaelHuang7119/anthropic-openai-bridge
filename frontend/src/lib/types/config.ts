@@ -4,6 +4,6 @@ export interface CircuitBreakerConfig {
 }
 
 export interface GlobalConfig {
-  fallback_strategy: 'priority' | 'random';
+  fallback_strategy: "priority" | "random";
   circuit_breaker: CircuitBreakerConfig;
 }

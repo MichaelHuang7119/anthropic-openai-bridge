@@ -135,8 +135,8 @@ class MessagesRequest(BaseModel):
             raise ValueError("Model name cannot be empty")
         if len(v) > 100:
             raise ValueError("Model name too long")
-        # Allow alphanumeric, dashes, underscores, and dots
-        if not re.match(r'^[a-zA-Z0-9._-]+$', v):
+        # Allow alphanumeric, dashes, underscores, dots, and slashes
+        if not re.match(r'^[a-zA-Z0-9._/-]+$', v):
             raise ValueError("Model name contains invalid characters")
         return v.strip()
 

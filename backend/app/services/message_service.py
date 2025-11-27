@@ -55,11 +55,21 @@ class MessageService:
         request: Union[MessagesRequest, dict],
         api_user: dict,
         exclude_providers: Optional[List[str]] = None,
-        exclude_models: Optional[Dict[str, List[str]]] = None
+        exclude_models: Optional[Dict[str, List[str]]] = None,
+        provider_name: Optional[str] = None,
+        api_format: Optional[str] = None
     ):
         """Internal function to handle messages request with optional exclude parameters.
 
         Rotates through all models in a category within the same provider before switching providers.
+
+        Args:
+            request: The messages request
+            api_user: The authenticated user
+            exclude_providers: List of provider names to exclude
+            exclude_models: Dict of provider names to lists of model names to exclude
+            provider_name: Specific provider name to use (from conversation)
+            api_format: API format to use (from conversation)
         """
         request_id = str(uuid.uuid4())
         start_time = time.time()
@@ -78,24 +88,155 @@ class MessageService:
             else:
                 req = request
 
+            # Log request details including user's question
+            user_question = ""
+            if req.messages:
+                # Get the last user message as the current question
+                for msg in reversed(req.messages):
+                    if msg.role == "user":
+                        user_question = msg.content if isinstance(msg.content, str) else str(msg.content)[:200]
+                        break
+
+            logger.info(
+                f"[Request {request_id}] Processing message request:\n"
+                f"  Model: {req.model}\n"
+                f"  Provider: {provider_name}\n"
+                f"  API Format: {api_format}\n"
+                f"  Stream: {req.stream}\n"
+                f"  User Question: {user_question[:200]}{'...' if len(user_question) > 200 else ''}"
+            )
+
+            # If provider_name is specified, use the highest priority provider from current config instead
+            # This ensures we always use current provider configuration rather than historical data
+            if provider_name:
+                requested_model = req.model
+                category = self.model_manager.config.map_model_name(requested_model)
+
+                # Get all enabled providers sorted by priority (highest priority first)
+                all_enabled_providers = self.model_manager.config.get_enabled_providers()
+
+                # Always use the highest priority provider for the model/category
+                # regardless of what was stored in the conversation
+                highest_priority_provider = all_enabled_providers[0] if all_enabled_providers else None
+
+                if not highest_priority_provider:
+                    raise ValueError(f"No enabled providers found for requested model '{requested_model}'")
+
+                # Check if the requested model exists in the highest priority provider
+                model_exists_in_highest_priority_provider = False
+                highest_priority_models = getattr(highest_priority_provider, 'models', {})
+                if isinstance(highest_priority_models, dict):
+                    for model_list in highest_priority_models.values():
+                        if model_list and requested_model in model_list:
+                            model_exists_in_highest_priority_provider = True
+                            break
+
+                if model_exists_in_highest_priority_provider:
+                    # Use the highest priority provider and requested model
+                    provider_config = highest_priority_provider
+                    actual_model = requested_model
+                    logger.info(f"Using highest priority provider '{highest_priority_provider.name}' for model: {actual_model}")
+                else:
+                    # Model doesn't exist in highest priority provider, find an appropriate model in the same category
+                    logger.info(f"Requested model '{requested_model}' not available in highest priority provider '{highest_priority_provider.name}'. Looking for alternative models in same category '{category}'...")
+
+                    # Find a model in the requested category from the highest priority provider
+                    available_models = highest_priority_models.get(category, []) if isinstance(highest_priority_models, dict) else []
+                    if available_models:
+                        actual_model = available_models[0]  # Use first available model in category
+                        logger.info(f"Using highest priority provider '{highest_priority_provider.name}' with model '{actual_model}' from category '{category}'")
+                    else:
+                        # If no models in the requested category, use any available model from highest priority provider
+                        all_provider_models = []
+                        if isinstance(highest_priority_models, dict):
+                            for model_list in highest_priority_models.values():
+                                if model_list:
+                                    all_provider_models.extend(model_list)
+
+                        if all_provider_models:
+                            actual_model = all_provider_models[0]
+                            logger.info(f"Using highest priority provider '{highest_priority_provider.name}' with fallback model '{actual_model}'")
+                        else:
+                            raise ValueError(f"Highest priority provider '{highest_priority_provider.name}' has no models available for requested model '{requested_model}'")
+
+                    provider_config = highest_priority_provider
+
+                logger.info(f"Using provider: {provider_config.name}, model: {actual_model}")
+
+                # Determine API format from provider config or use the one from headers
+                provider_api_format = api_format or getattr(provider_config, 'api_format', 'openai').lower()
+
+                if provider_api_format == 'anthropic':
+                    # Direct forwarding for Anthropic format providers
+                    return await self._handle_anthropic_direct_request(
+                        req, provider_config, actual_model, request_id, start_time
+                    )
+                else:
+                    # OpenAI format - use conversion logic
+                    client = OpenAIClient(provider_config)
+
+                    # Convert request to OpenAI format
+                    openai_request = convert_anthropic_request_to_openai(req)
+
+                    # Try to get from cache for non-streaming requests
+                    cache_enabled = config.app_config.cache.enabled and not req.stream
+                    cached_response = None
+                    cache_key = None
+
+                    if cache_enabled:
+                        # Generate cache key
+                        cache_key = CacheKey.generate_key(
+                            model=actual_model,
+                            messages=openai_request.get("messages", []),
+                            max_tokens=openai_request.get("max_tokens"),
+                            temperature=openai_request.get("temperature"),
+                            tools=openai_request.get("tools"),
+                            stream=req.stream,
+                            provider=provider_config.name
+                        )
+
+                        cache_manager = get_cache_manager()
+                        cached_response = await cache_manager.get(cache_key)
+
+                    if cached_response:
+                        logger.info(f"Cache hit for key: {cache_key}")
+                        return cached_response
+
+                    # Filter and validate request
+                    self._filter_unsupported_params(provider_config, openai_request)
+                    self._validate_max_tokens(openai_request)
+
+                    # Process the request
+                    if req.stream:
+                        return await self._handle_streaming_request(
+                            req, provider_config, actual_model, client,
+                            openai_request, request_id, start_time
+                        )
+                    else:
+                        return await self._handle_non_streaming_request(
+                            req, provider_config, actual_model, client,
+                            openai_request, cache_enabled, cache_key,
+                            cached_response, request_id, start_time
+                        )
+
             # Initialize exclude parameters
             current_exclude_providers = exclude_providers or []
             current_exclude_models = exclude_models.copy() if exclude_models else {}
-            
+
             # Track which models we've tried for the current provider
             current_provider_name = None
             failed_models_for_current_provider = []
-            
+
             # Model rotation loop: try models in the same provider/category until one succeeds
             max_model_attempts = 10  # Prevent infinite loops
             model_attempt_count = 0
-            
+
             while model_attempt_count < max_model_attempts:
                 model_attempt_count += 1
-                
+
                 try:
                     # Get provider and model with current exclude parameters
-                    # If provider is specified in request, use it as preferred_provider
+                    # If provider is specified in headers, use it as preferred_provider
                     try:
                         provider_config, actual_model = self.model_manager.get_provider_and_model(
                             req.model,
@@ -404,7 +545,12 @@ class MessageService:
 
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Error processing request: {e}", exc_info=True)
+            logger.error(
+                f"[Request {request_id}] Error processing request:\n"
+                f"  Error: {str(e)}\n"
+                f"  User Question: {user_question[:200] if 'user_question' in locals() else 'N/A'}",
+                exc_info=True
+            )
             # Log error to database
             error_message = str(e)
             status_code = 500
@@ -507,7 +653,13 @@ class MessageService:
             total_output_tokens = 0
             try:
                 # Log request details for debugging
-                logger.debug(f"Sending request to {provider_config.name} provider: model={actual_model}, max_tokens={openai_request.get('max_tokens')}, has_tools={bool(openai_request.get('tools'))}, message_count={len(openai_request.get('messages', []))}")
+                logger.info(
+                    f"[Request {request_id}] Starting streaming request:\n"
+                    f"  Provider: {provider_config.name}\n"
+                    f"  Model: {actual_model}\n"
+                    f"  Max Tokens: {openai_request.get('max_tokens')}\n"
+                    f"  Message Count: {len(openai_request.get('messages', []))}"
+                )
 
                 # Build params, excluding tool_choice if it was filtered
                 api_params = {
@@ -611,6 +763,18 @@ class MessageService:
                             # 保持与SSE格式的一致性
                             yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
 
+                        # Log successful streaming completion
+                        response_time_ms = (time.time() - start_time) * 1000
+                        logger.info(
+                            f"[Request {request_id}] Streaming completed:\n"
+                            f"  Provider: {provider_config.name}\n"
+                            f"  Model: {actual_model}\n"
+                            f"  Input Tokens: {initial_input_tokens}\n"
+                            f"  Output Tokens: {total_output_tokens}\n"
+                            f"  Response Time: {response_time_ms:.2f}ms\n"
+                            f"  Chunks Sent: {chunk_count}"
+                        )
+
                         # Log successful streaming request to database
                         db = get_database()
                         await db.log_request(
@@ -621,7 +785,7 @@ class MessageService:
                             status_code=200,
                             input_tokens=initial_input_tokens,
                             output_tokens=total_output_tokens,
-                            response_time_ms=(time.time() - start_time) * 1000
+                            response_time_ms=response_time_ms
                         )
 
                         # Update token usage statistics for streaming request

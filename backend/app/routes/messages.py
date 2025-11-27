@@ -1,7 +1,7 @@
 """Message-related routes."""
 import logging
-from typing import Union
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Union, Optional
+from fastapi import APIRouter, HTTPException, Depends, Header
 
 from ..core import MessagesRequest, CountTokensRequest, CountTokensResponse, Message, ModelManager
 from ..infrastructure import OpenAIClient
@@ -17,14 +17,22 @@ router = APIRouter()
 def create_messages_router(model_manager: ModelManager) -> APIRouter:
     """Create messages router with dependencies."""
     message_service = MessageService(model_manager)
-    
+
     @router.post("/v1/messages")
     async def messages(
         request: Union[MessagesRequest, dict],
-        api_user: dict = Depends(require_api_key())
+        api_user: dict = Depends(require_api_key()),
+        x_provider_name: Optional[str] = Header(None, alias="X-Provider-Name"),
+        x_api_format: Optional[str] = Header(None, alias="X-API-Format")
     ):
         """Handle Anthropic /v1/messages endpoint."""
-        return await message_service.handle_messages(request, api_user)
+        logger.info(f"Received request with provider: {x_provider_name}, api_format: {x_api_format}")
+        return await message_service.handle_messages(
+            request,
+            api_user,
+            provider_name=x_provider_name,
+            api_format=x_api_format
+        )
     
     @router.post("/v1/messages/count_tokens")
     async def count_tokens(

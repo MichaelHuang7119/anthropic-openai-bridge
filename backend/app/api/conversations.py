@@ -19,6 +19,15 @@ class ConversationUpdate(BaseModel):
     """Update conversation request model."""
     title: str
 
+class MessageCreate(BaseModel):
+    """Create message request model."""
+    role: str
+    content: str
+    model: Optional[str] = None
+    thinking: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+
 class ConversationResponse(BaseModel):
     """Conversation response model."""
     id: int
@@ -34,6 +43,7 @@ class MessageResponse(BaseModel):
     id: int
     role: str
     content: str
+    thinking: Optional[str] = None
     model: Optional[str]
     input_tokens: Optional[int]
     output_tokens: Optional[int]
@@ -229,11 +239,7 @@ async def delete_conversation(
 @router.post("/{conversation_id}/messages", response_model=MessageResponse, status_code=201)
 async def add_message(
     conversation_id: int,
-    role: str = Query(..., regex="^(user|assistant)$"),
-    content: str = Query(..., min_length=1),
-    model: Optional[str] = None,
-    input_tokens: Optional[int] = None,
-    output_tokens: Optional[int] = None,
+    message_data: MessageCreate,
     user: dict = Depends(require_admin())
 ):
     """
@@ -241,13 +247,12 @@ async def add_message(
 
     Args:
         conversation_id: Conversation ID
-        role: Message role ('user' or 'assistant')
-        content: Message content
-        model: Model used
-        input_tokens: Input token count
-        output_tokens: Output token count
+        message_data: Message creation data
         user: Current authenticated user
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         from ..database import get_database
         db = get_database()
@@ -255,6 +260,24 @@ async def add_message(
         user_id = user.get("user_id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
+
+        # Validate role
+        if message_data.role not in ["user", "assistant"]:
+            raise HTTPException(status_code=400, detail="Role must be 'user' or 'assistant'")
+
+        # Validate content
+        if not message_data.content or not message_data.content.strip():
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
+
+        # Log message being added
+        content_preview = message_data.content[:200] if len(message_data.content) > 200 else message_data.content
+        logger.info(
+            f"Adding message to conversation {conversation_id}:\n"
+            f"  Role: {message_data.role}\n"
+            f"  Model: {message_data.model}\n"
+            f"  Content: {content_preview}{'...' if len(message_data.content) > 200 else ''}\n"
+            f"  Has Thinking: {bool(message_data.thinking)}"
+        )
 
         # Verify conversation belongs to user
         conversation = await db.conversations.get_conversation(conversation_id, user_id)
@@ -264,11 +287,12 @@ async def add_message(
         # Add message
         message_id = await db.conversations.add_message(
             conversation_id=conversation_id,
-            role=role,
-            content=content,
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens
+            role=message_data.role,
+            content=message_data.content,
+            model=message_data.model,
+            thinking=message_data.thinking,
+            input_tokens=message_data.input_tokens,
+            output_tokens=message_data.output_tokens
         )
 
         if not message_id:

@@ -21,7 +21,7 @@ export interface ProviderHealth {
 }
 
 export interface HealthStatus {
-  status: 'healthy' | 'partial' | 'unhealthy' | 'error';
+  status: "healthy" | "partial" | "unhealthy" | "error";
   timestamp: string;
   providers: ProviderHealth[];
   error?: string;

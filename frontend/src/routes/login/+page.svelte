@@ -46,7 +46,7 @@
       // 使用 replace 而不是 push，避免返回登录页
       // 添加短暂延迟确保状态已更新
       await new Promise(resolve => setTimeout(resolve, 50));
-      goto('/', { replaceState: true });
+      await goto('/');
     } catch (error) {
       const message = error instanceof Error ? error.message : '登录失败，请检查邮箱和密码';
       toast.error(message);
@@ -78,6 +78,7 @@
             type="email"
             bind:value={email}
             placeholder="admin@example.com"
+            autocomplete="email"
             required
             disabled={loading}
             on:keypress={handleKeyPress}
@@ -92,6 +93,7 @@
               type={showPassword ? 'text' : 'password'}
               bind:value={password}
               placeholder="请输入密码"
+              autocomplete="current-password"
               required
               disabled={loading}
               on:keypress={handleKeyPress}
@@ -234,10 +236,6 @@
 
   .form-actions {
     margin-top: 0.5rem;
-  }
-
-  .login-button {
-    width: 100%;
   }
 
   .login-info {
