@@ -249,6 +249,7 @@ class DatabaseCore:
                 conversation_id INTEGER NOT NULL,
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
+                provider_name TEXT,
                 model TEXT,
                 input_tokens INTEGER,
                 output_tokens INTEGER,
@@ -257,9 +258,14 @@ class DatabaseCore:
             )
         """)
 
-        # Add thinking column if it doesn't exist (migration)
+        # Add provider_name column if it doesn't exist (migration)
         await cursor.execute("PRAGMA table_info(conversation_messages)")
         columns = [row['name'] for row in await cursor.fetchall()]
+        if 'provider_name' not in columns:
+            await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN provider_name TEXT")
+            logger.info("Added provider_name column to conversation_messages table")
+
+        # Add thinking column if it doesn't exist (migration)
         if 'thinking' not in columns:
             await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN thinking TEXT")
             logger.info("Added thinking column to conversation_messages table")

@@ -106,60 +106,34 @@ class MessageService:
                 f"  User Question: {user_question[:200]}{'...' if len(user_question) > 200 else ''}"
             )
 
-            # If provider_name is specified, use the highest priority provider from current config instead
-            # This ensures we always use current provider configuration rather than historical data
+            # If provider_name is specified, use it directly (user's choice) - no validation
             if provider_name:
                 requested_model = req.model
-                category = self.model_manager.config.map_model_name(requested_model)
 
-                # Get all enabled providers sorted by priority (highest priority first)
-                all_enabled_providers = self.model_manager.config.get_enabled_providers()
+                # Get the specified provider without checking if model exists
+                specified_provider = self.model_manager.get_provider_by_name(provider_name)
 
-                # Always use the highest priority provider for the model/category
-                # regardless of what was stored in the conversation
-                highest_priority_provider = all_enabled_providers[0] if all_enabled_providers else None
-
-                if not highest_priority_provider:
-                    raise ValueError(f"No enabled providers found for requested model '{requested_model}'")
-
-                # Check if the requested model exists in the highest priority provider
-                model_exists_in_highest_priority_provider = False
-                highest_priority_models = getattr(highest_priority_provider, 'models', {})
-                if isinstance(highest_priority_models, dict):
-                    for model_list in highest_priority_models.values():
-                        if model_list and requested_model in model_list:
-                            model_exists_in_highest_priority_provider = True
-                            break
-
-                if model_exists_in_highest_priority_provider:
-                    # Use the highest priority provider and requested model
-                    provider_config = highest_priority_provider
+                if specified_provider and specified_provider.enabled:
+                    # Use the specified provider and model (trust user's choice)
+                    provider_config = specified_provider
                     actual_model = requested_model
-                    logger.info(f"Using highest priority provider '{highest_priority_provider.name}' for model: {actual_model}")
+                    logger.info(f"Using specified provider '{provider_name}' for model: {actual_model} (user's choice)")
                 else:
-                    # Model doesn't exist in highest priority provider, find an appropriate model in the same category
-                    logger.info(f"Requested model '{requested_model}' not available in highest priority provider '{highest_priority_provider.name}'. Looking for alternative models in same category '{category}'...")
+                    # Specified provider doesn't exist or is disabled, log error and use highest priority
+                    all_enabled_providers = self.model_manager.config.get_enabled_providers()
+                    provider_config = all_enabled_providers[0] if all_enabled_providers else None
 
-                    # Find a model in the requested category from the highest priority provider
-                    available_models = highest_priority_models.get(category, []) if isinstance(highest_priority_models, dict) else []
-                    if available_models:
-                        actual_model = available_models[0]  # Use first available model in category
-                        logger.info(f"Using highest priority provider '{highest_priority_provider.name}' with model '{actual_model}' from category '{category}'")
-                    else:
-                        # If no models in the requested category, use any available model from highest priority provider
-                        all_provider_models = []
-                        if isinstance(highest_priority_models, dict):
-                            for model_list in highest_priority_models.values():
-                                if model_list:
-                                    all_provider_models.extend(model_list)
+                    if not provider_config:
+                        raise ValueError(f"No enabled providers found for requested model '{requested_model}'")
 
-                        if all_provider_models:
-                            actual_model = all_provider_models[0]
-                            logger.info(f"Using highest priority provider '{highest_priority_provider.name}' with fallback model '{actual_model}'")
-                        else:
-                            raise ValueError(f"Highest priority provider '{highest_priority_provider.name}' has no models available for requested model '{requested_model}'")
+                    # Log warning
+                    if not specified_provider:
+                        logger.error(f"Specified provider '{provider_name}' not found, falling back to '{provider_config.name}'")
+                    elif not specified_provider.enabled:
+                        logger.error(f"Specified provider '{provider_name}' is disabled, falling back to '{provider_config.name}'")
 
-                    provider_config = highest_priority_provider
+                    actual_model = requested_model
+                    logger.info(f"Using fallback provider: {provider_config.name}, model: {actual_model}")
 
                 logger.info(f"Using provider: {provider_config.name}, model: {actual_model}")
 

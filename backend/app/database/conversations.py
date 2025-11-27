@@ -264,6 +264,7 @@ class ConversationsManager:
         thinking: Optional[str] = None,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
+        provider_name: Optional[str] = None,
     ) -> Optional[int]:
         """
         Add a message to a conversation.
@@ -276,6 +277,7 @@ class ConversationsManager:
             thinking: Extended thinking content (optional)
             input_tokens: Input token count
             output_tokens: Output token count
+            provider_name: Provider used for this message
 
         Returns:
             Message ID if successful, None otherwise
@@ -287,10 +289,10 @@ class ConversationsManager:
             await cursor.execute(
                 """
                 INSERT INTO conversation_messages
-                (conversation_id, role, content, model, thinking, input_tokens, output_tokens)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (conversation_id, role, content, model, thinking, input_tokens, output_tokens),
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens),
             )
 
             # Update conversation updated_at

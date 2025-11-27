@@ -23,6 +23,7 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 - **PWA 支持** - 离线访问、安装到主屏幕、后台同步
 - **深色/浅色主题** - 用户体验优化
 - **代码分割** - 优化首屏加载速度
+- **聊天对话页面** - 内置交互式聊天界面，支持流式输出和历史记录
 
 ### 🔧 智能管理
 - **OpenTelemetry 集成** - 分布式追踪和监控
@@ -34,11 +35,19 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 - **性能统计** - 请求日志、Token 使用追踪
 - **压力测试** - 内置 10k QPS 压力测试脚本
 - **实时日志** - 彩色输出，错误追踪
+- **可观测性配置** - 请求采样率、慢请求警告阈值
+
+### 💬 对话管理
+- **历史对话记录** - SQLite 数据库存储对话历史
+- **多对话支持** - 创建、查看、删除多个对话
+- **Token 用量统计** - 实时追踪输入/输出 Token
+- **自动标题生成** - 提取首条消息自动创建对话标题
 
 ### 🏢 多供应商支持
 - **统一 API 接口** - 支持 Anthropic 兼容格式
 - **直连模式** - 支持 Anthropic API 格式提供商（无需转换）
 - **智能模型映射** - haiku→small, sonnet→middle, opus→big
+- **供应商 Token 限制** - 支持配置 max_tokens_limit
 
 ## 🏃‍♂️ 快速开始
 
@@ -324,6 +333,49 @@ curl -X POST http://localhost:8000/v1/messages/count_tokens \
   }'
 ```
 
+### 对话历史管理API
+
+#### 获取对话列表
+```bash
+curl -X GET http://localhost:8000/api/conversations \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 创建新对话
+```bash
+curl -X POST http://localhost:8000/api/conversations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "provider_name": "qwen",
+    "api_format": "openai",
+    "model": "qwen-plus",
+    "first_message": "你好！"
+  }'
+```
+
+#### 获取对话详情（包含消息历史）
+```bash
+curl -X GET http://localhost:8000/api/conversations/123 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 更新对话标题
+```bash
+curl -X PUT http://localhost:8000/api/conversations/123 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "title": "新的对话标题"
+  }'
+```
+
+#### 删除对话
+```bash
+curl -X DELETE http://localhost:8000/api/conversations/123 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
 ## 🏗️ 部署指南
 
 ### 🐳 Docker Compose（开发/测试环境）
@@ -414,53 +466,169 @@ CI/CD 配置文件位于：`.github/workflows/ci-cd.yml`
 
 ```
 anthropic-openai-bridge/
-├── backend/                    # 后端服务
+├── backend/                    # 后端服务（FastAPI）
 │   ├── app/
-│   │   ├── api/               # API 路由层
-│   │   ├── services/          # 业务逻辑层
-│   │   ├── database/          # 数据库层（异步 + 连接池）
-│   │   ├── cache/             # 多级缓存实现
-│   │   ├── infrastructure/    # 基础设施层
-│   │   └── config/            # 配置管理
-│   ├── requirements.txt       # Python 依赖
+│   │   ├── api/               # API 路由层（RESTful API）
+│   │   │   ├── auth/          # 认证授权（JWT、原生API Key）
+│   │   │   ├── providers/     # 供应商管理API
+│   │   │   ├── health/        # 健康监控API
+│   │   │   ├── stats/         # 统计分析API
+│   │   │   ├── config/        # 配置管理API
+│   │   │   ├── api_keys/      # API Key管理API
+│   │   │   └── conversations/ # 对话历史管理API
+│   │   ├── routes/            # Felix 消息路由层（兼容 Anthropic API）
+│   │   │   ├── messages.py    # Anthropic messages API 主路由（/v1/messages）
+│   │   │   └── health.py      # Felix 健康检查
+│   │   ├── services/          # 业务逻辑层（Service Layer Pattern）
+│   │   │   ├── message_service.py    # 消息处理核心服务
+│   │   │   ├── health_service.py     # 健康检查服务
+│   │   │   ├── provider_service.py   # 供应商配置服务
+│   │   │   ├── token_counter.py      # Token 计数服务
+│   │   │   └── streaming/conversions # 流式转换服务
+│   │   ├── database/          # 数据库访问层（SQLite + 异步 + 连接池）
+│   │   │   ├── core.py        # 数据库核心连接和表创建
+│   │   │   ├── conversations_manager.py  # 对话历史管理（CRUD）
+│   │   │   ├── api_keys_manager.py       # API Key 管理
+│   │   │   └── users_manager.py          # 用户管理
+│   │   ├── cache/             # 多级缓存实现（L1内存 + L2 Redis）
+│   │   │   ├── memory_cache.py   # 内存缓存
+│   │   │   └── redis_cache.py    # Redis 缓存
+│   │   ├── converters/        # 格式转换器（Anthropic ↔ OpenAI）
+│   │   │   ├── anthropic_to_openai.py   # Anthropic 转 OpenAI
+│   │   │   ├── openai_to_anthropic.py   # OpenAI 转 Anthropic
+│   │   │   └── streaming.py             # 流式格式转换
+│   │   ├── core/              # 核心模型和配置管理
+│   │   │   ├── model_manager.py   # 模型管理器（容错、降级、模型选择）
+│   │   │   └── models.py          # 数据模型（Pydantic）
+│   │   ├── infrastructure/      # 基础设施层
+│   │   │   ├── telemetry.py         # OpenTelemetry 追踪
+│   │   │   ├── retry_mechanism.py   # 重试机制
+│   │   │   └── clients.py           # HTTP 客户端（连接池优化）
+│   │   ├── config/            # 配置管理
+│   │   │   ├── main.py        # 配置加载和验证
+│   │   │   └── defaults.py    # 默认配置
+│   │   ├── main.py            # FastAPI 主应用（root-location）
+│   │   ├── lifecycle.py       # 应用生命周期管理（启动、关闭）
+│   │   ├── auth.py            # 认证和授权中间件
+│   │   └── constants.py       # 常量定义
+│   ├── requirements.txt       # Python 依赖包
 │   ├── provider.json          # 供应商配置文件
-│   └── start_proxy.py         # 启动脚本
+│   ├── provider.json.example  # 供应商配置示例
+│   └── start_proxy.py         # 后端启动脚本
 │
-├── frontend/                   # 前端管理界面
+├── frontend/                   # 前端管理界面（Svelte 5 + TypeScript）
 │   ├── src/
-│   │   ├── lib/               # 组件和工具
-│   │   └── routes/            # SvelteKit 路由
-│   ├── package.json           # Node.js 依赖
-│   └── static/                # PWA 静态资源
+│   │   ├── lib/               # 可复用组件和工具类
+│   │   │   ├── components/    # Svelte 5 组件
+│   │   │   │   ├── chat/      # 聊天页面组件（ModelSelector, ChatArea, Sidebar）
+│   │   │   │   ├── health/    # 健康监控组件
+│   │   │   │   ├── stats/     # 统计图表组件
+│   │   │   │   └── providers/ # 供应商配置组件
+│   │   │   ├── stores/        # Svelte Stores（状态管理）
+│   │   │   └── services/      # HTTP API 客户端封装
+│   │   │       ├── chatService.ts      # 聊天服务（SSE、流式）
+│   │   │       ├── providerService.ts  # 供应商管理服务
+│   │   │       └── healthService.ts    # 健康检查服务
+│   │   ├── routes/            # SvelteKit 路由文件系统（File-system Routing）
+│   │   │   ├── +layout.svelte     # 布局模板
+│   │   │   ├── +page.svelte       # 首页/仪表板
+│   │   │   ├── login/             # 登录页面
+│   │   │   ├── chat/              # 聊天对话页面
+│   │   │   ├── api-keys/          # API Key 管理页面
+│   │   │   ├── providers/         # 供应商配置页面
+│   │   │   ├── health/            # 健康监控页面
+│   │   │   ├── stats/             # 统计分析页面
+│   │   │   └── config/            # 设置页面
+│   │   ├── service-worker.js      # PWA Service Worker
+│   │   └── hooks.server.js        # SvelteKit Server Hooks
+│   ├── static/                # PWA 静态资源
+│   ├── svelte.config.js       # SvelteKit 配置
+│   ├── vite.config.ts         # Vite 构建工具配置（代码分割优化）
+│   └── tsconfig.json          # TypeScript 配置
 │
-├── k8s/                       # Kubernetes 配置
-├── scripts/                   # 工具脚本（负载测试等）
+├── k8s/                       # Kubernetes 配置（Production Ready）
+├── scripts/                   # 工具脚本（负载测试、验证）
+├── tests/                     # 回归测试和集成测试
 ├── docker-compose.yml         # Docker Compose 配置
-└── README.md                  # 项目文档
+├── pytest.ini                 # pytest 测试框架配置
+├── DEPLOYMENT.md              # 部署指南
+├── OPTIMIZATION_SUMMARY.md    # 性能优化总结
+├── docs/chat-design.md        # 聊天功能设计文档
+└── README.md                  # 项目文档（当前文件）
 ```
 
 ## 🛠️ 技术栈
 
 ### 后端
 - **FastAPI** - 现代、快速的 Web 框架
-- **aiosqlite** - 异步数据库操作 + 连接池
-- **httpx** - HTTP 客户端，支持连接池优化
-- **Pydantic** - 数据验证和设置管理
-- **OpenTelemetry** - 分布式追踪和监控
-- **pytest** - 测试框架
+- **aiosqlite** - 异步数据库操作 + 连接池（支持 300+ 并发）
+- **httpx** - HTTP 客户端（连接池优化，支持 10k QPS）
+- **Pydantic** - 数据验证和设置管理（v2.x + ConfigDict）
+- **OpenTelemetry** - 分布式追踪和监控（Jaeger + Prometheus）
+- **pytest** - 测试框架（覆盖率报告）
+- **SQLAlchemy** - SQL 工具包（future + ORM）
+- **Pillow** - 图像处理（图片上传支持）
+- **pypng** - PNG 图像处理
 
 ### 前端
-- **Svelte 5** - 新一代前端框架
-- **SvelteKit** - Svelte 应用框架
+- **Svelte 5** - 新一代前端框架（全新的响应式系统）
+- **SvelteKit** - Svelte 应用框架（SSR + File-system Routing）
 - **TypeScript** - 类型安全的 JavaScript
-- **Vite** - 快速的前端构建工具 + 代码分割
-- **PWA** - 离线支持和应用安装
+- **Vite** - 快速的前端构建工具（HMR + Tree-shaking + 代码分割）
+- **PWA** - 离线支持和应用安装（Service Worker + App Manifest）
+- **Sass/Less** - CSS 预处理器（样式系统）
 
 ### 基础设施
-- **Docker** - 容器化平台
-- **Kubernetes** - 生产环境部署
-- **Redis** - 缓存服务
-- **Nginx** - 反向代理和负载均衡
+- **Docker** - 容器化平台（多阶段构建优化）
+- **Kubernetes** - 生产环境部署（PVC + Ingress）
+- **Redis** - 缓存服务（L2 缓存层 + Session 存储）
+- **Nginx** - 反向代理和负载均衡（超时配置 + 缓存）
+- **Nginx-proxy** - 跨域代理（前端请求转发）
+
+### Token 限制配置
+
+#### max_tokens 限制规则
+
+系统支持配置每个供应商的 `max_tokens` 限制：
+
+- **全局默认限制**：30000（Anthropic 的默认限制）
+- **供应商级别限制**：在 `provider.json` 中为每个供应商配置 `max_tokens_limit`
+- **动态限制**：优先使用供应商级别的限制（如果配置了，即使是10万，系统会遵从；如果未配置，则使用30万）
+
+**配置文件示例**：
+
+```json
+{
+  "providers": [
+    {
+      "name": "qwen",
+      "max_tokens_limit": 32768,
+      "models": {
+        "big": ["qwen-plus"],
+        "middle": ["qwen-turbo"],
+        "small": ["qwen-plus"]
+      }
+    }
+  ]
+}
+```
+
+**限制层级**（优先级从高到低）：
+
+1. 供应商配置中的 `max_tokens_limit`
+2. 默认限制：`300000`（30万）
+
+服务器端会根据该限制对请求的 `max_tokens` 进行验证：
+
+```python
+@field_validator("max_tokens")
+def validate_max_tokens(cls, v):
+    if v <= 0:
+        raise ValueError("max_tokens must be positive")
+    if v > 1000000:  # 系统绝对最大限制
+        raise ValueError("max_tokens too large")
+    return v
+```
 
 ## 🔧 环境变量配置
 
@@ -547,6 +715,17 @@ A: 系统根据 `priority` 字段选择供应商，优先级越高（数字越�
 
 A: 登录管理界面，访问"健康监控"页面，点击"刷新状态"按钮进行手动检查。系统会显示总体状态（健康、部分健康、不健康、未检查）和每个供应商的详细信息。健康检查仅在手动点击时进行，最大化节省 API 调用和 Token 消耗。
 
+### Q: 如何使用聊天功能？
+
+A: 登录管理界面，点击顶部导航栏的"聊天"菜单，进入聊天页面。在聊天页面你可以：
+1. 从下拉菜单选择供应商、API格式和具体模型
+2. 在输入框输入消息，按 Enter 发送
+3. 查看实时流式输出
+4. 保存对话历史到数据库
+5. 在左侧边栏查看、加载或删除历史对话
+
+聊天功能支持完整的对话历史管理，包括自动标题生成、Token用量统计等。
+
 ### Q: 如何创建 API Key？
 
 A: 登录管理界面，访问"API Key 管理"页面，点击"创建 API Key"按钮，填写名称和邮箱（可选），保存后复制生成的 API Key。**注意：创建后无法再次查看完整 Key，请妥善保管。**
@@ -561,6 +740,30 @@ A: 如果忘记了管理员密码，可以：
 ### Q: API Key 泄露了怎么办？
 
 A: 登录管理界面，访问"API Key 管理"页面，找到对应的 API Key，点击"禁用"或"删除"按钮。建议定期轮换 API Key 以提高安全性。
+
+### Q: max_tokens 限制如何工作？
+
+A: 系统支持动态 max_tokens 限制，采用层级策略：
+
+1. **供应商级别限制**：在 `provider.json` 中为每个供应商配置 `max_tokens_limit`
+2. **系统硬性限制**：`1000000`（100万）
+
+**优先级从高到低**：
+- 供应商配置中的 `max_tokens_limit`
+- `MessagesRequest` 验证器的 `max_tokens` 默认最大值（已从 10万 提升至 100万）
+
+**示例配置**：
+```json
+{
+  "name": "moonshot",  // 月之暗面
+  "max_tokens_limit": 64000  // 月之暗面支持较长输出
+}
+```
+
+**注意**：
+- Claude 3 系列：`max_tokens_to_sample` 在服务端转换后已过时
+- 转换为 OpenAI 格式后，直接使用 `max_tokens` 参数
+- 后端已移除旧的转换映射逻辑，避免 Token 限制误用
 
 ### Q: 生产环境如何优化性能？
 

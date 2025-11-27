@@ -27,6 +27,7 @@ class MessageCreate(BaseModel):
     thinking: Optional[str] = None
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
+    provider_name: Optional[str] = None
 
 class ConversationResponse(BaseModel):
     """Conversation response model."""
