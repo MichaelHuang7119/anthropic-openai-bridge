@@ -204,7 +204,7 @@ class MessageService:
 
                     # Filter and validate request
                     self._filter_unsupported_params(provider_config, openai_request)
-                    self._validate_max_tokens(openai_request)
+                    self._validate_max_tokens(openai_request, provider_config, actual_model)
 
                     # Process the request
                     if req.stream:
@@ -375,7 +375,7 @@ class MessageService:
                         
                         # Filter and validate request
                         self._filter_unsupported_params(provider_config, openai_request)
-                        self._validate_max_tokens(openai_request)
+                        self._validate_max_tokens(openai_request, provider_config, actual_model)
                         
                         # Make request
                         if req.stream:
@@ -628,21 +628,64 @@ class MessageService:
             if unsupported_params:
                 logger.debug(f"Filtered unsupported parameters for {provider_config.name}: {', '.join(unsupported_params)}")
     
-    def _validate_max_tokens(self, openai_request: dict):
-        """Validate and limit max_tokens (per claude-code-proxy pattern)."""
+    def _validate_max_tokens(self, openai_request: dict, provider_config=None, actual_model: str = None):
+        """Validate and limit max_tokens.
+
+        Args:
+            openai_request: The OpenAI request dictionary
+            provider_config: Provider configuration (optional)
+            actual_model: Actual model name from provider (optional)
+        """
         max_tokens = openai_request.get("max_tokens")
-        if max_tokens is not None:
-            # Apply global limits (same as claude-code-proxy)
-            original_max_tokens = max_tokens
-            max_tokens = min(
-                max(max_tokens, config.min_tokens_limit),
-                config.max_tokens_limit
-            )
-            openai_request["max_tokens"] = max_tokens
-            
-            # Log if limit was applied
-            if original_max_tokens != max_tokens:
-                logger.debug(f"Limited max_tokens from {original_max_tokens} to {max_tokens} (global limits: min={config.min_tokens_limit}, max={config.max_tokens_limit})")
+        if max_tokens is None:
+            return
+
+        original_max_tokens = max_tokens
+
+        # Apply global limits
+        max_tokens = max(max_tokens, config.min_tokens_limit)
+        max_tokens = min(max_tokens, config.max_tokens_limit)
+
+        # Apply provider/model-specific limits
+        provider_max_limit = None
+        if provider_config and hasattr(provider_config, 'name'):
+            provider_name = provider_config.name.lower()
+
+            # Qwen-specific limits
+            if 'qwen' in provider_name:
+                # Different models have different limits
+                if actual_model:
+                    model_lower = actual_model.lower()
+                    if 'coder-plus' in model_lower or 'qwen3' in model_lower:
+                        # Qwen3 series: up to 65536
+                        provider_max_limit = 65536
+                    elif 'flash' in model_lower:
+                        # Qwen-flash: up to 32768
+                        provider_max_limit = 32768
+                    else:
+                        # Default for other Qwen models
+                        provider_max_limit = 32768
+                else:
+                    # Default for unknown Qwen models
+                    provider_max_limit = 32768
+
+            # Provider config may have explicit max_tokens_limit
+            if hasattr(provider_config, 'max_tokens_limit') and provider_config.max_tokens_limit:
+                provider_max_limit = min(provider_max_limit or float('inf'), provider_config.max_tokens_limit)
+
+        # Apply provider limit if specified
+        if provider_max_limit:
+            max_tokens = min(max_tokens, provider_max_limit)
+
+        # Update the request
+        openai_request["max_tokens"] = int(max_tokens)
+
+        # Log if limit was applied
+        if original_max_tokens != max_tokens:
+            limit_info = f"global limits: min={config.min_tokens_limit}, max={config.max_tokens_limit}"
+            if provider_max_limit:
+                limit_info += f", provider limit: {provider_max_limit}"
+            logger.debug(f"Limited max_tokens from {original_max_tokens} to {max_tokens} ({limit_info})")
     
     async def _handle_streaming_request(
         self, req: MessagesRequest, provider_config, actual_model: str,
