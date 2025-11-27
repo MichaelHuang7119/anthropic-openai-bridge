@@ -25,6 +25,8 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   thinking?: string; // Extended thinking content
+  provider_name?: string | null; // Provider used for this message
+  api_format?: string | null; // API format used for this message
   model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
@@ -239,6 +241,8 @@ class ChatService {
     thinking?: string,
     inputTokens?: number,
     outputTokens?: number,
+    providerName?: string,
+    apiFormat?: string,
   ): Promise<Message> {
     try {
       const token = authService.getToken();
@@ -253,6 +257,8 @@ class ChatService {
         thinking?: string;
         input_tokens?: number;
         output_tokens?: number;
+        provider_name?: string;
+        api_format?: string;
       } = {
         role,
         content,
@@ -262,6 +268,8 @@ class ChatService {
       if (thinking) requestBody.thinking = thinking;
       if (inputTokens !== undefined) requestBody.input_tokens = inputTokens;
       if (outputTokens !== undefined) requestBody.output_tokens = outputTokens;
+      if (providerName !== undefined) requestBody.provider_name = providerName;
+      if (apiFormat !== undefined) requestBody.api_format = apiFormat;
 
       const response = await fetch(
         `${this.baseUrl}/conversations/${conversationId}/messages`,

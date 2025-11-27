@@ -146,6 +146,8 @@
         id: Date.now(),
         role: "user",
         content: userMessage,
+        provider_name: useProvider,
+        api_format: useApiFormat,
         model: useModel,
       };
       messages = [...messages, userMsg];
@@ -156,12 +158,19 @@
         role: "user",
         content: userMessage,
         model: useModel,
+        provider_name: useProvider,
+        api_format: useApiFormat,
       });
       await chatService.addMessage(
         conversation.id,
         "user",
         userMessage,
         useModel,
+        undefined, // thinking
+        undefined, // inputTokens
+        undefined, // outputTokens
+        useProvider,
+        useApiFormat,
       );
 
       // Send to AI with current selected configuration
@@ -201,6 +210,8 @@
               role: "assistant",
               content: assistantMessage,
               thinking: thinkingContent || undefined,
+              provider_name: useProvider,
+              api_format: useApiFormat,
               model: useModel,
               input_tokens: usage?.input_tokens || null,
               output_tokens: usage?.output_tokens || null,
@@ -217,6 +228,8 @@
               thinkingContent || undefined,
               usage?.input_tokens,
               usage?.output_tokens,
+              useProvider,
+              useApiFormat,
             );
 
             // Update the temporary message with the actual saved message data
@@ -290,8 +303,8 @@
           {message}
           showModel={true}
           showTokens={true}
-          providerName={selectedProvider}
-          apiFormat={selectedApiFormat}
+          providerName={message.provider_name ?? null}
+          apiFormat={message.api_format ?? null}
           onretry={handleRetry}
         />
       {/each}
@@ -303,13 +316,15 @@
             role: "assistant",
             content: streamingMessage || "",
             thinking: streamingThinking || undefined,
+            provider_name: selectedProvider,
+            api_format: selectedApiFormat,
             model: selectedModel || conversation.model || null,
           }}
           isStreaming={true}
           showModel={true}
           showTokens={false}
-          providerName={conversation.provider_name}
-          apiFormat={conversation.api_format}
+          providerName={selectedProvider}
+          apiFormat={selectedApiFormat}
         />
       {/if}
     {/if}
