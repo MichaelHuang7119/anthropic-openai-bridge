@@ -290,8 +290,8 @@
           {message}
           showModel={true}
           showTokens={true}
-          providerName={conversation.provider_name}
-          apiFormat={conversation.api_format}
+          providerName={selectedProvider}
+          apiFormat={selectedApiFormat}
           onretry={handleRetry}
         />
       {/each}
