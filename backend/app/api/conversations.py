@@ -67,6 +67,7 @@ class ConversationResponse(BaseModel):
     provider_name: Optional[str]
     api_format: Optional[str]
     model: Optional[str]
+    last_model: Optional[str] = Field(None, description="Last user message model")
     created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     updated_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
 
@@ -90,6 +91,7 @@ class ConversationDetailResponse(BaseModel):
     provider_name: Optional[str]
     api_format: Optional[str]
     model: Optional[str]
+    last_model: Optional[str] = Field(None, description="Last user message model")
     created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     updated_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     messages: List[MessageResponse]

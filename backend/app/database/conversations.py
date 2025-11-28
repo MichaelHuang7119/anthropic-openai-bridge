@@ -84,11 +84,25 @@ class ConversationsManager:
             cursor = await conn.cursor()
 
             query = """
-                SELECT id, title, provider_name, api_format, model,
-                       created_at, updated_at
-                FROM conversations
-                WHERE user_id = ?
-                ORDER BY updated_at DESC
+                SELECT
+                    c.id,
+                    c.title,
+                    c.provider_name,
+                    c.api_format,
+                    c.model,
+                    c.created_at,
+                    c.updated_at,
+                    (
+                        SELECT m.model
+                        FROM conversation_messages m
+                        WHERE m.conversation_id = c.id
+                        AND m.role = 'user'
+                        ORDER BY m.id DESC
+                        LIMIT 1
+                    ) as last_model
+                FROM conversations c
+                WHERE c.user_id = ?
+                ORDER BY c.updated_at DESC
                 LIMIT ? OFFSET ?
             """
 
@@ -137,6 +151,7 @@ class ConversationsManager:
                         "provider_name": row["provider_name"],
                         "api_format": row["api_format"],
                         "model": row["model"],
+                        "last_model": row["last_model"],
                         "created_at": created_at_beijing,
                         "updated_at": updated_at_beijing,
                     }
@@ -167,10 +182,24 @@ class ConversationsManager:
             # Get conversation
             await cursor.execute(
                 """
-                SELECT id, title, provider_name, api_format, model,
-                       created_at, updated_at
-                FROM conversations
-                WHERE id = ? AND user_id = ?
+                SELECT
+                    c.id,
+                    c.title,
+                    c.provider_name,
+                    c.api_format,
+                    c.model,
+                    c.created_at,
+                    c.updated_at,
+                    (
+                        SELECT m.model
+                        FROM conversation_messages m
+                        WHERE m.conversation_id = c.id
+                        AND m.role = 'user'
+                        ORDER BY m.id DESC
+                        LIMIT 1
+                    ) as last_model
+                FROM conversations c
+                WHERE c.id = ? AND c.user_id = ?
             """,
                 (conversation_id, user_id),
             )
@@ -218,6 +247,7 @@ class ConversationsManager:
                 "provider_name": row["provider_name"],
                 "api_format": row["api_format"],
                 "model": row["model"],
+                "last_model": row["last_model"],
                 "created_at": created_at_beijing,
                 "updated_at": updated_at_beijing,
                 "messages": [],

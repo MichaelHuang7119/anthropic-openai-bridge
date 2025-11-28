@@ -7,12 +7,13 @@
     id = undefined,
     class: className = '',
     value = $bindable(''),
-    ...restProps
+    oninput = undefined,
+    onblur = undefined,
+    onfocus = undefined
   } = $props();
 </script>
 
 <input
-  {...restProps}
   {id}
   {type}
   bind:value
@@ -20,9 +21,9 @@
   {disabled}
   {required}
   class="input {className}"
-  on:input
-  on:blur
-  on:focus
+  {oninput}
+  {onblur}
+  {onfocus}
 />
 
 <style>

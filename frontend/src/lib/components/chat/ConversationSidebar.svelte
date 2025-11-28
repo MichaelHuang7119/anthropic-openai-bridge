@@ -254,7 +254,7 @@ function formatDate(dateString: string): string {
           <div class="conversation-info">
             <h3 class="title">{conversation.title || "无标题"}</h3>
             <div class="meta">
-              <span class="model">{formatModelName(conversation.model)}</span>
+              <span class="model">{formatModelName(conversation.last_model || conversation.model)}</span>
               <span class="time">{formatDate(conversation.updated_at)}</span>
             </div>
           </div>

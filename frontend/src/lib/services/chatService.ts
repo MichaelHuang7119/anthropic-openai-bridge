@@ -12,6 +12,7 @@ export interface Conversation {
   provider_name: string | null;
   api_format: string | null;
   model: string | null;
+  last_model: string | null;
   created_at: string;
   updated_at: string;
 }
