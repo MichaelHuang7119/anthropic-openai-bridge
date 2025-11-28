@@ -10,6 +10,7 @@
   let message = $state("");
   let textarea: HTMLTextAreaElement | undefined = $state(undefined);
   let showPrompts = $state(true);
+  let selectedPromptIndex = $state<number | null>(null);
 
   // Preset prompts
   const presetPrompts = [
@@ -60,8 +61,9 @@
     message = (event.target as HTMLTextAreaElement).value;
   }
 
-  function handlePromptClick(prompt: string) {
+  function handlePromptClick(prompt: string, index: number) {
     message = prompt;
+    selectedPromptIndex = index;
     // Hide prompts after selection
     showPrompts = false;
     // Focus textarea
@@ -70,10 +72,11 @@
     setTimeout(() => autoResize(), 0);
   }
 
-  // Show prompts when input is empty
+  // Show prompts when input is empty and reset selection
   $effect(() => {
     if (message.trim() === "") {
       showPrompts = true;
+      selectedPromptIndex = null;
     }
   });
 </script>
@@ -87,10 +90,11 @@
       <div class="prompts-scroll-container">
         <div class="prompts-scroll">
           <div class="prompts-grid">
-            {#each presetPrompts as preset}
+            {#each presetPrompts as preset, index}
               <button
                 class="prompt-button"
-                onclick={() => handlePromptClick(preset.prompt)}
+                class:selected={selectedPromptIndex === index}
+                onclick={() => handlePromptClick(preset.prompt, index)}
                 {disabled}
               >
                 <span class="prompt-icon">{preset.icon}</span>
@@ -215,6 +219,7 @@
     text-align: left;
     white-space: nowrap;
     flex-shrink: 0;
+    opacity: 0.6;
   }
 
   .prompt-button:hover:not(:disabled) {
@@ -222,9 +227,26 @@
     border-color: var(--primary-color);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
   }
 
-  .prompt-button:active:not(:disabled) {
+  .prompt-button.selected {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    opacity: 1;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  }
+
+  .prompt-button.selected:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: translateY(-1px);
+    opacity: 1;
+  }
+
+  .prompt-button:active:not(:disabled):not(.selected) {
     transform: translateY(0);
   }
 
