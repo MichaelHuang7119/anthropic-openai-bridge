@@ -168,24 +168,36 @@
   }
 
   .prompts-scroll {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 0.25rem 0.5rem;
     scroll-behavior: smooth;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: thin; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
 
   .prompts-scroll::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    width: 4px; /* Chrome/Safari */
+  }
+
+  .prompts-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .prompts-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+  }
+
+  .prompts-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
   }
 
   .prompts-grid {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    min-width: 100%;
   }
 
   .prompt-button {
