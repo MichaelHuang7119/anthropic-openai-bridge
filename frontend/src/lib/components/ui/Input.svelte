@@ -1,19 +1,89 @@
 <script lang="ts">
+  interface Props {
+    type?: string;
+    placeholder?: string;
+    disabled?: boolean;
+    required?: boolean;
+    id?: string;
+    class?: string;
+    name?: string;
+    readonly?: boolean;
+    autocomplete?: string | undefined;
+    maxlength?: number;
+    minlength?: number;
+    min?: string | number;
+    max?: string | number;
+    step?: string | number;
+    pattern?: string;
+    title?: string;
+    oninput?: (e: Event) => void;
+    onblur?: (e: FocusEvent) => void;
+    onfocus?: (e: FocusEvent) => void;
+    onchange?: (e: Event) => void;
+    onclick?: (e: MouseEvent) => void;
+    onkeydown?: (e: KeyboardEvent) => void;
+    onkeyup?: (e: KeyboardEvent) => void;
+    onkeypress?: (e: KeyboardEvent) => void;
+    value?: string;
+  }
+
   let {
-    value = $bindable(''),
-    oninput = undefined,
-    onblur = undefined,
-    onfocus = undefined,
-    ...restProps
-  } = $props();
+    type = 'text',
+    placeholder = '',
+    disabled = false,
+    required = false,
+    id,
+    class: className = '',
+    name,
+    readonly = false,
+    autocomplete = undefined as any,
+    maxlength,
+    minlength,
+    min,
+    max,
+    step,
+    pattern,
+    title,
+    oninput,
+    onblur,
+    onfocus,
+    onchange,
+    onclick,
+    onkeydown,
+    onkeyup,
+    onkeypress,
+    value = $bindable('')
+  }: Props = $props();
 </script>
 
 <input
+  {...({
+    id,
+    type,
+    placeholder,
+    disabled,
+    required,
+    name,
+    readonly,
+    ...(autocomplete ? { autocomplete } : {}),
+    maxlength,
+    minlength,
+    min,
+    max,
+    step,
+    pattern,
+    title
+  } as any)}
   bind:value
-  {...restProps}
+  class="input {className}"
   {oninput}
   {onblur}
   {onfocus}
+  {onchange}
+  {onclick}
+  {onkeydown}
+  {onkeyup}
+  {onkeypress}
 />
 
 <style>
