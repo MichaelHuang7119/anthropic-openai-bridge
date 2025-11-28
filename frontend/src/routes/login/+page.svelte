@@ -78,10 +78,8 @@
             type="email"
             bind:value={email}
             placeholder="admin@example.com"
-            autocomplete="email"
             required
             disabled={loading}
-            on:keypress={handleKeyPress}
           />
         </div>
 
@@ -93,10 +91,9 @@
               type={showPassword ? 'text' : 'password'}
               bind:value={password}
               placeholder="请输入密码"
-              autocomplete="current-password"
               required
               disabled={loading}
-              on:keypress={handleKeyPress}
+              on:input={() => {}}
             />
             <button
               type="button"

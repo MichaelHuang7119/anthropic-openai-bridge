@@ -1,5 +1,13 @@
 """Test assistant messages with tool_use blocks conversion."""
+import os
+import sys
 import pytest
+
+# Add parent directory to Python path for CI/CD environments
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from backend.app.converters.anthropic_to_openai import convert_anthropic_assistant_message_to_openai
 from backend.app.core.models import Message, MessageRole, ToolUseBlock
 

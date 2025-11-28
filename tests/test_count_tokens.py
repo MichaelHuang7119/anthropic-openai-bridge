@@ -1,6 +1,13 @@
 """Tests for /v1/messages/count_tokens endpoint."""
 import pytest
 import os
+import sys
+
+# Add parent directory to Python path for CI/CD environments
+# This allows 'from backend.app' imports when running from backend/tests/
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 # Enable development mode for tests (no API key required)
 # MUST be set before importing app

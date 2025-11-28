@@ -1,0 +1,18 @@
+# Build outputs
+.svelte-kit
+build
+dist
+.output
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Generated files
+*.d.ts
+vite.config.ts.timestamp-*
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

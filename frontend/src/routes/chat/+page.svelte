@@ -10,9 +10,9 @@
     type ModelChoice,
   } from "$services/chatService";
   import { providerService } from "$services/providers";
-  import { Toast } from "$components/ui";
   import { theme } from "$stores/theme";
   import { authService } from "$services/auth";
+  import { toast } from "$stores/toast";
 
   interface ProviderConfig {
     name: string;
@@ -37,8 +37,6 @@
 
   let isLoading = false;
   let error: string | null = null;
-  let toast: { message: string; type: "success" | "error" | "info" } | null =
-    null;
 
   let sidebar: ConversationSidebar;
   let chatArea: ChatArea;
@@ -58,7 +56,13 @@
   async function loadProviders() {
     try {
       const providersData = await providerService.getAll();
-      providers = providersData.filter((p: ProviderConfig) => p.enabled);
+      providers = providersData
+        .filter((p) => p.enabled && p.api_format)
+        .map((p) => ({
+          name: p.name,
+          api_format: p.api_format!,
+          models: p.models,
+        }));
       console.log("Providers loaded:", providers);
     } catch (err) {
       console.error("Failed to load providers:", err);
@@ -170,17 +174,14 @@
 
   function handleError(event: CustomEvent) {
     error = event.detail.message;
-    showToast(error, "error");
+    showToast(error || "发生错误", "error");
   }
 
   function showToast(
     message: string,
     type: "success" | "error" | "info" = "info",
   ) {
-    toast = { message, type };
-    setTimeout(() => {
-      toast = null;
-    }, 3000);
+    toast.show(message, type);
   }
 </script>
 
@@ -220,10 +221,6 @@
       />
     </div>
   </div>
-
-  {#if toast}
-    <Toast message={toast.message} type={toast.type} />
-  {/if}
 
   {#if isLoading && !currentConversation && conversations.length === 0}
     <div class="page-loading">

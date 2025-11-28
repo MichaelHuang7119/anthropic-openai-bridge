@@ -123,7 +123,14 @@
       const providersData = await providerService.getAll();
 
       // Filter enabled providers
-      providers = providersData.filter((p: ProviderConfig) => p.enabled);
+      providers = providersData
+        .filter((p) => p.enabled && p.api_format)
+        .map((p) => ({
+          name: p.name,
+          api_format: p.api_format!,
+          models: p.models,
+          enabled: p.enabled,
+        }));
 
       if (providers.length > 0) {
         // If provider/format/model are already set (from conversation), validate and find category

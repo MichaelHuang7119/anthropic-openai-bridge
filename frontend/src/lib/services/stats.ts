@@ -84,10 +84,10 @@ class StatsService {
     if (params?.date_from) queryParams.append("date_from", params.date_from);
     if (params?.date_to) queryParams.append("date_to", params.date_to);
 
-    const response = await api.get(
+    const response = (await api.get(
       `/api/stats/requests?${queryParams.toString()}`,
       options,
-    );
+    )) as any;
     const data = response.data?.data || response.data || [];
     return {
       data: Array.isArray(data) ? data : [],
@@ -115,10 +115,10 @@ class StatsService {
     if (params?.date_from) queryParams.append("date_from", params.date_from);
     if (params?.date_to) queryParams.append("date_to", params.date_to);
 
-    const response = await api.get(
+    const response = (await api.get(
       `/api/stats/token-usage?${queryParams.toString()}`,
       options,
-    );
+    )) as any;
     const data = response.data?.data || response.data;
     return (
       data || {
@@ -132,7 +132,7 @@ class StatsService {
   }
 
   async getSummary(options?: RequestOptions): Promise<PerformanceSummary> {
-    const response = await api.get("/api/stats/summary", options);
+    const response = (await api.get("/api/stats/summary", options)) as any;
     const data = response.data?.data || response.data;
     return (
       data || {

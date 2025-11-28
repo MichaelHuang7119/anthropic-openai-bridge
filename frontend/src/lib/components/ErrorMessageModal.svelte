@@ -15,7 +15,7 @@
     dispatch('close');
   }
 
-  function handleOverlayClick(event: MouseEvent) {
+  function handleOverlayClick(event: Event) {
     // Only close if clicking directly on the overlay (not on modal content)
     if (event.target === event.currentTarget) {
       handleClose();
@@ -51,7 +51,7 @@
 </script>
 
 {#if show && errorMessage}
-  <div class="modal-overlay" role="button" tabindex="0" on:click={handleOverlayClick} on:keydown={(e) => e.key === 'Escape' && handleOverlayClick()}>
+  <div class="modal-overlay" role="button" tabindex="0" on:click={handleOverlayClick} on:keydown={(e) => e.key === 'Escape' && handleOverlayClick(e)}>
     <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <h2>{title}</h2>

@@ -1,0 +1,23 @@
+{
+  "providers": [
+    {
+      "name": "test-provider",
+      "base_url": "https://api.example.com/v1",
+      "api_key": "sk-test-key",
+      "models": {
+        "small": ["test-small"],
+        "middle": ["test-middle"],
+        "big": ["test-big"]
+      },
+      "enabled": true,
+      "priority": 1,
+      "timeout": 60,
+      "max_retries": 3
+    }
+  ],
+  "model_mapping": {
+    "haiku": "small",
+    "sonnet": "middle",
+    "opus": "big"
+  }
+}

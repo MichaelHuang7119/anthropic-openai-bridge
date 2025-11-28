@@ -4,9 +4,11 @@
   import Input from './ui/Input.svelte';
   import type { Provider, ProviderFormData } from '$types/provider';
 
-  export let provider: Provider | null = null; // null for create, provider object for edit
-  export let loading = false;
-  export let apiFormat: string | undefined = undefined; // API format for precise identification when editing
+  let { provider = null, loading = false, apiFormat = undefined } = $props<{
+    provider: Provider | null;
+    loading: boolean;
+    apiFormat?: string;
+  }>();
 
   const dispatch = createEventDispatcher<{
     save: { provider: Provider; api_format?: string };
@@ -49,15 +51,27 @@
         small: [...(provider.models.small || [])]
       },
       // Use the provided api_format or the provider's api_format, default to 'openai' if neither
-      api_format: provider.api_format || apiFormat || 'openai'
+      api_format: (provider.api_format || apiFormat || 'openai') as 'openai' | 'anthropic'
     };
   } else if (apiFormat) {
     // When creating new provider, set default api_format from prop
-    formData.api_format = apiFormat;
+    formData.api_format = apiFormat as 'openai' | 'anthropic';
   }
 
   let errors: Record<string, string> = {};
   let showApiKey = false;
+
+  // String versions for binding to Input components
+  let timeoutStr = $state(formData.timeout.toString());
+  let maxRetriesStr = $state(formData.max_retries.toString());
+  let priorityStr = $state(formData.priority.toString());
+
+  // Update string versions when formData changes
+  $effect(() => {
+    timeoutStr = formData.timeout.toString();
+    maxRetriesStr = formData.max_retries.toString();
+    priorityStr = formData.priority.toString();
+  });
 
   function validateForm(): boolean {
     errors = {};
@@ -267,7 +281,11 @@
       <Input
         id="api_version"
         type="text"
-        bind:value={formData.api_version}
+        value={formData.api_version || ''}
+        on:input={(e) => {
+          const target = e.currentTarget as HTMLInputElement;
+          formData.api_version = target.value || null;
+        }}
         placeholder="例如: v1"
       />
     </div>
@@ -280,8 +298,12 @@
         <Input
           id="timeout"
           type="number"
-          bind:value={formData.timeout}
-          min="1"
+          bind:value={timeoutStr}
+          on:input={(e) => {
+            const target = e.currentTarget as HTMLInputElement;
+            timeoutStr = target.value;
+            formData.timeout = parseInt(timeoutStr) || 60;
+          }}
           required
         />
         {#if errors.timeout}
@@ -296,8 +318,12 @@
         <Input
           id="max_retries"
           type="number"
-          bind:value={formData.max_retries}
-          min="0"
+          bind:value={maxRetriesStr}
+          on:input={(e) => {
+            const target = e.currentTarget as HTMLInputElement;
+            maxRetriesStr = target.value;
+            formData.max_retries = parseInt(maxRetriesStr) || 1;
+          }}
           required
         />
         {#if errors.max_retries}
@@ -314,8 +340,12 @@
         <Input
           id="priority"
           type="number"
-          bind:value={formData.priority}
-          min="1"
+          bind:value={priorityStr}
+          on:input={(e) => {
+            const target = e.currentTarget as HTMLInputElement;
+            priorityStr = target.value;
+            formData.priority = parseInt(priorityStr) || 1;
+          }}
           required
         />
         <small>数字越小优先级越高 (1为最高)</small>

@@ -67,7 +67,7 @@
       if (nameCompare !== 0) return nameCompare;
 
       // 如果名称相同，按 API 格式排序
-      return a.api_format.localeCompare(b.api_format);
+      return (a.api_format || '').localeCompare(b.api_format || '');
     });
 
   // 分页计算
@@ -239,7 +239,7 @@
     testingProvider = null;
   }
 
-  function handleOverlayClick(event: MouseEvent) {
+  function handleOverlayClick(event: Event) {
     // Only close if clicking directly on the overlay (not on modal content)
     if (event.target === event.currentTarget) {
       closeTestResult();
@@ -844,7 +844,7 @@
     role="button"
     tabindex="0"
     on:click={handleOverlayClick}
-    on:keydown={(e) => e.key === "Escape" && handleOverlayClick()}
+    on:keydown={(e) => e.key === "Escape" && handleOverlayClick(e)}
   >
     <div
       class="modal-content test-result-modal"

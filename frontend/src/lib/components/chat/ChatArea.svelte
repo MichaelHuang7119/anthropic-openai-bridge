@@ -149,6 +149,9 @@
         provider_name: useProvider,
         api_format: useApiFormat,
         model: useModel,
+        input_tokens: null,
+        output_tokens: null,
+        created_at: new Date().toISOString(),
       };
       messages = [...messages, userMsg];
 
@@ -169,8 +172,8 @@
         undefined, // thinking
         undefined, // inputTokens
         undefined, // outputTokens
-        useProvider,
-        useApiFormat,
+        useProvider || undefined,
+        useApiFormat || undefined,
       );
 
       // Send to AI with current selected configuration
@@ -221,15 +224,15 @@
 
             // Add to database (with thinking content and usage)
             const savedMessage = await chatService.addMessage(
-              conversation.id,
+              conversation!.id,
               "assistant",
               assistantMessage,
               useModel,
               thinkingContent || undefined,
               usage?.input_tokens,
               usage?.output_tokens,
-              useProvider,
-              useApiFormat,
+              useProvider || undefined,
+              useApiFormat || undefined,
             );
 
             // Update the temporary message with the actual saved message data - preserve frontend config
@@ -356,10 +359,11 @@
             role: "assistant",
             content: streamingMessage || "",
             thinking: streamingThinking || undefined,
-            provider_name: selectedProvider,
-            api_format: selectedApiFormat,
-            model: selectedModel || conversation.model || null,
-          }}
+            model: selectedModel || conversation?.model || null,
+            input_tokens: null,
+            output_tokens: null,
+            created_at: new Date().toISOString(),
+          } as any}
           isStreaming={true}
           showModel={true}
           showTokens={false}

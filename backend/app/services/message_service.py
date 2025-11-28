@@ -508,7 +508,7 @@ class MessageService:
             logger.error(f"Value error: {e}")
             # Log error to database
             error_message = str(e)
-            status_code = 400
+            status_code = 500  # Changed from 400 to 500 - this is a server error, not client error
             db = get_database()
 
             # Estimate input tokens for failed requests

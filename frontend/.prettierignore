@@ -1,0 +1,31 @@
+# Build outputs
+.svelte-kit
+build
+dist
+.output
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Temporary files
+*.tmp
+*.temp
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
