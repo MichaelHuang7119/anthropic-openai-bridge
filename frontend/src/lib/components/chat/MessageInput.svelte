@@ -253,52 +253,64 @@
   }
 
   .prompts-scroll {
-    max-height: 300px;
+    height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem;
     scroll-behavior: smooth;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: thin;
+    -ms-overflow-style: none;
+    position: relative;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
   }
 
   .prompts-scroll::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    width: 6px;
+  }
+
+  .prompts-scroll::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+  }
+
+  .prompts-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+
+  .prompts-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
   }
 
   .prompts-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 2rem 0;
+    gap: 0.5rem;
   }
 
   .prompt-button {
+    height: 48px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 0.625rem;
-    color: var(--text-primary);
+    justify-content: center;
+    padding: 0 1.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-align: left;
-    white-space: nowrap;
-    flex-shrink: 0;
-    opacity: 0.5;
-    transform: scale(0.9);
-    transform-origin: center;
+    transition: all 0.2s;
+    opacity: 0.7;
   }
 
   .prompt-button:hover:not(:disabled) {
-    background: var(--bg-tertiary);
-    border-color: var(--primary-color);
-    opacity: 0.7;
-    transform: scale(0.93);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    opacity: 1;
   }
 
   .prompt-button.selected,
@@ -307,24 +319,12 @@
     border-color: var(--primary-color);
     color: white;
     opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
-  }
-
-  .prompt-button.selected:hover,
-  .prompt-button.centered:hover {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-    transform: scale(1.02);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-  }
-
-  .prompt-button:active:not(:disabled) {
-    transform: scale(0.98);
+    transform: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    font-weight: 600;
   }
 
   .prompt-button:disabled {
-    opacity: 0.4;
     cursor: not-allowed;
   }
 
@@ -452,27 +452,12 @@
     }
 
     .prompts-scroll {
-      max-height: 250px;
+      height: 120px;
     }
 
     .prompt-button {
-      padding: 0.625rem 0.875rem;
+      height: 40px;
       font-size: 0.85rem;
-      transform: scale(0.88);
-    }
-
-    .prompt-button:hover:not(:disabled) {
-      transform: scale(0.91);
-    }
-
-    .prompt-button.selected,
-    .prompt-button.centered {
-      transform: scale(1);
-    }
-
-    .prompt-button.selected:hover,
-    .prompt-button.centered:hover {
-      transform: scale(1.01);
     }
 
     .prompt-icon {
