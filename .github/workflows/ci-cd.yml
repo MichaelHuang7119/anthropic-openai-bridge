@@ -214,32 +214,32 @@ jobs:
           cache-from: type=local,src=/tmp/cache-frontend
           cache-to: type=local,dest=/tmp/cache-frontend,mode=max
 
-  deploy:
-    name: Deploy to Kubernetes
-    runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: production
-      url: https://your-domain.com
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-      
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
-      
-      - name: Deploy to Kubernetes
-        run: |
-          export KUBECONFIG=kubeconfig
-          kubectl apply -f k8s/
-          kubectl rollout restart deployment/backend -n default
-          kubectl rollout restart deployment/frontend -n default
-          kubectl rollout status deployment/backend -n default
-          kubectl rollout status deployment/frontend -n default
+  # deploy:
+  #   name: Deploy to Kubernetes
+  #   runs-on: ubuntu-latest
+  #   needs: [build-backend, build-frontend]
+  #   if: "false"  # Disabled - Kubernetes deployment requires proper cluster configuration
+  #   environment:
+  #     name: production
+  #     url: https://your-domain.com
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Set up kubectl
+  #       uses: azure/setup-kubectl@v3
+  #
+  #     - name: Configure kubectl
+  #       run: |
+  #         echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig
+  #         export KUBECONFIG=kubeconfig
+  #
+  #     - name: Deploy to Kubernetes
+  #       run: |
+  #         export KUBECONFIG=kubeconfig
+  #         kubectl apply -f k8s/
+  #         kubectl rollout restart deployment/backend -n default
+  #         kubectl rollout restart deployment/frontend -n default
+  #         kubectl rollout status deployment/backend -n default
+  #         kubectl rollout status deployment/frontend -n default
 
 
