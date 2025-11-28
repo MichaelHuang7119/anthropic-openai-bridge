@@ -13,6 +13,8 @@ export interface Conversation {
   api_format: string | null;
   model: string | null;
   last_model: string | null;
+  last_provider_name?: string | null;
+  last_api_format?: string | null;
   created_at: string;
   updated_at: string;
 }

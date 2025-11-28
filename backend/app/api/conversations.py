@@ -92,6 +92,8 @@ class ConversationDetailResponse(BaseModel):
     api_format: Optional[str]
     model: Optional[str]
     last_model: Optional[str] = Field(None, description="Last user message model")
+    last_provider_name: Optional[str] = Field(None, description="Last user message provider")
+    last_api_format: Optional[str] = Field(None, description="Last user message API format")
     created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     updated_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     messages: List[MessageResponse]
@@ -218,6 +220,9 @@ async def get_conversation(
             "provider_name": conversation["provider_name"],
             "api_format": conversation["api_format"],
             "model": conversation["model"],
+            "last_model": conversation.get("last_model"),
+            "last_provider_name": conversation.get("last_provider_name"),
+            "last_api_format": conversation.get("last_api_format"),
             "created_at": format_datetime(conversation["created_at"]),
             "updated_at": format_datetime(conversation["updated_at"]),
             "messages": []

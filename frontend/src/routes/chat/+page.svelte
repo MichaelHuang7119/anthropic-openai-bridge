@@ -102,20 +102,34 @@
 
       // Initialize model selection state from conversation config
       // This ensures the model selector shows the correct values when loading an existing conversation
-      if (currentConversation.provider_name) {
-        selectedProvider = currentConversation.provider_name;
-      }
-      if (currentConversation.api_format) {
-        selectedApiFormat = currentConversation.api_format;
-      }
-      if (currentConversation.model) {
-        selectedModelName = currentConversation.model;
+      // Priority: last message info > conversation initial info
+      if (currentConversation.last_model) {
+        // Use last message info if available
+        if (currentConversation.last_provider_name) {
+          selectedProvider = currentConversation.last_provider_name;
+        }
+        if (currentConversation.last_api_format) {
+          selectedApiFormat = currentConversation.last_api_format;
+        }
+        selectedModelName = currentConversation.last_model;
+      } else {
+        // Fall back to conversation initial info
+        if (currentConversation.provider_name) {
+          selectedProvider = currentConversation.provider_name;
+        }
+        if (currentConversation.api_format) {
+          selectedApiFormat = currentConversation.api_format;
+        }
+        if (currentConversation.model) {
+          selectedModelName = currentConversation.model;
+        }
       }
 
       console.log("Model selection initialized from conversation:", {
         provider: selectedProvider,
         apiFormat: selectedApiFormat,
         model: selectedModelName,
+        using: currentConversation.last_model ? 'last_message' : 'initial'
       });
     } catch (err) {
       error = err instanceof Error ? err.message : "加载对话失败";

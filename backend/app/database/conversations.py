@@ -179,7 +179,7 @@ class ConversationsManager:
             conn = await self.db_core.get_connection()
             cursor = await conn.cursor()
 
-            # Get conversation
+            # Get conversation with last user message info
             await cursor.execute(
                 """
                 SELECT
@@ -197,7 +197,23 @@ class ConversationsManager:
                         AND m.role = 'user'
                         ORDER BY m.id DESC
                         LIMIT 1
-                    ) as last_model
+                    ) as last_model,
+                    (
+                        SELECT m.provider_name
+                        FROM conversation_messages m
+                        WHERE m.conversation_id = c.id
+                        AND m.role = 'user'
+                        ORDER BY m.id DESC
+                        LIMIT 1
+                    ) as last_provider_name,
+                    (
+                        SELECT m.api_format
+                        FROM conversation_messages m
+                        WHERE m.conversation_id = c.id
+                        AND m.role = 'user'
+                        ORDER BY m.id DESC
+                        LIMIT 1
+                    ) as last_api_format
                 FROM conversations c
                 WHERE c.id = ? AND c.user_id = ?
             """,
@@ -248,6 +264,8 @@ class ConversationsManager:
                 "api_format": row["api_format"],
                 "model": row["model"],
                 "last_model": row["last_model"],
+                "last_provider_name": row["last_provider_name"],
+                "last_api_format": row["last_api_format"],
                 "created_at": created_at_beijing,
                 "updated_at": updated_at_beijing,
                 "messages": [],
