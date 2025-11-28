@@ -12,6 +12,8 @@
   let showPrompts = $state(true);
   let selectedPromptIndex = $state<number | null>(null);
 
+  let promptsScrollContainer: HTMLDivElement | undefined = $state(undefined);
+
   // Preset prompts
   const presetPrompts = [
     { icon: "💡", text: "解释这个概念", prompt: "请详细解释一下" },
@@ -72,11 +74,60 @@
     setTimeout(() => autoResize(), 0);
   }
 
+  // Scroll to center the selected prompt
+  function scrollToPrompt(index: number) {
+    if (!promptsScrollContainer) return;
+
+    const promptElements = promptsScrollContainer.querySelectorAll('.prompt-button');
+    const targetElement = promptElements[index] as HTMLElement;
+
+    if (targetElement) {
+      const containerHeight = promptsScrollContainer.clientHeight;
+      const elementHeight = targetElement.clientHeight;
+      const targetPosition = targetElement.offsetTop - (containerHeight / 2 - elementHeight / 2);
+
+      promptsScrollContainer.scrollTo({
+        top: targetPosition,
+        behavior: 'smooth'
+      });
+    }
+  }
+
+  // Handle scroll and auto-select the centered prompt
+  function handleScroll() {
+    if (!promptsScrollContainer) return;
+
+    const containerHeight = promptsScrollContainer.clientHeight;
+    const scrollTop = promptsScrollContainer.scrollTop;
+    const scrollCenter = scrollTop + containerHeight / 2;
+
+    const promptElements = promptsScrollContainer.querySelectorAll('.prompt-button');
+
+    for (let i = 0; i < promptElements.length; i++) {
+      const element = promptElements[i] as HTMLElement;
+      const elementTop = element.offsetTop;
+      const elementBottom = elementTop + element.clientHeight;
+
+      // Check if element is in the center zone
+      if (scrollCenter >= elementTop && scrollCenter <= elementBottom) {
+        selectedPromptIndex = i;
+        break;
+      }
+    }
+  }
+
   // Show prompts when input is empty and reset selection
   $effect(() => {
     if (message.trim() === "") {
       showPrompts = true;
       selectedPromptIndex = null;
+    }
+  });
+
+  // Auto-scroll to selected prompt when selection changes
+  $effect(() => {
+    if (selectedPromptIndex !== null && promptsScrollContainer) {
+      scrollToPrompt(selectedPromptIndex);
     }
   });
 </script>
@@ -88,12 +139,13 @@
         <span class="prompts-title">💬 快速开始</span>
       </div>
       <div class="prompts-scroll-container">
-        <div class="prompts-scroll">
+        <div class="prompts-scroll" bind:this={promptsScrollContainer} onscroll={handleScroll}>
           <div class="prompts-grid">
             {#each presetPrompts as preset, index}
               <button
                 class="prompt-button"
                 class:selected={selectedPromptIndex === index}
+                class:centered={selectedPromptIndex === index}
                 onclick={() => handlePromptClick(preset.prompt, index)}
                 {disabled}
               >
@@ -103,6 +155,8 @@
             {/each}
           </div>
         </div>
+        <!-- Center selection indicator -->
+        <div class="center-indicator"></div>
       </div>
     </div>
   {/if}
@@ -172,96 +226,120 @@
   }
 
   .prompts-scroll {
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 0.25rem 0.5rem;
     scroll-behavior: smooth;
-    scrollbar-width: thin; /* Firefox */
+    scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
   }
 
   .prompts-scroll::-webkit-scrollbar {
-    width: 4px; /* Chrome/Safari */
-  }
-
-  .prompts-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .prompts-scroll::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-  }
-
-  .prompts-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    display: none; /* Chrome/Safari */
   }
 
   .prompts-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    padding: 2rem 0;
   }
 
   .prompt-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.75rem 1rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: left;
     white-space: nowrap;
     flex-shrink: 0;
-    opacity: 0.6;
+    opacity: 0.5;
+    transform: scale(0.9);
+    transform-origin: center;
   }
 
   .prompt-button:hover:not(:disabled) {
     background: var(--bg-tertiary);
     border-color: var(--primary-color);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    opacity: 0.8;
+    opacity: 0.7;
+    transform: scale(0.93);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
-  .prompt-button.selected {
+  .prompt-button.selected,
+  .prompt-button.centered {
     background: var(--primary-color);
     border-color: var(--primary-color);
     color: white;
     opacity: 1;
-    transform: none;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    transform: scale(1);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
   }
 
-  .prompt-button.selected:hover {
+  .prompt-button.selected:hover,
+  .prompt-button.centered:hover {
     background: var(--primary-hover);
     border-color: var(--primary-hover);
-    transform: translateY(-1px);
-    opacity: 1;
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
   }
 
-  .prompt-button:active:not(:disabled):not(.selected) {
-    transform: translateY(0);
+  .prompt-button:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .prompt-button:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
   .prompt-icon {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     flex-shrink: 0;
+    transition: transform 0.3s;
+  }
+
+  .prompt-button.selected .prompt-icon,
+  .prompt-button.centered .prompt-icon {
+    transform: scale(1.1);
   }
 
   .prompt-text {
     flex: 1;
+    font-weight: 500;
+  }
+
+  .center-indicator {
+    position: absolute;
+    top: 50%;
+    left: 0.25rem;
+    right: 0.25rem;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 2px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+      transform: translateY(-50%) scaleX(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-50%) scaleX(1);
+    }
   }
 
   .message-input {
@@ -346,13 +424,37 @@
       padding: 0.75rem 0.75rem 0.5rem;
     }
 
+    .prompts-scroll {
+      max-height: 250px;
+    }
+
     .prompt-button {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.8rem;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.85rem;
+      transform: scale(0.88);
+    }
+
+    .prompt-button:hover:not(:disabled) {
+      transform: scale(0.91);
+    }
+
+    .prompt-button.selected,
+    .prompt-button.centered {
+      transform: scale(1);
+    }
+
+    .prompt-button.selected:hover,
+    .prompt-button.centered:hover {
+      transform: scale(1.01);
     }
 
     .prompt-icon {
-      font-size: 1rem;
+      font-size: 1.125rem;
+    }
+
+    .center-indicator {
+      left: 0.375rem;
+      right: 0.375rem;
     }
 
     .message-input {
