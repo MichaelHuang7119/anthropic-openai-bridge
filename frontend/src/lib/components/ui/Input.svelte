@@ -1,26 +1,16 @@
 <script lang="ts">
   let {
-    type = 'text',
-    placeholder = '',
-    disabled = false,
-    required = false,
-    id = undefined,
-    class: className = '',
     value = $bindable(''),
     oninput = undefined,
     onblur = undefined,
-    onfocus = undefined
+    onfocus = undefined,
+    ...restProps
   } = $props();
 </script>
 
 <input
-  {id}
-  {type}
   bind:value
-  {placeholder}
-  {disabled}
-  {required}
-  class="input {className}"
+  {...restProps}
   {oninput}
   {onblur}
   {onfocus}
