@@ -7,8 +7,8 @@ on:
     branches: [ main, develop ]
 
 env:
-  DOCKERHUB_USERNAME: michael7119
-  IMAGE_NAME: anthropic-openai-bridge
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   backend-test:
