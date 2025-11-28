@@ -1,6 +1,13 @@
 # Anthropic OpenAI Bridge
 
+[![CI/CD Status](https://github.com/michaelhuang7119/anthropic-openai-bridge/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/michaelhuang7119/anthropic-openai-bridge/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-green.svg)](https://fastapi.tiangolo.com/)
+[![Svelte 5](https://img.shields.io/badge/Svelte-5-orange.svg)](https://svelte.dev/)
+
 一个基于 FastAPI 和 Svelte 5 的高性能 AI 模型代理服务，支持多供应商配置和管理。
+
 
 ## ✨ 项目简介
 
@@ -30,6 +37,7 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 - **健康监控** - 手动检查模式，节省 API 调用
 - **自动故障转移** - 优先级/随机回退机制
 - **熔断器模式** - 快速失败防止级联故障
+- **并行测试** - 使用 pytest-xdist 加速测试执行（3-4倍提速）
 
 ### 📊 运营监控
 - **性能统计** - 请求日志、Token 使用追踪
@@ -418,14 +426,22 @@ python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 6
 
 ### 🔄 CI/CD 流水线
 
-项目配置了 GitHub Actions CI/CD 流水线，支持自动化测试、构建和部署：
+项目配置了 GitHub Actions CI/CD 流水线，支持自动化测试、构建和可选推送：
 
 ```bash
 # GitHub Actions 流水线包含以下阶段：
-# 1. 测试阶段：运行后端和前端测试
+# 1. 测试阶段：运行后端和前端测试（并行执行）
 # 2. 构建阶段：自动构建 Docker 镜像
-# 3. 部署阶段：自动部署到 Kubernetes（仅 main 分支）
+# 3. 可选推送：如果设置了 DOCKERHUB_TOKEN secret，自动推送到 Docker Hub
+#    - 无secrets：仅构建，不推送
+#    - 有secrets：构建并推送到 michael7119/anthropic-openai-bridge-{backend,frontend}
 ```
+
+**CI/CD 特性**：
+- ✅ 支持并行测试执行（pytest-xdist）
+- ✅ 可选推送模式（无需secrets也能完整运行CI/CD）
+- ✅ 自动缓存构建优化
+- ✅ 测试覆盖率报告
 
 CI/CD 配置文件位于：`.github/workflows/ci-cd.yml`
 
@@ -469,92 +485,127 @@ anthropic-openai-bridge/
 ├── backend/                    # 后端服务（FastAPI）
 │   ├── app/
 │   │   ├── api/               # API 路由层（RESTful API）
-│   │   │   ├── auth/          # 认证授权（JWT、原生API Key）
-│   │   │   ├── providers/     # 供应商管理API
-│   │   │   ├── health/        # 健康监控API
-│   │   │   ├── stats/         # 统计分析API
-│   │   │   ├── config/        # 配置管理API
-│   │   │   ├── api_keys/      # API Key管理API
-│   │   │   └── conversations/ # 对话历史管理API
-│   │   ├── routes/            # Felix 消息路由层（兼容 Anthropic API）
-│   │   │   ├── messages.py    # Anthropic messages API 主路由（/v1/messages）
-│   │   │   └── health.py      # Felix 健康检查
-│   │   ├── services/          # 业务逻辑层（Service Layer Pattern）
-│   │   │   ├── message_service.py    # 消息处理核心服务
-│   │   │   ├── health_service.py     # 健康检查服务
-│   │   │   ├── provider_service.py   # 供应商配置服务
-│   │   │   ├── token_counter.py      # Token 计数服务
-│   │   │   └── streaming/conversions # 流式转换服务
-│   │   ├── database/          # 数据库访问层（SQLite + 异步 + 连接池）
-│   │   │   ├── core.py        # 数据库核心连接和表创建
-│   │   │   ├── conversations_manager.py  # 对话历史管理（CRUD）
-│   │   │   ├── api_keys_manager.py       # API Key 管理
-│   │   │   └── users_manager.py          # 用户管理
-│   │   ├── cache/             # 多级缓存实现（L1内存 + L2 Redis）
-│   │   │   ├── memory_cache.py   # 内存缓存
-│   │   │   └── redis_cache.py    # Redis 缓存
+│   │   │   ├── auth.py        # 认证授权（JWT、API Key）
+│   │   │   ├── config.py      # 配置管理API
+│   │   │   ├── conversations.py # 对话历史API
+│   │   │   ├── health.py      # 健康监控API
+│   │   │   ├── providers.py   # 供应商管理API
+│   │   │   ├── stats.py       # 统计分析API
+│   │   │   └── api_keys.py    # API Key管理API
+│   │   ├── routes/            # Anthropic API 路由层
+│   │   │   ├── messages.py    # Anthropic messages API（/v1/messages）
+│   │   │   └── health.py      # 健康检查路由
+│   │   ├── services/          # 业务逻辑层
+│   │   │   ├── config_service.py      # 配置管理服务
+│   │   │   ├── message_service.py     # 消息处理核心服务
+│   │   │   ├── provider_service.py    # 供应商服务
+│   │   │   └── health_service.py      # 健康检查服务
+│   │   ├── database/          # 数据库访问层
+│   │   │   ├── core.py              # 数据库核心
+│   │   │   ├── api_keys.py          # API Key管理
+│   │   │   ├── config_changes.py    # 配置变更记录
+│   │   │   ├── conversations.py     # 对话历史管理
+│   │   │   ├── encryption.py        # 数据加密
+│   │   │   ├── health_history.py    # 健康历史
+│   │   │   ├── request_logs.py      # 请求日志
+│   │   │   ├── token_usage.py       # Token使用统计
+│   │   │   └── users.py             # 用户管理
 │   │   ├── converters/        # 格式转换器（Anthropic ↔ OpenAI）
-│   │   │   ├── anthropic_to_openai.py   # Anthropic 转 OpenAI
-│   │   │   ├── openai_to_anthropic.py   # OpenAI 转 Anthropic
+│   │   │   ├── anthropic_to_openai.py   # Anthropic转OpenAI
+│   │   │   ├── openai_to_anthropic.py   # OpenAI转Anthropic
 │   │   │   └── streaming.py             # 流式格式转换
-│   │   ├── core/              # 核心模型和配置管理
-│   │   │   ├── model_manager.py   # 模型管理器（容错、降级、模型选择）
-│   │   │   └── models.py          # 数据模型（Pydantic）
-│   │   ├── infrastructure/      # 基础设施层
-│   │   │   ├── telemetry.py         # OpenTelemetry 追踪
-│   │   │   ├── retry_mechanism.py   # 重试机制
-│   │   │   └── clients.py           # HTTP 客户端（连接池优化）
+│   │   ├── infrastructure/    # 基础设施层
+│   │   │   ├── anthropic_client.py  # Anthropic API 客户端
+│   │   │   ├── cache.py             # 缓存系统
+│   │   │   ├── circuit_breaker.py   # 熔断器
+│   │   │   ├── client.py            # HTTP客户端
+│   │   │   ├── retry.py             # 重试机制
+│   │   │   └── telemetry.py         # OpenTelemetry追踪
 │   │   ├── config/            # 配置管理
-│   │   │   ├── main.py        # 配置加载和验证
-│   │   │   └── defaults.py    # 默认配置
-│   │   ├── main.py            # FastAPI 主应用（root-location）
-│   │   ├── lifecycle.py       # 应用生命周期管理（启动、关闭）
-│   │   ├── auth.py            # 认证和授权中间件
-│   │   └── constants.py       # 常量定义
-│   ├── requirements.txt       # Python 依赖包
-│   ├── provider.json          # 供应商配置文件
-│   ├── provider.json.example  # 供应商配置示例
-│   └── start_proxy.py         # 后端启动脚本
+│   │   │   ├── __init__.py
+│   │   │   ├── main.py              # 主配置（Pydantic）
+│   │   │   └── hot_reload.py        # 热重载支持
+│   │   ├── core/              # 核心模块
+│   │   │   ├── model_manager.py     # 模型管理器
+│   │   │   └── models.py            # 数据模型
+│   │   ├── security/          # 安全模块
+│   │   │   └── utils.py             # 安全工具
+│   │   ├── utils/             # 工具类
+│   │   │   ├── color_logger.py      # 彩色日志
+│   │   │   ├── error_handler.py     # 错误处理
+│   │   │   └── response.py          # 响应格式化
+│   │   ├── __init__.py
+│   │   ├── auth.py            # 认证授权
+│   │   ├── constants.py       # 常量定义
+│   │   ├── lifecycle.py       # 应用生命周期
+│   │   └── main.py            # FastAPI主应用
+│   ├── provider.json          # 供应商配置
+│   ├── provider.test.json     # 测试用供应商配置
+│   ├── requirements.txt       # Python依赖（含pytest-xdist）
+│   ├── start.sh               # 启动脚本
+│   └── start_proxy.py         # 启动入口
 │
-├── frontend/                   # 前端管理界面（Svelte 5 + TypeScript）
+├── frontend/                  # 前端管理界面（Svelte 5 + TypeScript）
 │   ├── src/
-│   │   ├── lib/               # 可复用组件和工具类
-│   │   │   ├── components/    # Svelte 5 组件
-│   │   │   │   ├── chat/      # 聊天页面组件（ModelSelector, ChatArea, Sidebar）
-│   │   │   │   ├── health/    # 健康监控组件
-│   │   │   │   ├── stats/     # 统计图表组件
-│   │   │   │   └── providers/ # 供应商配置组件
-│   │   │   ├── stores/        # Svelte Stores（状态管理）
-│   │   │   └── services/      # HTTP API 客户端封装
-│   │   │       ├── chatService.ts      # 聊天服务（SSE、流式）
-│   │   │       ├── providerService.ts  # 供应商管理服务
-│   │   │       └── healthService.ts    # 健康检查服务
-│   │   ├── routes/            # SvelteKit 路由文件系统（File-system Routing）
-│   │   │   ├── +layout.svelte     # 布局模板
-│   │   │   ├── +page.svelte       # 首页/仪表板
-│   │   │   ├── login/             # 登录页面
-│   │   │   ├── chat/              # 聊天对话页面
-│   │   │   ├── api-keys/          # API Key 管理页面
-│   │   │   ├── providers/         # 供应商配置页面
-│   │   │   ├── health/            # 健康监控页面
-│   │   │   ├── stats/             # 统计分析页面
-│   │   │   └── config/            # 设置页面
-│   │   ├── service-worker.js      # PWA Service Worker
-│   │   └── hooks.server.js        # SvelteKit Server Hooks
-│   ├── static/                # PWA 静态资源
-│   ├── svelte.config.js       # SvelteKit 配置
-│   ├── vite.config.ts         # Vite 构建工具配置（代码分割优化）
-│   └── tsconfig.json          # TypeScript 配置
+│   │   ├── lib/               # 可复用组件和工具
+│   │   │   ├── components/    # Svelte组件
+│   │   │   │   ├── chat/              # 聊天组件
+│   │   │   │   │   ├── ChatArea.svelte      # 聊天区域
+│   │   │   │   │   ├── ConversationSidebar.svelte # 对话侧边栏
+│   │   │   │   │   ├── MessageBubble.svelte   # 消息气泡
+│   │   │   │   │   ├── MessageInput.svelte    # 消息输入
+│   │   │   │   │   └── ModelSelector.svelte   # 模型选择器
+│   │   │   │   ├── ErrorMessageModal.svelte   # 错误提示模态框
+│   │   │   │   └── ProviderForm.svelte        # 供应商表单
+│   │   │   └── services/      # API服务
+│   │   │       └── stats.ts        # 统计分析服务
+│   │   ├── routes/            # SvelteKit路由
+│   │   │   ├── +layout.svelte     # 布局
+│   │   │   ├── +page.svelte       # 首页
+│   │   │   ├── chat/+page.svelte  # 聊天页面
+│   │   │   ├── login/+page.svelte # 登录页面
+│   │   │   ├── providers/+page.svelte # 供应商管理
+│   │   │   └── stats/+page.svelte # 统计页面
+│   │   ├── app.html           # 应用HTML模板
+│   │   ├── hooks.server.js    # 服务器钩子
+│   │   └── service-worker.js  # PWA服务
+│   ├── static/                # 静态资源
+│   ├── package.json           # Node依赖
+│   ├── pnpm-lock.yaml         # pnpm锁文件
+│   ├── svelte.config.js       # Svelte配置
+│   ├── vite.config.ts         # Vite配置
+│   ├── tsconfig.json          # TypeScript配置
+│   ├── nginx.conf             # Nginx配置
+│   └── Dockerfile             # Docker配置
 │
-├── k8s/                       # Kubernetes 配置（Production Ready）
-├── scripts/                   # 工具脚本（负载测试、验证）
-├── tests/                     # 回归测试和集成测试
-├── docker-compose.yml         # Docker Compose 配置
-├── pytest.ini                 # pytest 测试框架配置
-├── DEPLOYMENT.md              # 部署指南
-├── OPTIMIZATION_SUMMARY.md    # 性能优化总结
-├── docs/chat-design.md        # 聊天功能设计文档
-└── README.md                  # 项目文档（当前文件）
+├── k8s/                       # Kubernetes部署配置
+│   ├── backend-deployment.yaml
+│   ├── frontend-deployment.yaml
+│   ├── ingress.yaml
+│   ├── namespace.yaml
+│   ├── pvc.yaml
+│   ├── redis-deployment.yaml
+│   ├── secrets.yaml.example
+│   └── README.md
+│
+├── tests/                     # 测试套件（并行执行）
+│   ├── conftest.py            # pytest配置
+│   ├── test_assistant_tool_use.py  # 工具调用测试
+│   ├── test_converter.py           # 转换器测试
+│   ├── test_count_tokens.py        # Token计数测试
+│   ├── test_messages.py            # 消息API测试
+│   ├── test_performance.py         # 性能测试
+│   ├── test_streaming_format.py    # 流式格式测试
+│   └── test_tool_use_format.py     # 工具使用格式测试
+│
+├── .github/                   # GitHub配置
+│   └── workflows/
+│       └── ci-cd.yml          # CI/CD流水线（Docker Hub可选推送）
+│
+├── docker-compose.yml         # Docker Compose配置
+├── pytest.ini                # pytest配置（含-n auto）
+├── requirements.txt           # 根目录依赖（通常为空）
+└── README.md                 # 项目文档
 ```
 
 ## 🛠️ 技术栈
@@ -666,29 +717,39 @@ def validate_max_tokens(cls, v):
 
 ## 🧪 测试
 
-### 单元测试和集成测试
+### 并行测试执行
+
+项目使用 `pytest-xdist` 实现并行测试，大幅提升测试执行速度：
 
 ```bash
-# 运行所有测试
-pytest tests/
+# 并行运行所有测试（自动检测CPU核心数）
+pytest tests/ -n auto
 
-# 运行特定测试文件
-pytest tests/test_messages.py
-pytest tests/test_converter.py
-pytest tests/test_assistant_tool_use.py
-pytest tests/test_count_tokens.py
-pytest tests/test_performance.py
-pytest tests/test_tool_use_format.py
+# 手动指定并行进程数
+pytest tests/ -n 4
+
+# 运行特定测试文件（并行）
+pytest tests/test_messages.py -n auto
+pytest tests/test_converter.py -n auto
+pytest tests/test_assistant_tool_use.py -n auto
+pytest tests/test_count_tokens.py -n auto
+pytest tests/test_performance.py -n auto
+pytest tests/test_tool_use_format.py -n auto
 
 # 运行测试并显示详细输出
-pytest tests/ -v
+pytest tests/ -n auto -v
 
-# 运行测试并显示覆盖率
-pytest tests/ --cov=app
+# 运行测试并显示覆盖率（并行执行）
+pytest tests/ -n auto --cov=app --cov-report=term-missing
 
 # 性能压力测试
 python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
 ```
+
+### 性能提升
+
+- **之前（串行）**：39个测试 ≈ 219秒（3分39秒）
+- **之后（并行）**：39个测试 ≈ 60-90秒（2.5-3.5倍提速）
 
 ### 测试文件说明
 
@@ -697,9 +758,12 @@ python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 6
 - **test_assistant_tool_use.py** - 工具调用功能测试
 - **test_count_tokens.py** - Token 计数功能测试
 - **test_performance.py** - 性能和并发测试
+- **test_streaming_format.py** - 流式输出格式测试
 - **test_tool_use_format.py** - 工具调用格式测试
 
-测试配置文件：`pytest.ini`
+**测试配置**：
+- 配置文件：`pytest.ini`（已配置 `-n auto`）
+- 测试依赖：`pytest-xdist==3.6.0`（已添加到 requirements.txt）
 
 ## ❓ 常见问题
 
@@ -976,12 +1040,13 @@ SOFTWARE.
 
 ## 🔗 相关链接
 
-- **项目主页**：<https://github.com/your-username/anthropic-openai-bridge>
-- **问题反馈**：<https://github.com/your-username/anthropic-openai-bridge/issues>
-- **功能建议**：<https://github.com/your-username/anthropic-openai-bridge/discussions>
+- **项目主页**：<https://github.com/michaelhuang7119/anthropic-openai-bridge>
+- **问题反馈**：<https://github.com/michaelhuang7119/anthropic-openai-bridge/issues>
+- **功能建议**：<https://github.com/michaelhuang7119/anthropic-openai-bridge/discussions>
 - **API 文档**：<http://localhost:8000/docs>
-- **部署指南**：请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
-- **优化总结**：请查看 [OPTIMIZATION_SUMMARY.md](./OPTIMIZATION_SUMMARY.md)
+- **Docker Hub 镜像**：
+  - Backend: <https://hub.docker.com/r/michael7119/anthropic-openai-bridge-backend>
+  - Frontend: <https://hub.docker.com/r/michael7119/anthropic-openai-bridge-frontend>
 - **Kubernetes 部署**：请查看 [k8s/README.md](./k8s/README.md)
 
 ## 🗺️ 路线图
