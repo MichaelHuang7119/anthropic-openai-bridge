@@ -183,11 +183,67 @@
     formData.models[category][index] = value;
   }
 
-  function moveModelUp(category: 'big' | 'middle' | 'small', index: number) {
-    if (index <= 0) return;
+  // Drag and drop functions
+  let draggedIndex: number | null = $state(null);
+  let draggedCategory: 'big' | 'middle' | 'small' | null = $state(null);
+
+  function handleDragStart(
+    category: 'big' | 'middle' | 'small',
+    index: number,
+    event: DragEvent
+  ) {
+    draggedIndex = index;
+    draggedCategory = category;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', `${category}-${index}`);
+    }
+  }
+
+  function handleDragOver(
+    category: 'big' | 'middle' | 'small',
+    index: number,
+    event: DragEvent
+  ) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  function handleDrop(
+    category: 'big' | 'middle' | 'small',
+    index: number,
+    event: DragEvent
+  ) {
+    event.preventDefault();
+
+    if (
+      draggedIndex === null ||
+      draggedCategory === null ||
+      draggedCategory !== category
+    ) {
+      return;
+    }
+
+    // Don't move if dropping on the same item
+    if (draggedIndex === index) {
+      return;
+    }
+
     const models = [...formData.models[category]];
-    [models[index], models[index - 1]] = [models[index - 1], models[index]];
+    const [draggedModel] = models.splice(draggedIndex, 1);
+    models.splice(index, 0, draggedModel);
     formData.models[category] = models;
+
+    // Reset drag state
+    draggedIndex = null;
+    draggedCategory = null;
+  }
+
+  function handleDragEnd() {
+    draggedIndex = null;
+    draggedCategory = null;
   }
 
   // Custom headers management
@@ -205,6 +261,36 @@
   function removeHeader(key: string) {
     const { [key]: _, ...rest } = formData.custom_headers;
     formData.custom_headers = rest;
+  }
+
+  // Header editing state
+  let editingHeaderKey: string | null = $state(null);
+  let editingHeaderKeyValue = $state('');
+  let editingHeaderValueValue = $state('');
+
+  function startEditHeader(key: string, value: string) {
+    editingHeaderKey = key;
+    editingHeaderKeyValue = key;
+    editingHeaderValueValue = value;
+  }
+
+  function cancelEditHeader() {
+    editingHeaderKey = null;
+    editingHeaderKeyValue = '';
+    editingHeaderValueValue = '';
+  }
+
+  function saveEditHeader(oldKey: string) {
+    if (editingHeaderKeyValue.trim() && editingHeaderValueValue.trim()) {
+      // If key changed, delete old key
+      if (oldKey !== editingHeaderKeyValue) {
+        delete formData.custom_headers[oldKey];
+      }
+      formData.custom_headers[editingHeaderKeyValue] = editingHeaderValueValue;
+      editingHeaderKey = null;
+      editingHeaderKeyValue = '';
+      editingHeaderValueValue = '';
+    }
   }
 </script>
 
@@ -394,25 +480,27 @@
       </div>
       <div class="model-list">
         {#each formData.models.big as _model, index}
-          <div class="model-item">
+          <div
+            class="model-item"
+            class:dragging={draggedCategory === 'big' && draggedIndex === index}
+            draggable="true"
+            role="listitem"
+            ondragstart={(e) => handleDragStart('big', index, e)}
+            ondragover={(e) => handleDragOver('big', index, e)}
+            ondrop={(e) => handleDrop('big', index, e)}
+            ondragend={handleDragEnd}
+          >
+            <div class="drag-handle" title="拖拽排序">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
+              </svg>
+            </div>
             <Input
               type="text"
               bind:value={formData.models.big[index]}
               placeholder="模型名称或ID"
             />
             <div class="model-actions">
-              <Button
-                variant="secondary"
-                size="sm"
-                on:click={() => moveModelUp('big', index)}
-                disabled={index === 0}
-                title="上移"
-                class="icon-button"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="18 15 12 9 6 15"></polyline>
-                </svg>
-              </Button>
               <Button
                 variant="danger"
                 size="sm"
@@ -449,25 +537,32 @@
       </div>
       <div class="model-list">
         {#each formData.models.middle as _model, index}
-          <div class="model-item">
+          <div
+            class="model-item"
+            class:dragging={draggedCategory === 'middle' && draggedIndex === index}
+            draggable="true"
+            role="listitem"
+            ondragstart={(e) => handleDragStart('middle', index, e)}
+            ondragover={(e) => handleDragOver('middle', index, e)}
+            ondrop={(e) => handleDrop('middle', index, e)}
+            ondragend={handleDragEnd}
+          >
+            <div class="drag-handle" title="拖动排序">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="7" r="1.5"></circle>
+                <circle cx="5" cy="12" r="1.5"></circle>
+                <circle cx="5" cy="17" r="1.5"></circle>
+                <circle cx="12" cy="7" r="1.5"></circle>
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="12" cy="17" r="1.5"></circle>
+              </svg>
+            </div>
             <Input
               type="text"
               bind:value={formData.models.middle[index]}
               placeholder="模型名称或ID"
             />
             <div class="model-actions">
-              <Button
-                variant="secondary"
-                size="sm"
-                on:click={() => moveModelUp('middle', index)}
-                disabled={index === 0}
-                title="上移"
-                class="icon-button"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="18 15 12 9 6 15"></polyline>
-                </svg>
-              </Button>
               <Button
                 variant="danger"
                 size="sm"
@@ -504,25 +599,32 @@
       </div>
       <div class="model-list">
         {#each formData.models.small as _model, index}
-          <div class="model-item">
+          <div
+            class="model-item"
+            class:dragging={draggedCategory === 'small' && draggedIndex === index}
+            draggable="true"
+            role="listitem"
+            ondragstart={(e) => handleDragStart('small', index, e)}
+            ondragover={(e) => handleDragOver('small', index, e)}
+            ondrop={(e) => handleDrop('small', index, e)}
+            ondragend={handleDragEnd}
+          >
+            <div class="drag-handle" title="拖动排序">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="7" r="1.5"></circle>
+                <circle cx="5" cy="12" r="1.5"></circle>
+                <circle cx="5" cy="17" r="1.5"></circle>
+                <circle cx="12" cy="7" r="1.5"></circle>
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="12" cy="17" r="1.5"></circle>
+              </svg>
+            </div>
             <Input
               type="text"
               bind:value={formData.models.small[index]}
               placeholder="模型名称或ID"
             />
             <div class="model-actions">
-              <Button
-                variant="secondary"
-                size="sm"
-                on:click={() => moveModelUp('small', index)}
-                disabled={index === 0}
-                title="上移"
-                class="icon-button"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="18 15 12 9 6 15"></polyline>
-                </svg>
-              </Button>
               <Button
                 variant="danger"
                 size="sm"
@@ -574,22 +676,79 @@
       <div class="headers-list">
         {#each Object.entries(formData.custom_headers) as [key, value]}
           <div class="header-item">
-            <span class="header-key">{key}:</span>
-            <span class="header-value">{value}</span>
-            <Button
-              variant="danger"
-              size="sm"
-              on:click={() => removeHeader(key)}
-              title="删除"
-              class="icon-button"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-            </Button>
+            {#if editingHeaderKey === key}
+              <!-- 编辑模式 -->
+              <Input
+                type="text"
+                bind:value={editingHeaderKeyValue}
+                placeholder="Header名称"
+                class="header-edit-input"
+              />
+              <span class="header-separator">:</span>
+              <Input
+                type="text"
+                bind:value={editingHeaderValueValue}
+                placeholder="Header值"
+                class="header-edit-input"
+              />
+              <div class="header-edit-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  on:click={() => saveEditHeader(key)}
+                  title="保存"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  on:click={cancelEditHeader}
+                  title="取消"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </Button>
+              </div>
+            {:else}
+              <!-- 显示模式 -->
+              <span class="header-key">{key}:</span>
+              <span class="header-value">{value}</span>
+              <div class="header-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  on:click={() => startEditHeader(key, value)}
+                  title="编辑"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  on:click={() => removeHeader(key)}
+                  title="删除"
+                  class="icon-button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </Button>
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
@@ -748,6 +907,28 @@
     flex: 1;
   }
 
+  .header-separator {
+    color: var(--text-secondary, #666);
+    user-select: none;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+
+  .header-edit-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+
+  .header-item :global(.header-edit-input) {
+    flex: 1;
+    min-width: 0;
+  }
+
   .form-actions {
     display: flex;
     justify-content: flex-end;
@@ -811,6 +992,43 @@
     outline: 2px solid var(--primary-color, #007bff);
     outline-offset: 2px;
     border-color: var(--primary-color, #007bff);
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    cursor: grab;
+    color: var(--text-secondary, #999);
+    transition: color 0.2s, background-color 0.2s;
+    border-radius: 0.25rem;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .drag-handle:hover {
+    color: var(--text-primary, #495057);
+    background: var(--bg-tertiary, #f8f9fa);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .drag-handle svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .model-item.dragging {
+    opacity: 0.6;
+    border: 1px dashed var(--primary-color, #007bff);
+    background: var(--bg-tertiary, #f8f9fa);
+  }
+
+  .model-item[draggable="true"] {
+    cursor: move;
   }
 
   @media (max-width: 768px) {

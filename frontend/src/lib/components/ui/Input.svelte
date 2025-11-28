@@ -1,20 +1,25 @@
 <script lang="ts">
-  export let type: string = 'text';
-  export let value: string = '';
-  export let placeholder: string = '';
-  export let disabled: boolean = false;
-  export let required: boolean = false;
-  export let id: string | undefined = undefined;
+  let {
+    type = 'text',
+    placeholder = '',
+    disabled = false,
+    required = false,
+    id = undefined,
+    class: className = '',
+    value = $bindable(''),
+    ...restProps
+  } = $props();
 </script>
 
 <input
+  {...restProps}
   {id}
   {type}
   bind:value
   {placeholder}
   {disabled}
   {required}
-  class="input"
+  class="input {className}"
   on:input
   on:blur
   on:focus
