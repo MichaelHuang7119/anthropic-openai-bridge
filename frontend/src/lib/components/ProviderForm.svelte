@@ -15,7 +15,7 @@
     cancel: void;
   }>();
 
-  let formData: ProviderFormData = {
+  let formData: ProviderFormData = $state({
     name: '',
     enabled: true,
     priority: 1,
@@ -31,7 +31,7 @@
       small: []
     },
     api_format: 'openai' // Default to 'openai' for backward compatibility
-  };
+  });
 
   // Initialize form data if editing
   if (provider) {
@@ -53,24 +53,30 @@
       // Use the provided api_format or the provider's api_format, default to 'openai' if neither
       api_format: (provider.api_format || apiFormat || 'openai') as 'openai' | 'anthropic'
     };
-  } else if (apiFormat) {
-    // When creating new provider, set default api_format from prop
-    formData.api_format = apiFormat as 'openai' | 'anthropic';
   }
 
-  let errors: Record<string, string> = {};
-  let showApiKey = false;
+  let errors: Record<string, string> = $state({});
+  let showApiKey = $state(false);
 
   // String versions for binding to Input components
-  let timeoutStr = $state(formData.timeout.toString());
-  let maxRetriesStr = $state(formData.max_retries.toString());
-  let priorityStr = $state(formData.priority.toString());
+  let timeoutStr = $state('60');
+  let maxRetriesStr = $state('1');
+  let priorityStr = $state('1');
 
   // Update string versions when formData changes
   $effect(() => {
-    timeoutStr = formData.timeout.toString();
-    maxRetriesStr = formData.max_retries.toString();
-    priorityStr = formData.priority.toString();
+    if (formData) {
+      timeoutStr = formData.timeout.toString();
+      maxRetriesStr = formData.max_retries.toString();
+      priorityStr = formData.priority.toString();
+    }
+  });
+
+  // Update api_format when apiFormat prop changes (for new providers)
+  $effect(() => {
+    if (!provider && apiFormat) {
+      formData.api_format = apiFormat as 'openai' | 'anthropic';
+    }
   });
 
   function validateForm(): boolean {
@@ -169,7 +175,7 @@
     formData.models[category] = formData.models[category].filter((_, i) => i !== index);
   }
 
-  function updateModel(
+  function _updateModel(
     category: 'big' | 'middle' | 'small',
     index: number,
     value: string
@@ -185,8 +191,8 @@
   }
 
   // Custom headers management
-  let newHeaderKey = '';
-  let newHeaderValue = '';
+  let newHeaderKey = $state('');
+  let newHeaderValue = $state('');
 
   function addHeader() {
     if (newHeaderKey.trim() && newHeaderValue.trim()) {
@@ -253,7 +259,7 @@
         <button
           type="button"
           class="toggle-password"
-          on:click={() => showApiKey = !showApiKey}
+          onclick={() => showApiKey = !showApiKey}
           title={showApiKey ? '隐藏API Key' : '显示API Key'}
         >
           {#if showApiKey}
@@ -387,7 +393,7 @@
         </Button>
       </div>
       <div class="model-list">
-        {#each formData.models.big as model, index}
+        {#each formData.models.big as _model, index}
           <div class="model-item">
             <Input
               type="text"
@@ -442,7 +448,7 @@
         </Button>
       </div>
       <div class="model-list">
-        {#each formData.models.middle as model, index}
+        {#each formData.models.middle as _model, index}
           <div class="model-item">
             <Input
               type="text"
@@ -497,7 +503,7 @@
         </Button>
       </div>
       <div class="model-list">
-        {#each formData.models.small as model, index}
+        {#each formData.models.small as _model, index}
           <div class="model-item">
             <Input
               type="text"

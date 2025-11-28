@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { theme } from "$stores/theme";
+  // import { theme } from "$stores/theme";
 
   let { disabled = false, placeholder = "输入消息...", onsend }: {
     disabled?: boolean;

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { marked } from "marked";
-  import { theme } from "$stores/theme";
 
   interface Message {
     id: number;
@@ -34,7 +33,7 @@
   // State for thinking collapse/expand
   let thinkingExpanded = $state(false);
 
-  // Render markdown content
+  // Render markdown content (marked.parse returns sanitized HTML)
   let renderedContent = $derived(
     message.content ? marked.parse(message.content) : "",
   );
@@ -129,6 +128,8 @@
             <div class="typing-animation">{message.thinking}</div>
             <span class="cursor"></span>
           {:else}
+            <!-- Marked.parse() sanitizes the markdown content -->
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html renderedThinking}
           {/if}
         </div>
@@ -142,6 +143,8 @@
         <div class="typing-animation">{message.content}</div>
         <span class="cursor"></span>
       {:else}
+        <!-- Marked.parse() sanitizes the markdown content -->
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         {@html renderedContent}
       {/if}
     </div>

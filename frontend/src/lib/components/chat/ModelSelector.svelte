@@ -1,8 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
-  import { chatService, type ModelChoice } from "$services/chatService";
   import { providerService } from "$services/providers";
-  import { theme } from "$stores/theme";
+  import type { ModelChoice } from "$services/chatService";
 
   interface Props {
     selectedModel?: ModelChoice | null;
@@ -23,7 +22,7 @@
     selectedApiFormat = $bindable(""),
     selectedModelName = $bindable(""),
     selectedCategory = $bindable("middle"),
-    onModelSelected,
+    onModelSelected: _onModelSelected,
   }: Props = $props();
 
   interface ProviderConfig {

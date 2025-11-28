@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+  import { createEventDispatcher } from "svelte";
   import { tick } from "svelte";
   import MessageBubble from "./MessageBubble.svelte";
   import MessageInput from "./MessageInput.svelte";
@@ -8,7 +8,6 @@
     type ConversationDetail,
     type Message,
   } from "$services/chatService";
-  import { theme } from "$stores/theme";
   import { authService } from "$services/auth";
 
   export let conversation: ConversationDetail | null = null;

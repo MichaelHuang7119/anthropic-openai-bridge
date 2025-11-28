@@ -5,6 +5,7 @@
   import { tick } from "svelte";
   import Button from "$components/ui/Button.svelte";
   import Card from "$components/ui/Card.svelte";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   import Badge from "$components/ui/Badge.svelte";
   import Input from "$components/ui/Input.svelte";
   import { apiKeysService } from "$services/apiKeys";
@@ -20,6 +21,7 @@
     CreateAPIKeyRequest,
     UpdateAPIKeyRequest,
   } from "$types/apiKey";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   import type { APIKeyListResponse } from "$services/apiKeys";
 
   let loading = true;

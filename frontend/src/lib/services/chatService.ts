@@ -436,6 +436,7 @@ class ChatService {
       let currentThinking = ""; // Accumulate thinking content
       let usage: { input_tokens: number; output_tokens: number } | undefined;
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
 

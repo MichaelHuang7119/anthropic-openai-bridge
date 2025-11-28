@@ -28,7 +28,7 @@
 
     loading = true;
     try {
-      const loginResponse = await authService.login(email, password);
+      await authService.login(email, password);
       console.log('[Login] Login successful, token stored');
       
       // 验证 token 已存储
@@ -55,11 +55,6 @@
     }
   }
 
-  function handleKeyPress(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-      handleSubmit();
-    }
-  }
 </script>
 
 <div class="login-container">

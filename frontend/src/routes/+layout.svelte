@@ -48,7 +48,7 @@
     }
   });
 
-  function handleLogout() {
+  function _handleLogout() {
     authService.logout();
   }
 </script>

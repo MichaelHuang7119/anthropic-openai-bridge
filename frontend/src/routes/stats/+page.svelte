@@ -63,7 +63,7 @@
   let filterModel = '';
   let filterStatus: 'all' | 'success' | 'failed' = 'all';
   let providers: Provider[] = [];
-  let availableModels: string[] = [];
+  let _availableModels: string[] = [];
   
   // 防抖定时器
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -107,7 +107,7 @@
       providers.forEach(p => {
         Object.values(p.models).flat().forEach(m => modelSet.add(m));
       });
-      availableModels = Array.from(modelSet).sort();
+      _availableModels = Array.from(modelSet).sort();
     } catch (error) {
       // 忽略取消错误
       if (error instanceof DOMException && error.name === 'AbortError') {

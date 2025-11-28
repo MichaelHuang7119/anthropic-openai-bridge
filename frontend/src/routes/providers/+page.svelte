@@ -246,7 +246,7 @@
     }
   }
 
-  function handleFormOverlayClick(event: MouseEvent) {
+  function handleFormOverlayClick(_event: MouseEvent) {
     // 禁用点击遮罩层关闭弹窗，只能通过关闭按钮关闭
     // Do nothing - modal can only be closed via close/cancel buttons
   }

@@ -10,8 +10,6 @@
     type ModelChoice,
   } from "$services/chatService";
   import { providerService } from "$services/providers";
-  import { theme } from "$stores/theme";
-  import { authService } from "$services/auth";
   import { toast } from "$stores/toast";
 
   interface ProviderConfig {
@@ -33,7 +31,7 @@
   let selectedApiFormat: string = "";
   let selectedModelName: string = "";
   let selectedCategory: string = "middle";
-  let selectedModelChoice: ModelChoice | null = null;
+  let _selectedModelChoice: ModelChoice | null = null;
 
   let isLoading = false;
   let error: string | null = null;
@@ -86,7 +84,7 @@
     selectedProvider = modelChoice.providerName;
     selectedApiFormat = modelChoice.apiFormat;
     selectedModelName = modelChoice.model;
-    selectedModelChoice = modelChoice;
+    _selectedModelChoice = modelChoice;
     console.log("Model selected:", modelChoice);
   }
 

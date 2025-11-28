@@ -1,11 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
-  import {
-    chatService,
-    type Conversation,
-    type ModelChoice,
-  } from "$services/chatService";
-  import { theme } from "$stores/theme";
+  import { chatService, type Conversation } from "$services/chatService";
 
   interface ProviderConfig {
     name: string;
@@ -39,8 +34,8 @@
     conversations = $bindable([]),
     currentConversationId = $bindable(null),
     providers = [],
-    onConversationSelected,
-    onNewConversation,
+    onConversationSelected: _onConversationSelected,
+    onNewConversation: _onNewConversation,
   }: Props = $props();
 
   const dispatch = createEventDispatcher<{
@@ -81,7 +76,7 @@
     }
   });
 
-  function setDefaultModelSelection() {
+  function _setDefaultModelSelection() {
     if (providers.length > 0) {
       selectedProviderName = providers[0].name;
       selectedApiFormat = providers[0].api_format;
