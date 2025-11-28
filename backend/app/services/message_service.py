@@ -3,6 +3,7 @@ import json
 import logging
 import asyncio
 import time
+from ..config import config
 import uuid
 from typing import Optional, Union, List, Dict, Any
 from datetime import datetime
@@ -111,29 +112,46 @@ class MessageService:
                 requested_model = req.model
 
                 # Get the specified provider without checking if model exists
-                specified_provider = self.model_manager.get_provider_by_name(provider_name)
+                # Filter providers by name and API format
+                matching_providers = [
+                    p for p in self.model_manager.config.get_enabled_providers()
+                    if (p.name == provider_name and
+                        p.enabled and
+                        (api_format is None or getattr(p, 'api_format', 'openai').lower() == api_format.lower()))
+                ]
 
-                if specified_provider and specified_provider.enabled:
-                    # Use the specified provider and model (trust user's choice)
-                    provider_config = specified_provider
-                    actual_model = requested_model
-                    logger.info(f"Using specified provider '{provider_name}' for model: {actual_model} (user's choice)")
-                else:
-                    # Specified provider doesn't exist or is disabled, log error and use highest priority
-                    all_enabled_providers = self.model_manager.config.get_enabled_providers()
-                    provider_config = all_enabled_providers[0] if all_enabled_providers else None
+                if not matching_providers:
+                    # No matching provider found for the specified format
+                    available_formats = [
+                        getattr(p, 'api_format', 'openai')
+                        for p in self.model_manager.config.providers
+                        if p.name == provider_name and p.enabled
+                    ]
+                    raise ValueError(
+                        f"No enabled provider found for '{provider_name}' with API format '{api_format}'. "
+                        f"Available formats for '{provider_name}': {list(set(available_formats))}"
+                    )
 
-                    if not provider_config:
-                        raise ValueError(f"No enabled providers found for requested model '{requested_model}'")
+                # Select the highest priority matching provider
+                provider_config = min(matching_providers, key=lambda p: p.priority)
 
-                    # Log warning
-                    if not specified_provider:
-                        logger.error(f"Specified provider '{provider_name}' not found, falling back to '{provider_config.name}'")
-                    elif not specified_provider.enabled:
-                        logger.error(f"Specified provider '{provider_name}' is disabled, falling back to '{provider_config.name}'")
+                # Verify model exists in the selected provider config
+                available_models = []
+                for category in ['big', 'middle', 'small']:
+                    if category in provider_config.models:
+                        available_models.extend(provider_config.models[category])
 
-                    actual_model = requested_model
-                    logger.info(f"Using fallback provider: {provider_config.name}, model: {actual_model}")
+                if requested_model not in available_models:
+                    raise ValueError(
+                        f"Model '{requested_model}' not found in provider '{provider_name}' "
+                        f"(format: {api_format}). Available models: {available_models}"
+                    )
+
+                actual_model = requested_model
+                logger.info(
+                    f"Using specified provider '{provider_name}' (format: {provider_config.api_format}) "
+                    f"for model: {actual_model} (user's choice)"
+                )
 
                 logger.info(f"Using provider: {provider_config.name}, model: {actual_model}")
 
