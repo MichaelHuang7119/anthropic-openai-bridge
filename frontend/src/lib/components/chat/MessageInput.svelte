@@ -103,16 +103,24 @@
 
     const promptElements = promptsScrollContainer.querySelectorAll('.prompt-button');
 
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+
     for (let i = 0; i < promptElements.length; i++) {
       const element = promptElements[i] as HTMLElement;
       const elementTop = element.offsetTop;
-      const elementBottom = elementTop + element.clientHeight;
+      const elementCenter = elementTop + element.clientHeight / 2;
+      const distance = Math.abs(scrollCenter - elementCenter);
 
-      // Check if element is in the center zone
-      if (scrollCenter >= elementTop && scrollCenter <= elementBottom) {
-        selectedPromptIndex = i;
-        break;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
       }
+    }
+
+    // Only update if the selected index actually changed
+    if (closestIndex !== -1 && closestIndex !== selectedPromptIndex) {
+      selectedPromptIndex = closestIndex;
     }
   }
 
@@ -130,6 +138,21 @@
       scrollToPrompt(selectedPromptIndex);
     }
   });
+
+  // Handle scroll end to snap to the nearest prompt
+  let scrollTimeout: number | null = null;
+
+  function handleScrollEnd() {
+    if (scrollTimeout !== null) {
+      window.clearTimeout(scrollTimeout);
+    }
+
+    scrollTimeout = window.setTimeout(() => {
+      if (selectedPromptIndex !== null) {
+        scrollToPrompt(selectedPromptIndex);
+      }
+    }, 100);
+  }
 </script>
 
 <div class="input-container">
@@ -139,7 +162,11 @@
         <span class="prompts-title">💬 快速开始</span>
       </div>
       <div class="prompts-scroll-container">
-        <div class="prompts-scroll" bind:this={promptsScrollContainer} onscroll={handleScroll}>
+        <div
+          class="prompts-scroll"
+          bind:this={promptsScrollContainer}
+          onscroll={() => { handleScroll(); handleScrollEnd(); }}
+        >
           <div class="prompts-grid">
             {#each presetPrompts as preset, index}
               <button
