@@ -84,17 +84,21 @@
       <div class="prompts-header">
         <span class="prompts-title">💬 快速开始</span>
       </div>
-      <div class="prompts-grid">
-        {#each presetPrompts as preset}
-          <button
-            class="prompt-button"
-            onclick={() => handlePromptClick(preset.prompt)}
-            {disabled}
-          >
-            <span class="prompt-icon">{preset.icon}</span>
-            <span class="prompt-text">{preset.text}</span>
-          </button>
-        {/each}
+      <div class="prompts-scroll-container">
+        <div class="prompts-scroll">
+          <div class="prompts-grid">
+            {#each presetPrompts as preset}
+              <button
+                class="prompt-button"
+                onclick={() => handlePromptClick(preset.prompt)}
+                {disabled}
+              >
+                <span class="prompt-icon">{preset.icon}</span>
+                <span class="prompt-text">{preset.text}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -149,7 +153,7 @@
   }
 
   .prompts-header {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .prompts-title {
@@ -158,10 +162,30 @@
     color: var(--text-secondary);
   }
 
-  .prompts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  .prompts-scroll-container {
+    position: relative;
+    margin: 0 -0.5rem;
+  }
+
+  .prompts-scroll {
+    display: flex;
     gap: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0.5rem;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  .prompts-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .prompts-grid {
+    display: flex;
+    gap: 0.5rem;
+    min-width: 100%;
   }
 
   .prompt-button {
@@ -177,6 +201,8 @@
     cursor: pointer;
     transition: all 0.2s;
     text-align: left;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .prompt-button:hover:not(:disabled) {
@@ -202,9 +228,6 @@
 
   .prompt-text {
     flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .message-input {
@@ -287,11 +310,6 @@
   @media (max-width: 768px) {
     .preset-prompts {
       padding: 0.75rem 0.75rem 0.5rem;
-    }
-
-    .prompts-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.5rem;
     }
 
     .prompt-button {
