@@ -17,7 +17,7 @@ backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
 sys.path.insert(0, backend_path)
 
 try:
-    from app.converters.streaming import convert_openai_stream_to_anthropic_async
+    from backend.app.converters.streaming import convert_openai_stream_to_anthropic_async
 except ImportError as e:
     print(f"Warning: Could not import convert_openai_stream_to_anthropic_async: {e}")
     print("Some tests may not work properly.")

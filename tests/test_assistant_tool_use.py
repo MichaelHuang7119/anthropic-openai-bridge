@@ -1,7 +1,7 @@
 """Test assistant messages with tool_use blocks conversion."""
 import pytest
-from app.converter import convert_anthropic_assistant_message_to_openai
-from app.models import Message, MessageRole, ToolUseBlock
+from backend.app.converters.anthropic_to_openai import convert_anthropic_assistant_message_to_openai
+from backend.app.core.models import Message, MessageRole, ToolUseBlock
 
 
 def test_assistant_message_with_tool_use():

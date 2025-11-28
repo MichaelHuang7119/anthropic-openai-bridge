@@ -1,8 +1,14 @@
 """Tests for /v1/messages endpoint."""
 import pytest
 import json
+import os
+
+# Enable development mode for tests (no API key required)
+# MUST be set before importing app
+os.environ["DEV_MODE"] = "true"
+
 from fastapi.testclient import TestClient
-from app.main import app
+from backend.app.main import app
 
 client = TestClient(app)
 

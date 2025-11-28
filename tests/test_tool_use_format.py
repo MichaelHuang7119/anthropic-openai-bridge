@@ -1,6 +1,6 @@
 """Test tool use response format compliance with Anthropic spec."""
 import pytest
-from app.converter import convert_openai_response_to_anthropic
+from backend.app.converters import convert_openai_response_to_anthropic
 
 
 def test_tool_use_response_format():

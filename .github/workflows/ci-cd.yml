@@ -48,25 +48,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dir: ./frontend/node_modules
-      
+          cache: 'pnpm'
+          cache-dependency-path: ./frontend/pnpm-lock.yaml
+
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
-      
+        run: pnpm install --frozen-lockfile
+
       - name: Run linter
         working-directory: ./frontend
-        run: npm run lint
-      
+        run: pnpm run lint
+
       - name: Type check
         working-directory: ./frontend
-        run: npm run check
+        run: pnpm run check
 
   build-backend:
     name: Build Backend Image
@@ -115,21 +120,26 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dir: ./frontend/node_modules
-      
+          cache: 'pnpm'
+          cache-dependency-path: ./frontend/pnpm-lock.yaml
+
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
-      
+        run: pnpm install --frozen-lockfile
+
       - name: Build frontend
         working-directory: ./frontend
-        run: npm run build
+        run: pnpm run build
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

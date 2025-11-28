@@ -1,12 +1,12 @@
 """Tests for converter functions."""
 import pytest
-from app.converter import (
+from backend.app.converters import (
     convert_anthropic_request_to_openai,
     convert_anthropic_message_to_openai,
     convert_anthropic_tool_to_openai,
     convert_openai_response_to_anthropic
 )
-from app.models import Message, MessageRole, TextContent, ImageContent, ToolDefinition
+from backend.app.core.models import Message, MessageRole, TextContent, ImageContent, ToolDefinition
 
 
 def test_convert_anthropic_message_text():
@@ -15,31 +15,38 @@ def test_convert_anthropic_message_text():
         role=MessageRole.USER,
         content="Hello, world!"
     )
-    
+
     openai_msg = convert_anthropic_message_to_openai(anth_message)
     assert openai_msg["role"] == "user"
-    assert len(openai_msg["content"]) == 1
-    assert openai_msg["content"][0]["type"] == "text"
-    assert openai_msg["content"][0]["text"] == "Hello, world!"
+    # Simple text content is returned as string for better compatibility
+    assert isinstance(openai_msg["content"], str)
+    assert openai_msg["content"] == "Hello, world!"
 
 
 def test_convert_anthropic_message_list():
-    """Test converting Anthropic message with content list."""
+    """Test converting Anthropic message with content list.
+
+    Note: When there's only a single text block, the converter optimizes
+    by returning string format for better compatibility with various providers.
+    """
     anth_message = Message(
         role=MessageRole.USER,
         content=[
-            TextContent(text="What's in this image?")
+            {"type": "text", "text": "What's in this image?"}
         ]
     )
-    
+
     openai_msg = convert_anthropic_message_to_openai(anth_message)
     assert openai_msg["role"] == "user"
-    assert len(openai_msg["content"]) == 1
+    # Single text block is optimized to string format for compatibility
+    assert isinstance(openai_msg["content"], str)
+    assert openai_msg["content"] == "What's in this image?"
+
 
 
 def test_convert_anthropic_message_with_image():
     """Test converting Anthropic message with image."""
-    from app.models import ImageSource, ImageSourceType
+    from backend.app.core.models import ImageSource, ImageSourceType
     
     anth_message = Message(
         role=MessageRole.USER,
@@ -163,7 +170,7 @@ def test_convert_openai_response():
 
 def test_model_name_extraction():
     """Test model name extraction from full Anthropic model names."""
-    from app.config import Config
+    from backend.app.config import Config
     
     config = Config()
     

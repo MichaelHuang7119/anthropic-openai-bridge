@@ -106,14 +106,17 @@ class MessageService:
                         user_question = msg.content if isinstance(msg.content, str) else str(msg.content)[:200]
                         break
 
+            # Log initial request info (provider will be determined later if not specified)
+            provider_info = f"{BLUE}{provider_name}{RESET}" if provider_name else f"{BLUE}auto-select{RESET}"
+            format_info = f"{MAGENTA}{api_format}{RESET}" if api_format else f"{MAGENTA}auto-detect{RESET}"
+
             logger.info(
                 f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
                 f"  {GREEN}Model{RESET}: {YELLOW}{req.model}{RESET}\n"
-                f"  {GREEN}Provider{RESET}: {BLUE}{provider_name}{RESET}\n"
-                f"  {GREEN}API Format{RESET}: {MAGENTA}{api_format}{RESET}\n"
+                f"  {GREEN}Provider{RESET}: {provider_info}\n"
+                f"  {GREEN}API Format{RESET}: {format_info}\n"
                 f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
-                f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if 
-            len(user_question) > 200 else ''}"
+                f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}"
             )
 
             # If provider_name is specified, use it directly (user's choice) - no validation
