@@ -1,6 +1,14 @@
 """Message handling service for processing Anthropic API requests."""
 import json
 import logging
+# 彩色日志支持 (ANSI 转义码)
+CYAN = '\033[96m'      # 青色 - Request ID
+GREEN = '\033[92m'     # 绿色 - 字段标签
+YELLOW = '\033[93m'    # 黄色 - Model
+BLUE = '\033[94m'      # 蓝色 - Provider
+MAGENTA = '\033[95m'   # 紫色 - API Format
+WHITE = '\033[97m'     # 白色 - Stream
+RESET = '\033[0m'      # 重置颜色
 import asyncio
 import time
 from ..config import config
@@ -99,12 +107,13 @@ class MessageService:
                         break
 
             logger.info(
-                f"[Request {request_id}] Processing message request:\n"
-                f"  Model: {req.model}\n"
-                f"  Provider: {provider_name}\n"
-                f"  API Format: {api_format}\n"
-                f"  Stream: {req.stream}\n"
-                f"  User Question: {user_question[:200]}{'...' if len(user_question) > 200 else ''}"
+                f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
+                f"  {GREEN}Model{RESET}: {YELLOW}{req.model}{RESET}\n"
+                f"  {GREEN}Provider{RESET}: {BLUE}{provider_name}{RESET}\n"
+                f"  {GREEN}API Format{RESET}: {MAGENTA}{api_format}{RESET}\n"
+                f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
+                f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if 
+            len(user_question) > 200 else ''}"
             )
 
             # If provider_name is specified, use it directly (user's choice) - no validation

@@ -35,7 +35,7 @@
     console.log("ChatArea: conversation changed:", conversation);
     loadMessages();
   } else {
-    console.log("ChatArea: no conversation");
+    // console.log("ChatArea: no conversation");
     messages = [];
   }
 

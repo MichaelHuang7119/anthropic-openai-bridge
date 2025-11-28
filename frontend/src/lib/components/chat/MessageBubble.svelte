@@ -42,19 +42,19 @@
     message.thinking ? marked.parse(message.thinking) : "",
   );
 
-  // Format timestamp
+  // Format timestamp - 直接解析本地时间
   function formatTime(timestamp?: string): string {
     if (!timestamp) return "";
     try {
-      const date = new Date(timestamp);
-      // Display time in Asia/Shanghai timezone
+      // 直接当作本地时间解析
+      const date = new Date(timestamp + ' GMT+0800');
       return date.toLocaleTimeString("zh-CN", {
         hour: "2-digit",
         minute: "2-digit",
         timeZone: "Asia/Shanghai",
       });
     } catch {
-      return "";
+      return timestamp || "";
     }
   }
 

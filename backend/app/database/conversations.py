@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from datetime import timezone, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,40 @@ class ConversationsManager:
             rows = await cursor.fetchall()
 
             conversations = []
+            # 定义北京时区
+            from datetime import timezone, timedelta
+            beijing_tz = timezone(timedelta(hours=8))
             for row in rows:
+                # 转换时间为北京时间ISO格式
+                created_at_beijing = None
+                updated_at_beijing = None
+
+                if row["created_at"]:
+                    created_at_dt = row["created_at"]
+                    if hasattr(created_at_dt, 'isoformat'):
+                        # 已经是datetime对象，转换为北京时间
+                        beijing_dt = created_at_dt.astimezone(beijing_tz)
+                        created_at_beijing = beijing_dt.isoformat()
+                    else:
+                        # SQLite字符串格式，先解析为UTC，再转北京时间
+                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
+                        utc_dt = datetime.fromisoformat(utc_str)
+                        beijing_dt = utc_dt.astimezone(beijing_tz)
+                        created_at_beijing = beijing_dt.isoformat()
+
+                if row["updated_at"]:
+                    updated_at_dt = row["updated_at"]
+                    if hasattr(updated_at_dt, 'isoformat'):
+                        # 已经是datetime对象，转换为北京时间
+                        beijing_dt = updated_at_dt.astimezone(beijing_tz)
+                        updated_at_beijing = beijing_dt.isoformat()
+                    else:
+                        # SQLite字符串格式，先解析为UTC，再转北京时间
+                        utc_str = str(updated_at_dt).replace(' ', 'T') + 'Z'
+                        utc_dt = datetime.fromisoformat(utc_str)
+                        beijing_dt = utc_dt.astimezone(beijing_tz)
+                        updated_at_beijing = beijing_dt.isoformat()
+
                 conversations.append(
                     {
                         "id": row["id"],
@@ -103,8 +137,8 @@ class ConversationsManager:
                         "provider_name": row["provider_name"],
                         "api_format": row["api_format"],
                         "model": row["model"],
-                        "created_at": row["created_at"],
-                        "updated_at": row["updated_at"],
+                        "created_at": created_at_beijing,
+                        "updated_at": updated_at_beijing,
                     }
                 )
 
@@ -145,21 +179,54 @@ class ConversationsManager:
             if not row:
                 return None
 
+            # 转换时间为北京时间ISO格式
+            # 定义北京时区
+            from datetime import timezone, timedelta
+            beijing_tz = timezone(timedelta(hours=8))
+            created_at_beijing = None
+            updated_at_beijing = None
+
+            if row["created_at"]:
+                created_at_dt = row["created_at"]
+                if hasattr(created_at_dt, 'isoformat'):
+                    # 已经是datetime对象，转换为北京时间
+                    beijing_dt = created_at_dt.astimezone(beijing_tz)
+                    created_at_beijing = beijing_dt.isoformat()
+                else:
+                    # SQLite字符串格式，先解析为UTC，再转北京时间
+                    utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
+                    utc_dt = datetime.fromisoformat(utc_str)
+                    beijing_dt = utc_dt.astimezone(beijing_tz)
+                    created_at_beijing = beijing_dt.isoformat()
+
+            if row["updated_at"]:
+                updated_at_dt = row["updated_at"]
+                if hasattr(updated_at_dt, 'isoformat'):
+                    # 已经是datetime对象，转换为北京时间
+                    beijing_dt = updated_at_dt.astimezone(beijing_tz)
+                    updated_at_beijing = beijing_dt.isoformat()
+                else:
+                    # SQLite字符串格式，先解析为UTC，再转北京时间
+                    utc_str = str(updated_at_dt).replace(' ', 'T') + 'Z'
+                    utc_dt = datetime.fromisoformat(utc_str)
+                    beijing_dt = utc_dt.astimezone(beijing_tz)
+                    updated_at_beijing = beijing_dt.isoformat()
+
             conversation = {
                 "id": row["id"],
                 "title": row["title"],
                 "provider_name": row["provider_name"],
                 "api_format": row["api_format"],
                 "model": row["model"],
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
+                "created_at": created_at_beijing,
+                "updated_at": updated_at_beijing,
                 "messages": [],
             }
 
             # Get messages
             await cursor.execute(
                 """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, provider_name, api_format
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -169,6 +236,23 @@ class ConversationsManager:
 
             message_rows = await cursor.fetchall()
             for msg_row in message_rows:
+                # 转换消息时间为北京时间ISO格式
+                # 定义北京时区
+                beijing_tz = timezone(timedelta(hours=8))
+                msg_created_at_beijing = None
+                if msg_row["created_at"]:
+                    created_at_dt = msg_row["created_at"]
+                    if hasattr(created_at_dt, 'isoformat'):
+                        # 已经是datetime对象，转换为北京时间
+                        beijing_dt = created_at_dt.astimezone(beijing_tz)
+                        msg_created_at_beijing = beijing_dt.isoformat()
+                    else:
+                        # SQLite字符串格式，先解析为UTC，再转北京时间
+                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
+                        utc_dt = datetime.fromisoformat(utc_str)
+                        beijing_dt = utc_dt.astimezone(beijing_tz)
+                        msg_created_at_beijing = beijing_dt.isoformat()
+
                 conversation["messages"].append(
                     {
                         "id": msg_row["id"],
@@ -178,7 +262,9 @@ class ConversationsManager:
                         "thinking": msg_row["thinking"],
                         "input_tokens": msg_row["input_tokens"],
                         "output_tokens": msg_row["output_tokens"],
-                        "created_at": msg_row["created_at"],
+                        "provider_name": msg_row["provider_name"],
+                        "api_format": msg_row["api_format"],
+                        "created_at": msg_created_at_beijing,
                     }
                 )
 
@@ -265,6 +351,7 @@ class ConversationsManager:
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
         provider_name: Optional[str] = None,
+        api_format: Optional[str] = None,
     ) -> Optional[int]:
         """
         Add a message to a conversation.
@@ -278,6 +365,7 @@ class ConversationsManager:
             input_tokens: Input token count
             output_tokens: Output token count
             provider_name: Provider used for this message
+            api_format: API format for this message (optional)
 
         Returns:
             Message ID if successful, None otherwise
@@ -289,10 +377,10 @@ class ConversationsManager:
             await cursor.execute(
                 """
                 INSERT INTO conversation_messages
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens),
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format),
             )
 
             # Update conversation updated_at
@@ -331,7 +419,7 @@ class ConversationsManager:
             cursor = await conn.cursor()
 
             query = """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, provider_name, api_format
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -347,7 +435,25 @@ class ConversationsManager:
             rows = await cursor.fetchall()
 
             messages = []
+            # 定义北京时区
+            from datetime import timezone, timedelta
+            beijing_tz = timezone(timedelta(hours=8))
             for row in rows:
+                # 转换消息时间为北京时间ISO格式
+                created_at_beijing = None
+                if row["created_at"]:
+                    created_at_dt = row["created_at"]
+                    if hasattr(created_at_dt, 'isoformat'):
+                        # 已经是datetime对象，转换为北京时间
+                        beijing_dt = created_at_dt.astimezone(beijing_tz)
+                        created_at_beijing = beijing_dt.isoformat()
+                    else:
+                        # SQLite字符串格式，先解析为UTC，再转北京时间
+                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
+                        utc_dt = datetime.fromisoformat(utc_str)
+                        beijing_dt = utc_dt.astimezone(beijing_tz)
+                        created_at_beijing = beijing_dt.isoformat()
+
                 messages.append(
                     {
                         "id": row["id"],
@@ -357,7 +463,9 @@ class ConversationsManager:
                         "thinking": row["thinking"],
                         "input_tokens": row["input_tokens"],
                         "output_tokens": row["output_tokens"],
-                        "created_at": row["created_at"],
+                        "provider_name": row["provider_name"],
+                        "api_format": row["api_format"],
+                        "created_at": created_at_beijing,
                     }
                 )
 

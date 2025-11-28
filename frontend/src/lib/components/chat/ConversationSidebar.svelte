@@ -149,62 +149,63 @@
     });
   }
 
-  // Format date for display
-  function formatDate(dateString: string): string {
-    try {
-      // Parse the UTC timestamp from backend
-      const utcDate = new Date(dateString);
+function formatDate(dateString: string): string {
+  try {
+    if (!dateString) return "未知时间";
 
-      // Get current time in China timezone
-      const nowInChina = new Date(
-        new Date().toLocaleString("en-US", { timeZone: "Asia/Shanghai" }),
-      );
+    // 直接解析ISO时间字符串（包含时区信息）
+    const date = new Date(dateString);
 
-      // Convert UTC date to China timezone for comparison
-      const dateInChina = new Date(
-        utcDate.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }),
-      );
-
-      // Get date parts for day comparison
-      const nowDay = nowInChina.toLocaleDateString("en-CA", {
-        timeZone: "Asia/Shanghai",
-      }); // YYYY-MM-DD format
-      const dateDay = dateInChina.toLocaleDateString("en-CA", {
-        timeZone: "Asia/Shanghai",
-      });
-
-      // Calculate day difference
-      const nowDayStart = new Date(nowDay).getTime();
-      const dateDayStart = new Date(dateDay).getTime();
-      const diffDays = Math.floor(
-        (nowDayStart - dateDayStart) / (1000 * 60 * 60 * 24),
-      );
-
-      if (diffDays === 0) {
-        // Today: show time in Asia/Shanghai timezone
-        return utcDate.toLocaleTimeString("zh-CN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Asia/Shanghai",
-        });
-      } else if (diffDays === 1) {
-        return "昨天";
-      } else if (diffDays < 7) {
-        return `${diffDays}天前`;
-      } else {
-        // More than 7 days: show date in Asia/Shanghai timezone
-        return utcDate.toLocaleDateString("zh-CN", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          timeZone: "Asia/Shanghai",
-        });
-      }
-    } catch (error) {
-      console.error("Error formatting date:", error, dateString);
+    // 验证解析是否成功
+    if (isNaN(date.getTime())) {
+      console.warn("无法解析时间:", dateString);
       return dateString;
     }
+
+    // 调试日志（临时）
+    console.log(`时间解析 - 原始: ${dateString}, 解析后: ${date.toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}`);
+
+    // 获取当前北京时间用于比较
+    const now = new Date();
+    const nowInBeijing = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+
+    // 获取北京时间用于显示和比较
+    const dateInBeijing = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+
+    // 判断是否是今天（北京时间）
+    const today = new Date(nowInBeijing.getFullYear(), nowInBeijing.getMonth(), nowInBeijing.getDate());
+    const messageDate = new Date(dateInBeijing.getFullYear(), dateInBeijing.getMonth(), dateInBeijing.getDate());
+    const diffTime = today.getTime() - messageDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      // 今天：显示北京时间 HH:MM
+      const timeStr = date.toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Shanghai"
+      });
+      console.log(`今天时间显示: ${timeStr}`);
+      return timeStr;
+    } else if (diffDays === 1) {
+      return "昨天";
+    } else if (diffDays < 7) {
+      return `${diffDays}天前`;
+    } else {
+      // 超过7天：显示完整日期（北京时间）
+      return date.toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: "Asia/Shanghai"
+      });
+    }
+  } catch (error) {
+    console.error("时间格式化错误:", error, dateString);
+    return dateString;
   }
+}
 
   // Format model name for display
   function formatModelName(model: string | null): string {

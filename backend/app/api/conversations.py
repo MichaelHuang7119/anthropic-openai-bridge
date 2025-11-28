@@ -1,17 +1,47 @@
 """Conversation management API endpoints."""
 
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
 
 from ..auth import require_admin
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
+def format_datetime(dt_str: str) -> str:
+    """Convert datetime string to Beijing time ISO format."""
+    if not dt_str:
+        return None
+
+    try:
+        from datetime import datetime, timezone, timedelta
+
+        # 北京时区 (UTC+8)
+        beijing_tz = timezone(timedelta(hours=8))
+
+        # 处理不同格式
+        if ' ' in dt_str and 'T' not in dt_str:
+            # SQLite格式: "2025-11-28 07:54:15"
+            utc_str = dt_str.replace(' ', 'T') + 'Z'
+            utc_dt = datetime.fromisoformat(utc_str)
+        elif dt_str.endswith('Z'):
+            # UTC ISO格式: "2025-11-28T07:54:15Z"
+            utc_dt = datetime.fromisoformat(dt_str[:-1])
+        else:
+            # 其他格式，尝试直接解析
+            utc_dt = datetime.fromisoformat(dt_str)
+
+        # 转换为北京时间
+        beijing_dt = utc_dt.astimezone(beijing_tz)
+        return beijing_dt.isoformat()
+    except Exception:
+        return dt_str
+
 class ConversationCreate(BaseModel):
     """Create conversation request model."""
     title: str
-    provider_name: str
+    provider_name: Optional[str] = None
     api_format: Optional[str] = "openai"
     model: str
 
@@ -28,6 +58,7 @@ class MessageCreate(BaseModel):
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     provider_name: Optional[str] = None
+    api_format: Optional[str] = None
 
 class ConversationResponse(BaseModel):
     """Conversation response model."""
@@ -36,8 +67,8 @@ class ConversationResponse(BaseModel):
     provider_name: Optional[str]
     api_format: Optional[str]
     model: Optional[str]
-    created_at: str
-    updated_at: str
+    created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
+    updated_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
 
 class MessageResponse(BaseModel):
     """Message response model."""
@@ -48,7 +79,9 @@ class MessageResponse(BaseModel):
     model: Optional[str]
     input_tokens: Optional[int]
     output_tokens: Optional[int]
-    created_at: str
+    created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
+    provider_name: Optional[str]
+    api_format: Optional[str]
 
 class ConversationDetailResponse(BaseModel):
     """Detailed conversation response with messages."""
@@ -57,8 +90,8 @@ class ConversationDetailResponse(BaseModel):
     provider_name: Optional[str]
     api_format: Optional[str]
     model: Optional[str]
-    created_at: str
-    updated_at: str
+    created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
+    updated_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     messages: List[MessageResponse]
 
 @router.get("", response_model=List[ConversationResponse])
@@ -87,7 +120,16 @@ async def get_conversations(
             user_id=user_id, limit=limit, offset=offset
         )
 
-        return conversations
+        # 标准化时间格式
+        formatted_conversations = []
+        for conv in conversations:
+            formatted_conversations.append({
+                **conv,
+                "created_at": format_datetime(conv["created_at"]),
+                "updated_at": format_datetime(conv["updated_at"])
+            })
+
+        return formatted_conversations
     except HTTPException:
         raise
     except Exception as e:
@@ -130,7 +172,14 @@ async def create_conversation(
         if not conversation_data:
             raise HTTPException(status_code=500, detail="Failed to retrieve created conversation")
 
-        return conversation_data
+        # 标准化时间格式
+        formatted_data = {
+            **conversation_data,
+            "created_at": format_datetime(conversation_data["created_at"]),
+            "updated_at": format_datetime(conversation_data["updated_at"])
+        }
+
+        return formatted_data
     except HTTPException:
         raise
     except Exception as e:
@@ -160,7 +209,26 @@ async def get_conversation(
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
-        return conversation
+        # 标准化时间格式
+        formatted_conversation = {
+            "id": conversation["id"],
+            "title": conversation["title"],
+            "provider_name": conversation["provider_name"],
+            "api_format": conversation["api_format"],
+            "model": conversation["model"],
+            "created_at": format_datetime(conversation["created_at"]),
+            "updated_at": format_datetime(conversation["updated_at"]),
+            "messages": []
+        }
+
+        # 格式化消息时间
+        for msg in conversation["messages"]:
+            formatted_conversation["messages"].append({
+                **msg,
+                "created_at": format_datetime(msg["created_at"])
+            })
+
+        return formatted_conversation
     except HTTPException:
         raise
     except Exception as e:
@@ -200,7 +268,14 @@ async def update_conversation(
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found after update")
 
-        return conversation
+        # 标准化时间格式
+        formatted_conversation = {
+            **conversation,
+            "created_at": format_datetime(conversation["created_at"]),
+            "updated_at": format_datetime(conversation["updated_at"])
+        }
+
+        return formatted_conversation
     except HTTPException:
         raise
     except Exception as e:
@@ -293,7 +368,9 @@ async def add_message(
             model=message_data.model,
             thinking=message_data.thinking,
             input_tokens=message_data.input_tokens,
-            output_tokens=message_data.output_tokens
+            output_tokens=message_data.output_tokens,
+            provider_name=message_data.provider_name,
+            api_format=message_data.api_format,
         )
 
         if not message_id:
@@ -303,7 +380,12 @@ async def add_message(
         messages = await db.conversations.get_messages(conversation_id)
         for msg in messages:
             if msg["id"] == message_id:
-                return msg
+                # 标准化返回的消息时间格式
+                formatted_msg = {
+                    **msg,
+                    "created_at": format_datetime(msg["created_at"])
+                }
+                return formatted_msg
 
         raise HTTPException(status_code=500, detail="Failed to retrieve created message")
     except HTTPException:
@@ -339,7 +421,16 @@ async def get_messages(
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         messages = await db.conversations.get_messages(conversation_id, limit)
-        return messages
+
+        # 标准化消息时间格式
+        formatted_messages = []
+        for msg in messages:
+            formatted_messages.append({
+                **msg,
+                "created_at": format_datetime(msg["created_at"])
+            })
+
+        return formatted_messages
     except HTTPException:
         raise
     except Exception as e:
