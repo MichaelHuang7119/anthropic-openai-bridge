@@ -232,19 +232,59 @@
               useApiFormat,
             );
 
-            // Update the temporary message with the actual saved message data
-            if (savedMessage) {
-              // Replace the temporary message with the saved one
+            // Update the temporary message with the actual saved message data - preserve frontend config
+            if (savedMessage && conversation) {
+              console.log("=== DEBUG CONFIG TRACKING ===");
+              console.log("Frontend sent to database:", {
+                provider: useProvider,
+                apiFormat: useApiFormat,
+                model: useModel
+              });
+              console.log("Database returned savedMessage:", savedMessage);
+              console.log("Original temporary assistantMsg:", assistantMsg);
+
+              // Create updated message with explicit typing
+              const updatedMessage: Message = {
+                id: savedMessage.id,
+                role: 'assistant',
+                content: assistantMsg.content,
+                model: assistantMsg.model || useModel || savedMessage.model || null,
+                thinking: assistantMsg.thinking || savedMessage.thinking || undefined,
+                input_tokens: savedMessage.input_tokens !== undefined ? savedMessage.input_tokens : null,
+                output_tokens: savedMessage.output_tokens !== undefined ? savedMessage.output_tokens : null,
+                created_at: savedMessage.created_at || new Date().toISOString(),
+                // Explicitly preserve frontend configuration
+                provider_name: assistantMsg.provider_name || useProvider || null,
+                api_format: assistantMsg.api_format || useApiFormat || null,
+              };
+
               messages = messages.map((msg) =>
-                msg.id === assistantMsg.id ? savedMessage : msg,
+                msg.id === assistantMsg.id ? updatedMessage : msg
               );
 
-              // Update conversation messages
-              conversation = {
+              // Verify the final configuration
+              const finalUpdatedMsg = messages.find(m => m.id === assistantMsg.id);
+              console.log("Final message after update:", {
+                provider_name: finalUpdatedMsg?.provider_name,
+                api_format: finalUpdatedMsg?.api_format,
+                model: finalUpdatedMsg?.model,
+                id: finalUpdatedMsg?.id,
+                created_at: finalUpdatedMsg?.created_at
+              });
+              console.log("========================");
+
+              // Update conversation messages - with type safety
+              const updatedConversation: ConversationDetail = {
                 ...conversation,
                 messages: messages,
+                // Ensure conversation config matches current selection if changed
+                provider_name: useProvider || conversation.provider_name || null,
+                api_format: useApiFormat || conversation.api_format || null,
+                model: useModel || conversation.model || null,
               };
-              dispatch("conversationUpdate", { conversation });
+
+              conversation = updatedConversation;
+              dispatch("conversationUpdate", { conversation: updatedConversation });
             }
           }
         },
@@ -303,8 +343,8 @@
           {message}
           showModel={true}
           showTokens={true}
-          providerName={message.provider_name ?? null}
-          apiFormat={message.api_format ?? null}
+          providerName={message.provider_name ?? selectedProvider ?? (conversation?.provider_name ?? null)}
+          apiFormat={message.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
           onretry={handleRetry}
         />
       {/each}
