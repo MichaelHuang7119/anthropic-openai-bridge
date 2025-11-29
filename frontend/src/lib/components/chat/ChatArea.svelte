@@ -11,14 +11,25 @@
     type ModelChoice,
   } from "$services/chatService";
   import { authService } from "$services/auth";
+  import { tStore } from "$stores/language";
 
-  export let conversation: ConversationDetail | null = null;
-  export let selectedModel: any = null;
-  export let selectedProvider: string = "";
-  export let selectedApiFormat: string = "";
-  export let selectedModelName: string = "";
-  export let selectedCategory: string = "middle";
-  export let sidebarCollapsed: boolean = false;
+  let {
+    conversation = $bindable(null),
+    selectedModel = $bindable(null),
+    selectedProvider = $bindable(""),
+    selectedApiFormat = $bindable(""),
+    selectedModelName = $bindable(""),
+    selectedCategory = $bindable("middle"),
+    sidebarCollapsed = $bindable(false),
+  }: {
+    conversation: ConversationDetail | null;
+    selectedModel: any;
+    selectedProvider: string;
+    selectedApiFormat: string;
+    selectedModelName: string;
+    selectedCategory: string;
+    sidebarCollapsed: boolean;
+  } = $props();
 
   const dispatch = createEventDispatcher<{
     conversationUpdate: { conversation: ConversationDetail };
@@ -31,23 +42,28 @@
     dispatch("modelSelected", event.detail);
   }
 
-  let messages: Message[] = [];
-  let isLoading = false;
-  let streamingMessage: string | null = null;
-  let streamingThinking: string | null = null;
-  let error: string | null = null;
+  let messages: Message[] = $state([]);
+  let isLoading = $state(false);
+  let streamingMessage: string | null = $state(null);
+  let streamingThinking: string | null = $state(null);
+  let error: string | null = $state(null);
   let messagesContainer: HTMLDivElement;
-  let userScrolledUp = false; // Track if user manually scrolled up
-  let isAtBottom = true; // Track if user is at bottom
+  let userScrolledUp = $state(false); // Track if user manually scrolled up
+  let isAtBottom = $state(true); // Track if user is at bottom
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   // Load messages when conversation changes
-  $: if (conversation) {
-    console.log("ChatArea: conversation changed:", conversation);
-    loadMessages();
-  } else {
-    // console.log("ChatArea: no conversation");
-    messages = [];
-  }
+  $effect(() => {
+    if (conversation) {
+      console.log("ChatArea: conversation changed:", conversation);
+      loadMessages();
+    } else {
+      // console.log("ChatArea: no conversation");
+      messages = [];
+    }
+  });
 
   async function loadMessages() {
     if (!conversation) return;
@@ -57,7 +73,7 @@
       const detail = await chatService.getConversation(conversation.id);
       messages = detail.messages || [];
     } catch (err) {
-      error = err instanceof Error ? err.message : "加载消息失败";
+      error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to load messages:", err);
     } finally {
       isLoading = false;
@@ -94,14 +110,16 @@
   }
 
   // Auto-scroll to bottom only if user hasn't scrolled up
-  $: if (messages.length > 0 || streamingMessage || streamingThinking) {
-    tick().then(() => {
-      // Only auto-scroll if user is at bottom or hasn't manually scrolled up
-      if (!userScrolledUp && isAtBottom) {
-        scrollToBottom();
-      }
-    });
-  }
+  $effect(() => {
+    if (messages.length > 0 || streamingMessage || streamingThinking) {
+      tick().then(() => {
+        // Only auto-scroll if user is at bottom or hasn't manually scrolled up
+        if (!userScrolledUp && isAtBottom) {
+          scrollToBottom();
+        }
+      });
+    }
+  });
 
   function scrollToBottom() {
     if (messagesContainer) {
@@ -113,17 +131,17 @@
 
   async function handleSendMessage(event: { message: string }) {
     if (!conversation) {
-      error = "请选择对话";
+      error = t('common.error');
       return;
     }
 
     if (!authService.isAuthenticated()) {
-      error = "请先登录";
+      error = t('common.error');
       return;
     }
 
     if (!selectedModelName && !conversation.model) {
-      error = "请选择模型";
+      error = t('common.error');
       return;
     }
 
@@ -133,7 +151,7 @@
     const useModel = selectedModelName || conversation.model || null;
 
     if (!useModel) {
-      error = "请选择模型";
+      error = t('common.error');
       return;
     }
 
@@ -310,7 +328,7 @@
         },
       );
     } catch (err) {
-      error = err instanceof Error ? err.message : "发送消息失败";
+      error = err instanceof Error ? err.message : t('common.error');
       streamingMessage = null;
       isLoading = false;
       dispatch("error", { message: error });
@@ -320,9 +338,6 @@
   function handleRetry(event: { message: any }) {
     handleSendMessage({ message: event.message.content });
   }
-
-  // Expose sendMessage for parent component
-  export { handleSendMessage as sendMessage };
 </script>
 
 <div class="chat-area">
@@ -330,7 +345,7 @@
   <div class="model-selector-container">
     <!-- Expand Sidebar Button - Only show when sidebar is collapsed -->
     {#if sidebarCollapsed}
-      <button class="expand-sidebar-btn" onclick={() => dispatch("toggleSidebar")} title="展开对话历史">
+      <button class="expand-sidebar-btn" onclick={() => dispatch("toggleSidebar")} title={t('chat.expandSidebar')}>
         <span class="hamburger-icon">
           <span class="line line-1"></span>
           <span class="line line-2"></span>
@@ -356,22 +371,22 @@
   >
     {#if !conversation}
       <div class="welcome">
-        <h2>欢迎使用 AI 聊天</h2>
-        <p>选择左侧的对话开始聊天，或创建新对话</p>
+        <h2>{t('chatArea.welcomeTitle')}</h2>
+        <p>{t('chatArea.welcomeDescription')}</p>
       </div>
     {:else if isLoading && messages.length === 0}
       <div class="loading">
         <div class="spinner"></div>
-        <p>加载消息中...</p>
+        <p>{t('common.loading')}</p>
       </div>
     {:else if error}
       <div class="error">
         <p>{error}</p>
-        <button onclick={loadMessages}>重试</button>
+        <button onclick={loadMessages}>{t('common.error')}</button>
       </div>
     {:else if messages.length === 0}
       <div class="empty">
-        <p>暂无消息，开始对话吧！</p>
+        <p>{t('chatArea.startConversation')}</p>
       </div>
     {:else}
       {#each messages as message}
@@ -412,7 +427,7 @@
     <button
       class="scroll-to-bottom"
       onclick={scrollToBottom}
-      title="滚动到底部"
+      title={t('chatArea.scrollToBottom')}
     >
       ↓
     </button>
@@ -422,13 +437,13 @@
     {#if conversation}
       <MessageInput
         disabled={isLoading}
-        placeholder="输入消息..."
+        placeholder={t('messageInput.placeholder')}
         hasMessages={messages.length > 0}
         onsend={handleSendMessage}
       />
     {:else}
       <div class="no-conversation-prompt">
-        <p>请选择或创建一个对话</p>
+        <p>{t('chatArea.startConversation')}</p>
       </div>
     {/if}
   </div>

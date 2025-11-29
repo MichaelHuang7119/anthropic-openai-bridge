@@ -3,6 +3,7 @@
   import Button from './ui/Button.svelte';
   import Input from './ui/Input.svelte';
   import type { Provider, ProviderFormData } from '$types/provider';
+  import { tStore } from '$stores/language';
 
   let { provider = null, loading = false, apiFormat = undefined } = $props<{
     provider: Provider | null;
@@ -58,6 +59,9 @@
   let errors: Record<string, string> = $state({});
   let showApiKey = $state(false);
 
+  // 获取翻译函数
+  const t = $derived($tStore);
+
   // String versions for binding to Input components
   let timeoutStr = $state('60');
   let maxRetriesStr = $state('1');
@@ -83,29 +87,29 @@
     errors = {};
 
     if (!formData.name.trim()) {
-      errors.name = '提供商名称不能为空';
+      errors.name = t("providerForm.providerNameRequired");
     }
 
     if (!formData.api_key.trim()) {
-      errors.api_key = 'API Key不能为空';
+      errors.api_key = t("providerForm.apiKeyRequired");
     }
 
     if (!formData.base_url.trim()) {
-      errors.base_url = 'Base URL不能为空';
+      errors.base_url = t("providerForm.baseUrlRequired");
     } else if (!isValidUrl(formData.base_url)) {
-      errors.base_url = '请输入有效的URL';
+      errors.base_url = t("providerForm.baseUrlInvalid");
     }
 
     if (formData.timeout < 1) {
-      errors.timeout = '超时时间必须大于0';
+      errors.timeout = t("providerForm.timeoutRequired");
     }
 
     if (formData.max_retries < 0) {
-      errors.max_retries = '重试次数不能小于0';
+      errors.max_retries = t("providerForm.maxRetriesRequired");
     }
 
     if (formData.priority < 1) {
-      errors.priority = '优先级必须大于0';
+      errors.priority = t("providerForm.priorityRequired");
     }
 
     // Check if at least one model category has models
@@ -114,7 +118,7 @@
       || formData.models.small.length > 0;
 
     if (!hasModels) {
-      errors.models = '至少需要配置一个模型';
+      errors.models = t("providerForm.modelConfigHelp");
     }
 
     return Object.keys(errors).length === 0;
@@ -296,17 +300,18 @@
 
 <div class="form">
   <div class="form-section">
-    <h3>基本信息</h3>
+    <h3>{t("providerForm.basicInfo")}</h3>
 
     <div class="form-group">
       <label for="name">
-        提供商名称 <span class="required">*</span>
+        {t("providerForm.providerName")} <span class="required">*</span>
       </label>
       <Input
         id="name"
         type="text"
         bind:value={formData.name}
-        placeholder="例如: openai, anthropic"
+        placeholder={t("providerForm.providerNamePlaceholder")}
+        autocomplete="off"
         required
       />
       {#if errors.name}
@@ -316,13 +321,14 @@
 
     <div class="form-group">
       <label for="base_url">
-        Base URL <span class="required">*</span>
+        {t("providerForm.baseUrl")} <span class="required">*</span>
       </label>
       <Input
         id="base_url"
         type="text"
         bind:value={formData.base_url}
-        placeholder="https://api.openai.com/v1"
+        placeholder={t("providerForm.baseUrlPlaceholder")}
+        autocomplete="off"
         required
       />
       {#if errors.base_url}
@@ -332,21 +338,22 @@
 
     <div class="form-group">
       <label for="api_key">
-        API Key <span class="required">*</span>
+        {t("providerForm.apiKey")} <span class="required">*</span>
       </label>
       <div class="password-input">
         <Input
           id="api_key"
           type={showApiKey ? 'text' : 'password'}
           bind:value={formData.api_key}
-          placeholder="输入API Key"
+          placeholder={t("providerForm.apiKeyPlaceholder")}
+          autocomplete="new-password"
           required
         />
         <button
           type="button"
           class="toggle-password"
           onclick={() => showApiKey = !showApiKey}
-          title={showApiKey ? '隐藏API Key' : '显示API Key'}
+          title={showApiKey ? t("providerForm.hideApiKey") : t("providerForm.showApiKey")}
         >
           {#if showApiKey}
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -368,7 +375,7 @@
 
     <div class="form-group">
       <label for="api_version">
-        API版本 (可选)
+        {t("providerForm.apiVersion")}
       </label>
       <Input
         id="api_version"
@@ -378,14 +385,15 @@
           const target = e.currentTarget as HTMLInputElement;
           formData.api_version = target.value || null;
         }}
-        placeholder="例如: v1"
+        placeholder={t("providerForm.apiVersionPlaceholder")}
+        autocomplete="off"
       />
     </div>
 
     <div class="form-row">
       <div class="form-group">
         <label for="timeout">
-          超时时间 (秒) <span class="required">*</span>
+          {t("providerForm.timeout")} <span class="required">*</span>
         </label>
         <Input
           id="timeout"
@@ -396,6 +404,7 @@
             timeoutStr = target.value;
             formData.timeout = parseInt(timeoutStr) || 60;
           }}
+          autocomplete="off"
           required
         />
         {#if errors.timeout}
@@ -405,7 +414,7 @@
 
       <div class="form-group">
         <label for="max_retries">
-          最大重试次数 <span class="required">*</span>
+          {t("providerForm.maxRetries")} <span class="required">*</span>
         </label>
         <Input
           id="max_retries"
@@ -416,6 +425,7 @@
             maxRetriesStr = target.value;
             formData.max_retries = parseInt(maxRetriesStr) || 1;
           }}
+          autocomplete="off"
           required
         />
         {#if errors.max_retries}
@@ -427,7 +437,7 @@
     <div class="form-row">
       <div class="form-group">
         <label for="priority">
-          优先级 <span class="required">*</span>
+          {t("providerForm.priority")} <span class="required">*</span>
         </label>
         <Input
           id="priority"
@@ -438,9 +448,10 @@
             priorityStr = target.value;
             formData.priority = parseInt(priorityStr) || 1;
           }}
+          autocomplete="off"
           required
         />
-        <small>数字越小优先级越高 (1为最高)</small>
+        <small>{t("providerForm.priorityHelp")}</small>
         {#if errors.priority}
           <span class="error">{errors.priority}</span>
         {/if}
@@ -448,20 +459,20 @@
 
       <div class="form-group">
         <label for="api_format">
-          API格式 <span class="required">*</span>
+          {t("providerForm.apiFormat")} <span class="required">*</span>
         </label>
-        <select id="api_format" bind:value={formData.api_format} class="select-input">
-          <option value="openai">OpenAI 格式 (需要转换)</option>
-          <option value="anthropic">Anthropic 格式 (直接转发)</option>
+        <select id="api_format" bind:value={formData.api_format} class="select-input" autocomplete="off">
+          <option value="openai">{t("providerForm.apiFormatOpenAI")}</option>
+          <option value="anthropic">{t("providerForm.apiFormatAnthropic")}</option>
         </select>
-        <small>选择提供商使用的API格式。Anthropic格式将直接转发，无需转换。</small>
+        <small>{t("providerForm.apiFormatHelp")}</small>
       </div>
     </div>
   </div>
 
   <div class="form-section">
-    <h3>模型配置</h3>
-    <small>至少配置一个模型，推荐配置所有三个类别</small>
+    <h3>{t("providerForm.modelConfig")}</h3>
+    <small>{t("providerForm.modelConfigHelp")}</small>
 
     {#if errors.models}
       <span class="error">{errors.models}</span>
@@ -470,8 +481,8 @@
     <!-- Large Models -->
     <div class="model-section">
       <div class="model-header">
-        <h3>大模型 (Big Models)</h3>
-        <Button size="sm" on:click={() => addModel('big')} title="添加大模型" class="icon-button">
+        <h3>{t("providerForm.bigModels")}</h3>
+        <Button size="sm" on:click={() => addModel('big')} title={t("providerForm.addBigModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -490,7 +501,7 @@
             ondrop={(e) => handleDrop('big', index, e)}
             ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title="拖拽排序">
+            <div class="drag-handle" title={t("providerForm.dragToSort")}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
               </svg>
@@ -498,14 +509,15 @@
             <Input
               type="text"
               bind:value={formData.models.big[index]}
-              placeholder="模型名称或ID"
+              placeholder={t("providerForm.modelNamePlaceholder")}
+              autocomplete="off"
             />
             <div class="model-actions">
               <Button
                 variant="danger"
                 size="sm"
                 on:click={() => removeModel('big', index)}
-                title="删除"
+                title={t("providerForm.delete")}
                 class="icon-button"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -519,7 +531,7 @@
           </div>
         {/each}
         {#if formData.models.big.length === 0}
-          <p class="empty-models">暂无大模型</p>
+          <p class="empty-models">{t("providerForm.noBigModels")}</p>
         {/if}
       </div>
     </div>
@@ -527,8 +539,8 @@
     <!-- Middle Models -->
     <div class="model-section">
       <div class="model-header">
-        <h3>中模型 (Middle Models)</h3>
-        <Button size="sm" on:click={() => addModel('middle')} title="添加中模型" class="icon-button">
+        <h3>{t("providerForm.middleModels")}</h3>
+        <Button size="sm" on:click={() => addModel('middle')} title={t("providerForm.addMiddleModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -547,7 +559,7 @@
             ondrop={(e) => handleDrop('middle', index, e)}
             ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title="拖动排序">
+            <div class="drag-handle" title={t("providerForm.dragToSort")}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="5" cy="7" r="1.5"></circle>
                 <circle cx="5" cy="12" r="1.5"></circle>
@@ -560,14 +572,15 @@
             <Input
               type="text"
               bind:value={formData.models.middle[index]}
-              placeholder="模型名称或ID"
+              placeholder={t("providerForm.modelNamePlaceholder")}
+              autocomplete="off"
             />
             <div class="model-actions">
               <Button
                 variant="danger"
                 size="sm"
                 on:click={() => removeModel('middle', index)}
-                title="删除"
+                title={t("providerForm.delete")}
                 class="icon-button"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -581,7 +594,7 @@
           </div>
         {/each}
         {#if formData.models.middle.length === 0}
-          <p class="empty-models">暂无中模型</p>
+          <p class="empty-models">{t("providerForm.noMiddleModels")}</p>
         {/if}
       </div>
     </div>
@@ -589,8 +602,8 @@
     <!-- Small Models -->
     <div class="model-section">
       <div class="model-header">
-        <h3>小模型 (Small Models)</h3>
-        <Button size="sm" on:click={() => addModel('small')} title="添加小模型" class="icon-button">
+        <h3>{t("providerForm.smallModels")}</h3>
+        <Button size="sm" on:click={() => addModel('small')} title={t("providerForm.addSmallModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -609,7 +622,7 @@
             ondrop={(e) => handleDrop('small', index, e)}
             ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title="拖动排序">
+            <div class="drag-handle" title={t("providerForm.dragToSort")}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="5" cy="7" r="1.5"></circle>
                 <circle cx="5" cy="12" r="1.5"></circle>
@@ -622,14 +635,15 @@
             <Input
               type="text"
               bind:value={formData.models.small[index]}
-              placeholder="模型名称或ID"
+              placeholder={t("providerForm.modelNamePlaceholder")}
+              autocomplete="off"
             />
             <div class="model-actions">
               <Button
                 variant="danger"
                 size="sm"
                 on:click={() => removeModel('small', index)}
-                title="删除"
+                title={t("providerForm.delete")}
                 class="icon-button"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -643,28 +657,30 @@
           </div>
         {/each}
         {#if formData.models.small.length === 0}
-          <p class="empty-models">暂无小模型</p>
+          <p class="empty-models">{t("providerForm.noSmallModels")}</p>
         {/if}
       </div>
     </div>
   </div>
 
   <div class="form-section">
-    <h3>自定义请求头 (可选)</h3>
-    <small>添加自定义HTTP请求头</small>
+    <h3>{t("providerForm.customHeaders")}</h3>
+    <small>{t("providerForm.customHeadersHelp")}</small>
 
     <div class="headers-input">
       <Input
         type="text"
         bind:value={newHeaderKey}
-        placeholder="Header名称"
+        placeholder={t("providerForm.headerName")}
+        autocomplete="off"
       />
       <Input
         type="text"
         bind:value={newHeaderValue}
-        placeholder="Header值"
+        placeholder={t("providerForm.headerValue")}
+        autocomplete="off"
       />
-      <Button size="sm" on:click={addHeader} title="添加请求头" class="icon-button">
+      <Button size="sm" on:click={addHeader} title={t("providerForm.addHeader")} class="icon-button">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -681,14 +697,16 @@
               <Input
                 type="text"
                 bind:value={editingHeaderKeyValue}
-                placeholder="Header名称"
+                placeholder={t("providerForm.headerName")}
+                autocomplete="off"
                 class="header-edit-input"
               />
               <span class="header-separator">:</span>
               <Input
                 type="text"
                 bind:value={editingHeaderValueValue}
-                placeholder="Header值"
+                placeholder={t("providerForm.headerValue")}
+                autocomplete="off"
                 class="header-edit-input"
               />
               <div class="header-edit-actions">
@@ -696,7 +714,7 @@
                   variant="secondary"
                   size="sm"
                   on:click={() => saveEditHeader(key)}
-                  title="保存"
+                  title={t("providerForm.save")}
                   class="icon-button"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -707,7 +725,7 @@
                   variant="secondary"
                   size="sm"
                   on:click={cancelEditHeader}
-                  title="取消"
+                  title={t("providerForm.cancel")}
                   class="icon-button"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -725,7 +743,7 @@
                   variant="secondary"
                   size="sm"
                   on:click={() => startEditHeader(key, value)}
-                  title="编辑"
+                  title={t("providerForm.edit")}
                   class="icon-button"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -737,7 +755,7 @@
                   variant="danger"
                   size="sm"
                   on:click={() => removeHeader(key)}
-                  title="删除"
+                  title={t("providerForm.delete")}
                   class="icon-button"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -756,13 +774,13 @@
   </div>
 
   <div class="form-actions">
-    <Button variant="secondary" on:click={handleCancel} disabled={loading} title="取消" class="icon-button">
+    <Button variant="secondary" on:click={handleCancel} disabled={loading} title={t("providerForm.cancel")} class="icon-button">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </Button>
-    <Button type="submit" on:click={handleSave} disabled={loading} title={loading ? '保存中...' : '保存'} class="icon-button">
+    <Button type="submit" on:click={handleSave} disabled={loading} title={loading ? t("providerForm.saving") : t("providerForm.save")} class="icon-button">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
         <polyline points="17 21 17 13 7 13 7 21"></polyline>

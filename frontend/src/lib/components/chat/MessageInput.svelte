@@ -1,12 +1,15 @@
 <script lang="ts">
-  // import { theme } from "$stores/theme";
+  import { tStore } from "$stores/language";
 
-  let { disabled = false, placeholder = "输入消息...", hasMessages = false, onsend }: {
+  let { disabled = false, placeholder, hasMessages = false, onsend }: {
     disabled?: boolean;
     placeholder?: string;
     hasMessages?: boolean;
     onsend?: (event: { message: string }) => void;
   } = $props();
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   let message = $state("");
   let textarea: HTMLTextAreaElement | undefined = $state(undefined);
@@ -15,20 +18,27 @@
 
   let promptsScrollContainer: HTMLDivElement | undefined = $state(undefined);
 
-  // Preset prompts
-  const presetPrompts = [
-    { icon: "💡", text: "解释这个概念", prompt: "请详细解释一下" },
-    { icon: "📝", text: "写一段代码", prompt: "请帮我写一段代码来实现" },
-    { icon: "🔍", text: "分析问题", prompt: "请帮我分析一下这个问题：" },
-    { icon: "✨", text: "优化建议", prompt: "请给出优化建议：" },
-    { icon: "📚", text: "总结要点", prompt: "请总结以下内容的要点：" },
-    { icon: "🤔", text: "头脑风暴", prompt: "让我们一起头脑风暴，关于" },
-  ];
+  // Preset prompts - 使用翻译函数生成
+  const presetPrompts = $derived([
+    { icon: "💡", text: t('messageInput.prompts.explain'), prompt: t('messageInput.prompts.explainPrompt') },
+    { icon: "📝", text: t('messageInput.prompts.code'), prompt: t('messageInput.prompts.codePrompt') },
+    { icon: "🔍", text: t('messageInput.prompts.analyze'), prompt: t('messageInput.prompts.analyzePrompt') },
+    { icon: "✨", text: t('messageInput.prompts.suggest'), prompt: t('messageInput.prompts.suggestPrompt') },
+    { icon: "📚", text: t('messageInput.prompts.summarize'), prompt: t('messageInput.prompts.summarizePrompt') },
+    { icon: "🤔", text: t('messageInput.prompts.brainstorm'), prompt: t('messageInput.prompts.brainstormPrompt') },
+  ]);
 
   // Auto-resize textarea
   $effect(() => {
     if (textarea && message) {
       autoResize();
+    }
+  });
+
+  // 设置默认占位符
+  $effect(() => {
+    if (!placeholder) {
+      placeholder = t('messageInput.placeholder');
     }
   });
 
@@ -168,7 +178,7 @@
   {#if showPrompts && !message.trim()}
     <div class="preset-prompts">
       <div class="prompts-header">
-        <span class="prompts-title">💬 快速开始</span>
+        <span class="prompts-title">💬 {t('messageInput.quickStart')}</span>
       </div>
       <div class="prompts-scroll-container">
         <div
@@ -211,14 +221,14 @@
       class:disabled={!message.trim() || disabled}
       onclick={handleSend}
       disabled={!message.trim() || disabled}
-      title="发送 (Enter)"
+      title={t('messageInput.send')}
     >
       ➤
     </button>
   </div>
 
   <div class="input-hints">
-    <span class="hint">内容由 AI 生成，仅供参考</span>
+    <span class="hint">{t('messageInput.disclaimer')}</span>
   </div>
 </div>
 

@@ -7,11 +7,15 @@
   import Button from '$components/ui/Button.svelte';
   import { authService } from '$services/auth';
   import { toast } from '$stores/toast';
+  import { tStore } from '$stores/language';
 
-  let email = '';
-  let password = '';
-  let loading = false;
-  let showPassword = false;
+  // 获取翻译函数
+  const t = $derived($tStore);
+
+  let email = $state('');
+  let password = $state('');
+  let loading = $state(false);
+  let showPassword = $state(false);
 
   // 如果已经登录，重定向到首页
   onMount(() => {
@@ -22,7 +26,7 @@
 
   async function handleSubmit() {
     if (!email || !password) {
-      toast.error('请输入邮箱和密码');
+      toast.error(t('login.enterEmailPassword'));
       return;
     }
 
@@ -30,25 +34,25 @@
     try {
       await authService.login(email, password);
       console.log('[Login] Login successful, token stored');
-      
+
       // 验证 token 已存储
       if (browser) {
         const token = localStorage.getItem('auth_token');
         if (!token) {
           console.error('[Login] Token not found in localStorage after login!');
-          toast.error('登录失败：Token 未正确存储');
+          toast.error(t('login.loginFailed'));
           return;
         }
         console.log('[Login] Token verified in localStorage');
       }
-      
-      toast.success('登录成功');
+
+      toast.success(t('login.loginSuccess'));
       // 使用 replace 而不是 push，避免返回登录页
       // 添加短暂延迟确保状态已更新
       await new Promise(resolve => setTimeout(resolve, 50));
       await goto('/');
     } catch (error) {
-      const message = error instanceof Error ? error.message : '登录失败，请检查邮箱和密码';
+      const message = error instanceof Error ? error.message : t('login.checkCredentials');
       toast.error(message);
     } finally {
       loading = false;
@@ -62,30 +66,30 @@
     <Card>
       <div slot="title">
         <h1 class="login-title">Anthropic OpenAI Bridge</h1>
-        <p class="login-subtitle">管理界面登录</p>
+        <p class="login-subtitle">{t('login.subtitle')}</p>
       </div>
-      
-      <form on:submit|preventDefault={handleSubmit} class="login-form">
+
+      <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="login-form">
         <div class="form-group">
-          <label for="email">邮箱</label>
+          <label for="email">{t('login.email')}</label>
           <Input
             id="email"
             type="email"
             bind:value={email}
-            placeholder="admin@example.com"
+            placeholder={t('login.placeholderEmail')}
             required
             disabled={loading}
           />
         </div>
 
         <div class="form-group">
-          <label for="password">密码</label>
+          <label for="password">{t('login.password')}</label>
           <div class="password-input-wrapper">
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
               bind:value={password}
-              placeholder="请输入密码"
+              placeholder={t('login.placeholderPassword')}
               required
               disabled={loading}
               on:input={() => {}}
@@ -93,9 +97,9 @@
             <button
               type="button"
               class="toggle-password"
-              on:click={() => showPassword = !showPassword}
+              onclick={() => showPassword = !showPassword}
               disabled={loading}
-              aria-label={showPassword ? '隐藏密码' : '显示密码'}
+              aria-label={showPassword ? t('login.togglePasswordHide') : t('login.togglePasswordShow')}
             >
               {#if showPassword}
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,18 +124,18 @@
             disabled={loading}
             class="login-button"
           >
-            {loading ? '登录中...' : '登录'}
+            {loading ? t('login.loggingIn') : t('login.login')}
           </Button>
         </div>
       </form>
 
       <div class="login-info">
-        <p class="info-title">默认管理员账号：</p>
+        <p class="info-title">{t('login.defaultAdminTitle')}</p>
         <div class="info-content">
-          <p><strong>邮箱：</strong>admin@example.com</p>
-          <p><strong>密码：</strong>admin123</p>
+          <p><strong>{t('login.defaultEmail')}</strong>admin@example.com</p>
+          <p><strong>{t('login.defaultPassword')}</strong>admin123</p>
         </div>
-        <p class="info-note">⚠️ 首次登录后请立即修改默认密码</p>
+        <p class="info-note">{t('login.warnChangePassword')}</p>
       </div>
     </Card>
   </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { marked } from "marked";
+  import { tStore } from "$stores/language";
 
   interface Message {
     id: number;
@@ -32,6 +33,10 @@
 
   // State for thinking collapse/expand
   let thinkingExpanded = $state(false);
+  let copied = $state(false);
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   // Render markdown content (marked.parse returns sanitized HTML)
   let renderedContent = $derived(
@@ -41,19 +46,37 @@
     message.thinking ? marked.parse(message.thinking) : "",
   );
 
-  // Format timestamp - 直接解析本地时间
+  // Format timestamp
   function formatTime(timestamp?: string): string {
     if (!timestamp) return "";
     try {
-      // 直接当作本地时间解析
-      const date = new Date(timestamp + ' GMT+0800');
+      // 尝试多种时间格式解析
+      let date: Date;
+
+      // 如果已经是 ISO 格式或包含 T，直接解析
+      if (timestamp.includes("T")) {
+        date = new Date(timestamp);
+      }
+      // 如果格式是 "YYYY-MM-DD HH:MM:SS"，转换为 ISO 格式
+      else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timestamp)) {
+        date = new Date(timestamp.replace(" ", "T") + "Z");
+      }
+      // 其他格式尝试直接解析
+      else {
+        date = new Date(timestamp);
+      }
+
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+
       return date.toLocaleTimeString("zh-CN", {
         hour: "2-digit",
         minute: "2-digit",
-        timeZone: "Asia/Shanghai",
       });
     } catch {
-      return timestamp || "";
+      return "";
     }
   }
 
@@ -66,12 +89,18 @@
   function handleRetry() {
     onretry?.({ message });
   }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message.content);
+    copied = true;
+    setTimeout(() => copied = false, 2000);
+  }
 </script>
 
 <div class="message-bubble {message.role}">
   <div class="message-header">
     <span class="role-label">
-      {message.role === "user" ? "你" : "助手"}
+      {message.role === "user" ? t('messageBubble.user') : t('messageBubble.assistant')}
     </span>
     {#if showModel && (providerName || message.model)}
       <span class="model-info">
@@ -91,9 +120,9 @@
     {/if}
     {#if showTokens && message.input_tokens !== undefined && message.output_tokens !== undefined}
       <span class="token-info">
-        输入: {formatTokens(message.input_tokens)} | 输出: {formatTokens(
+        {t('messageBubble.inputTokens')}: {formatTokens(message.input_tokens)} | {t('messageBubble.outputTokens')}: {formatTokens(
           message.output_tokens,
-        )} | 总计: {formatTokens(
+        )} | {t('messageBubble.totalTokens')}: {formatTokens(
           (message.input_tokens || 0) + (message.output_tokens || 0),
         )}
       </span>
@@ -110,10 +139,10 @@
       <button
         class="thinking-toggle"
         onclick={() => (thinkingExpanded = !thinkingExpanded)}
-        title={thinkingExpanded ? "收起思考过程" : "展开思考过程"}
+        title={thinkingExpanded ? t('messageBubble.hideThinking') : t('messageBubble.showThinking')}
       >
         <span class="toggle-icon {thinkingExpanded ? 'expanded' : ''}">▶</span>
-        <span class="thinking-label">思考过程</span>
+        <span class="thinking-label">{t('messageBubble.thinking')}</span>
         <span class="thinking-preview">
           {thinkingExpanded
             ? ""
@@ -151,7 +180,7 @@
 
     {#if message.role === "user"}
       <div class="message-actions">
-        <button class="retry-btn" onclick={handleRetry} title="重新发送">
+        <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
         </button>
       </div>
     {/if}
@@ -161,8 +190,9 @@
     <div class="message-actions">
       <button
         class="copy-btn"
-        onclick={() => navigator.clipboard.writeText(message.content)}
-        title="复制"
+        class:copied
+        onclick={handleCopy}
+        title={t('messageBubble.copy')}
       >
       </button>
     </div>
@@ -476,11 +506,11 @@
   }
 
   .copy-btn::before {
-    content: "复制";
+    content: t('messageBubble.copy');
   }
 
   .copy-btn.copied::before {
-    content: "已复制";
+    content: t('messageBubble.copied');
   }
 
   @media (max-width: 768px) {

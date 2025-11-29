@@ -8,7 +8,6 @@
 
 一个基于 FastAPI 和 Svelte 5 的高性能 AI 模型代理服务，支持多供应商配置和管理。
 
-
 ## ✨ 项目简介
 
 Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthropic 兼容的 API 端点，并将请求转发到支持 OpenAI 兼容接口的后端供应商（如通义千问、ModelScope、AI Ping、Anthropic 等）。通过统一的 API 接口，您可以轻松切换不同的 AI 模型供应商，而无需修改客户端代码。
@@ -16,23 +15,34 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 ## 🚀 核心功能
 
 ### 🔥 高性能架构
+
 - **异步数据库** - aiosqlite + 连接池，消除阻塞，提升并发能力 10-100 倍
 - **HTTP 连接池优化** - 支持 10k QPS，Keepalive 连接优化
 - **多级缓存架构** - L1（内存）+ L2（Redis）缓存，显著提升响应速度
 
 ### 🛡️ 企业级安全
+
 - **JWT 密钥强制管理** - 生产环境必须配置，否则生成临时密钥并警告
 - **加密密钥管理** - ENCRYPTION_KEY 支持，敏感数据加密存储
 - **强密码策略** - 至少 12 字符，管理员密码检查
 
+### 🌍 国际化支持
+
+- **16种语言支持** - 中文、English、日本語、한국어、Français、Español、Deutsch、Русский、Português、Italiano、Nederlands、العربية、हिन्दी、ไทย、Tiếng Việt、Bahasa Indonesia
+- **智能语言切换** - 自动检测浏览器语言，支持手动切换
+- **完整UI翻译** - 所有页面、表单、按钮、提示信息完全本地化
+- **本地化存储** - 智能记忆用户语言偏好
+
 ### 🌐 现代管理界面
-- **Svelte 5 + TypeScript** - 现代化前端框架，类型安全
+
+- **Svelte 5 + TypeScript** - 现代化前端框架，全新响应式系统，类型安全
 - **PWA 支持** - 离线访问、安装到主屏幕、后台同步
 - **深色/浅色主题** - 用户体验优化
 - **代码分割** - 优化首屏加载速度
-- **聊天对话页面** - 内置交互式聊天界面，支持流式输出和历史记录
+- **聊天对话页面** - 内置交互式聊天界面，支持流式输出和历史记录，修复时间戳显示问题
 
 ### 🔧 智能管理
+
 - **OpenTelemetry 集成** - 分布式追踪和监控
 - **健康监控** - 手动检查模式，节省 API 调用
 - **自动故障转移** - 优先级/随机回退机制
@@ -40,22 +50,50 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 - **并行测试** - 使用 pytest-xdist 加速测试执行（3-4倍提速）
 
 ### 📊 运营监控
+
 - **性能统计** - 请求日志、Token 使用追踪
 - **压力测试** - 内置 10k QPS 压力测试脚本
 - **实时日志** - 彩色输出，错误追踪
 - **可观测性配置** - 请求采样率、慢请求警告阈值
 
 ### 💬 对话管理
+
 - **历史对话记录** - SQLite 数据库存储对话历史
 - **多对话支持** - 创建、查看、删除多个对话
 - **Token 用量统计** - 实时追踪输入/输出 Token
 - **自动标题生成** - 提取首条消息自动创建对话标题
+- **智能时间戳** - 修复 "Invalid Date" 问题，支持多种时间格式解析
 
 ### 🏢 多供应商支持
+
 - **统一 API 接口** - 支持 Anthropic 兼容格式
 - **直连模式** - 支持 Anthropic API 格式提供商（无需转换）
 - **智能模型映射** - haiku→small, sonnet→middle, opus→big
 - **供应商 Token 限制** - 支持配置 max_tokens_limit
+
+## 🎉 最新更新
+
+### v1.6.0 (2025-01-29) - 国际化与用户体验全面提升
+
+#### 🌐 完整国际化支持
+
+- **新增 16 种语言**：中文、English、日本語、한국어、Français、Español、Deutsch、Русский、Português、Italiano、Nederlands、العربية、हिन्दी、ไทย、Tiếng Việt、Bahasa Indonesia
+- **智能语言切换**：支持顶部导航栏一键切换语言，自动记忆用户偏好
+- **全面本地化**：所有页面、表单、按钮、提示信息、Toast 消息完整翻译
+- **API Keys 页面**：新增完整国际化支持，包括创建、编辑、删除、搜索等所有操作
+
+#### 🐛 问题修复
+
+- **修复聊天时间戳**：解决 "Invalid Date" 问题，支持多种时间格式（ISO 8601、SQLite 时间戳等）
+- **Svelte 5 合规性**：全面升级到 Svelte 5 语法，使用 `$state()` 和 `$derived()` 等新特性
+- **响应式状态管理**：修复 API Keys 页面新建后需要刷新才能显示的问题
+- **代码质量提升**：通过 `pnpm run check` 和 `pnpm run lint` 所有检查
+
+#### 📈 技术改进
+
+- **模块化翻译系统**：集中管理的翻译键，易于维护和扩展
+- **优雅降级处理**：时间解析失败时自动返回空字符串，不显示错误信息
+- **性能优化**：响应式状态优化，减少不必要的重新渲染
 
 ## 🏃‍♂️ 快速开始
 
@@ -87,6 +125,7 @@ docker-compose logs -f backend
 ```
 
 服务启动后：
+
 - **前端管理界面**: http://localhost:5173
 - **API 文档**: http://localhost:8000/docs
 
@@ -344,12 +383,14 @@ curl -X POST http://localhost:8000/v1/messages/count_tokens \
 ### 对话历史管理API
 
 #### 获取对话列表
+
 ```bash
 curl -X GET http://localhost:8000/api/conversations \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 #### 创建新对话
+
 ```bash
 curl -X POST http://localhost:8000/api/conversations \
   -H "Content-Type: application/json" \
@@ -363,12 +404,14 @@ curl -X POST http://localhost:8000/api/conversations \
 ```
 
 #### 获取对话详情（包含消息历史）
+
 ```bash
 curl -X GET http://localhost:8000/api/conversations/123 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 #### 更新对话标题
+
 ```bash
 curl -X PUT http://localhost:8000/api/conversations/123 \
   -H "Content-Type: application/json" \
@@ -379,6 +422,7 @@ curl -X PUT http://localhost:8000/api/conversations/123 \
 ```
 
 #### 删除对话
+
 ```bash
 curl -X DELETE http://localhost:8000/api/conversations/123 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
@@ -438,6 +482,7 @@ python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 6
 ```
 
 **CI/CD 特性**：
+
 - ✅ 支持并行测试执行（pytest-xdist）
 - ✅ 可选推送模式（无需secrets也能完整运行CI/CD）
 - ✅ 自动缓存构建优化
@@ -611,6 +656,7 @@ anthropic-openai-bridge/
 ## 🛠️ 技术栈
 
 ### 后端
+
 - **FastAPI** - 现代、快速的 Web 框架
 - **aiosqlite** - 异步数据库操作 + 连接池（支持 300+ 并发）
 - **httpx** - HTTP 客户端（连接池优化，支持 10k QPS）
@@ -622,6 +668,7 @@ anthropic-openai-bridge/
 - **pypng** - PNG 图像处理
 
 ### 前端
+
 - **Svelte 5** - 新一代前端框架（全新的响应式系统）
 - **SvelteKit** - Svelte 应用框架（SSR + File-system Routing）
 - **TypeScript** - 类型安全的 JavaScript
@@ -630,6 +677,7 @@ anthropic-openai-bridge/
 - **Sass/Less** - CSS 预处理器（样式系统）
 
 ### 基础设施
+
 - **Docker** - 容器化平台（多阶段构建优化）
 - **Kubernetes** - 生产环境部署（PVC + Ingress）
 - **Redis** - 缓存服务（L2 缓存层 + Session 存储）
@@ -685,35 +733,35 @@ def validate_max_tokens(cls, v):
 
 ### 必需变量
 
-| 变量名 | 说明 | 默认值 | 备注 |
-|--------|------|--------|------|
-| `JWT_SECRET_KEY` | JWT Token 密钥 | - | 生产环境**必须**设置 |
-| `ENCRYPTION_KEY` | 数据加密密钥 | - | 推荐设置 |
-| `ADMIN_PASSWORD` | 管理员密码 | `admin123` | 建议设置强密码 |
-| `ADMIN_EMAIL` | 管理员邮箱 | `admin@example.com` | - |
+| 变量名           | 说明           | 默认值              | 备注                 |
+| ---------------- | -------------- | ------------------- | -------------------- |
+| `JWT_SECRET_KEY` | JWT Token 密钥 | -                   | 生产环境**必须**设置 |
+| `ENCRYPTION_KEY` | 数据加密密钥   | -                   | 推荐设置             |
+| `ADMIN_PASSWORD` | 管理员密码     | `admin123`          | 建议设置强密码       |
+| `ADMIN_EMAIL`    | 管理员邮箱     | `admin@example.com` | -                    |
 
 ### 性能优化变量
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `DB_POOL_SIZE` | 数据库连接池大小 | `10` |
-| `DB_POOL_TIMEOUT` | 连接池超时时间 | `30.0` |
-| `HTTP_MAX_KEEPALIVE_CONNECTIONS` | Keepalive 连接数 | `50` |
-| `HTTP_MAX_CONNECTIONS` | 最大连接数 | `200` |
-| `HTTP_KEEPALIVE_EXPIRY` | Keepalive 过期时间 | `60` |
-| `CACHE_TYPE` | 缓存类型 | `memory` |
-| `CACHE_MULTI_LEVEL` | 启用多级缓存 | `false` |
-| `CACHE_MAX_SIZE` | 内存缓存最大条目数 | `1000` |
-| `CACHE_DEFAULT_TTL` | 默认 TTL | `3600` |
-| `REDIS_URL` | Redis 连接 URL | `redis://localhost:6379/0` |
+| 变量名                           | 说明               | 默认值                     |
+| -------------------------------- | ------------------ | -------------------------- |
+| `DB_POOL_SIZE`                   | 数据库连接池大小   | `10`                       |
+| `DB_POOL_TIMEOUT`                | 连接池超时时间     | `30.0`                     |
+| `HTTP_MAX_KEEPALIVE_CONNECTIONS` | Keepalive 连接数   | `50`                       |
+| `HTTP_MAX_CONNECTIONS`           | 最大连接数         | `200`                      |
+| `HTTP_KEEPALIVE_EXPIRY`          | Keepalive 过期时间 | `60`                       |
+| `CACHE_TYPE`                     | 缓存类型           | `memory`                   |
+| `CACHE_MULTI_LEVEL`              | 启用多级缓存       | `false`                    |
+| `CACHE_MAX_SIZE`                 | 内存缓存最大条目数 | `1000`                     |
+| `CACHE_DEFAULT_TTL`              | 默认 TTL           | `3600`                     |
+| `REDIS_URL`                      | Redis 连接 URL     | `redis://localhost:6379/0` |
 
 ### 监控配置
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
+| 变量名             | 说明               | 默认值  |
+| ------------------ | ------------------ | ------- |
 | `ENABLE_TELEMETRY` | 启用 OpenTelemetry | `false` |
-| `OTLP_ENDPOINT` | OTLP 导出端点 | - |
-| `SERVICE_VERSION` | 服务版本号 | `1.0.0` |
+| `OTLP_ENDPOINT`    | OTLP 导出端点      | -       |
+| `SERVICE_VERSION`  | 服务版本号         | `1.0.0` |
 
 ## 🧪 测试
 
@@ -762,10 +810,23 @@ python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 6
 - **test_tool_use_format.py** - 工具调用格式测试
 
 **测试配置**：
+
 - 配置文件：`pytest.ini`（已配置 `-n auto`）
 - 测试依赖：`pytest-xdist==3.6.0`（已添加到 requirements.txt）
 
 ## ❓ 常见问题
+
+### Q: 如何切换界面语言？
+
+A: 点击顶部导航栏的语言切换按钮（显示当前语言简称，如 "ZH"、"EN" 等），即可在 16 种语言之间切换。系统会自动记忆您的语言偏好，下次访问时自动应用。
+
+### Q: 新增的 API Key 为什么需要刷新页面才能看到？
+
+A: v1.6.0 已修复此问题。新建 API Key 后会立即显示在列表中，无需手动刷新页面。如果遇到其他页面需要刷新才能显示数据的问题，请尝试清除浏览器缓存或联系技术支持。
+
+### Q: 聊天页面的时间显示为 "Invalid Date" 怎么办？
+
+A: v1.6.0 已修复此问题。现在系统支持多种时间格式（ISO 8601、SQLite 时间戳、YYYY-MM-DD HH:MM:SS 等），会自动智能解析。如果仍有问题，可能是数据源的时间戳格式异常。
 
 ### Q: 如何添加新的 AI 供应商？
 
@@ -782,6 +843,7 @@ A: 登录管理界面，访问"健康监控"页面，点击"刷新状态"按钮�
 ### Q: 如何使用聊天功能？
 
 A: 登录管理界面，点击顶部导航栏的"聊天"菜单，进入聊天页面。在聊天页面你可以：
+
 1. 从下拉菜单选择供应商、API格式和具体模型
 2. 在输入框输入消息，按 Enter 发送
 3. 查看实时流式输出
@@ -797,6 +859,7 @@ A: 登录管理界面，访问"API Key 管理"页面，点击"创建 API Key"按
 ### Q: 忘记管理员密码怎么办？
 
 A: 如果忘记了管理员密码，可以：
+
 1. 删除数据库文件 `backend/data/app.db`
 2. 重启后端服务，系统会重新创建默认管理员账号
 3. 使用默认账号登录后立即修改密码
@@ -813,18 +876,21 @@ A: 系统支持动态 max_tokens 限制，采用层级策略：
 2. **系统硬性限制**：`1000000`（100万）
 
 **优先级从高到低**：
+
 - 供应商配置中的 `max_tokens_limit`
 - `MessagesRequest` 验证器的 `max_tokens` 默认最大值（已从 10万 提升至 100万）
 
 **示例配置**：
+
 ```json
 {
-  "name": "moonshot",  // 月之暗面
-  "max_tokens_limit": 64000  // 月之暗面支持较长输出
+  "name": "moonshot", // 月之暗面
+  "max_tokens_limit": 64000 // 月之暗面支持较长输出
 }
 ```
 
 **注意**：
+
 - Claude 3 系列：`max_tokens_to_sample` 在服务端转换后已过时
 - 转换为 OpenAI 格式后，直接使用 `max_tokens` 参数
 - 后端已移除旧的转换映射逻辑，避免 Token 限制误用
@@ -832,6 +898,7 @@ A: 系统支持动态 max_tokens 限制，采用层级策略：
 ### Q: 生产环境如何优化性能？
 
 A: 请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的生产环境配置建议，包括：
+
 - 设置必需的 `JWT_SECRET_KEY` 和 `ENCRYPTION_KEY`
 - 配置数据库和 HTTP 连接池
 - 启用多级缓存
@@ -859,6 +926,7 @@ A: 请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的生产环境配置建议，�
 **主要配置文件**：
 
 - **`.env.example`** - Docker Compose 环境变量示例
+
   ```bash
   # 前端暴露端口（映射到宿主机端口）
   EXPOSE_PORT=5173
@@ -897,14 +965,14 @@ A: 请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的生产环境配置建议，�
 
 ### 配置文件说明
 
-| 配置文件 | 说明 | 用途 |
-|---------|------|------|
-| `.env.example` | Docker 环境变量示例 | Docker Compose 部署配置 |
-| `backend/provider.json` | 供应商配置文件 | 主配置文件（需配置） |
-| `backend/provider.json.example` | 供应商配置模板 | 配置参考 |
-| `pytest.ini` | 测试配置 | pytest 测试框架配置 |
-| `docker-compose.yml` | Docker Compose 配置 | 容器编排配置 |
-| `.github/workflows/ci-cd.yml` | CI/CD 配置 | 自动化构建部署 |
+| 配置文件                        | 说明                | 用途                    |
+| ------------------------------- | ------------------- | ----------------------- |
+| `.env.example`                  | Docker 环境变量示例 | Docker Compose 部署配置 |
+| `backend/provider.json`         | 供应商配置文件      | 主配置文件（需配置）    |
+| `backend/provider.json.example` | 供应商配置模板      | 配置参考                |
+| `pytest.ini`                    | 测试配置            | pytest 测试框架配置     |
+| `docker-compose.yml`            | Docker Compose 配置 | 容器编排配置            |
+| `.github/workflows/ci-cd.yml`   | CI/CD 配置          | 自动化构建部署          |
 
 ## 🛠️ 工具脚本和依赖管理
 
@@ -927,6 +995,7 @@ python scripts/load_test.py \
 ```
 
 **脚本特性**：
+
 - 异步并发请求
 - 可配置 QPS 和持续时间
 - 详细的性能统计（响应时间、成功率、QPS 等）
@@ -942,12 +1011,14 @@ python scripts/test_all.py
 ```
 
 **验证内容**：
+
 - 检查所有测试文件的Python语法
 - 验证流式格式测试功能
 - 测试文件完整性检查
 - 提供详细的测试报告
 
 **测试文件列表**：
+
 - `test_assistant_tool_use.py` - 工具调用功能测试
 - `test_converter.py` - 格式转换器测试
 - `test_count_tokens.py` - Token计数功能测试
@@ -961,12 +1032,14 @@ python scripts/test_all.py
 **三种启动方式**：
 
 1. **项目根目录启动脚本**：
+
 ```bash
 # 一键启动（启动后端和前端）
 bash start.sh
 ```
 
 2. **后端启动脚本**：
+
 ```bash
 # 使用默认配置启动后端
 bash backend/start.sh
@@ -976,6 +1049,7 @@ python backend/start_proxy.py
 ```
 
 3. **前端启动脚本**：
+
 ```bash
 # 启动前端开发服务器
 bash frontend/start.sh
@@ -997,6 +1071,7 @@ cd backend && cp ../pytest.ini ./ && cp -r ../tests ./ && PYTHONPATH=. pytest te
 ```
 
 **CI/CD 优化**：
+
 - 修复了pytest路径问题
 - 优化了覆盖率报告生成
 - 解决了"collected 0 items"错误
@@ -1005,6 +1080,7 @@ cd backend && cp ../pytest.ini ./ && cp -r ../tests ./ && PYTHONPATH=. pytest te
 ### 依赖管理
 
 **`backend/requirements.txt`** - Python 依赖包：
+
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -1051,19 +1127,27 @@ SOFTWARE.
 
 ## 🗺️ 路线图
 
-### v1.4.0 (规划中)
-- [ ] **多语言支持** - 支持中文界面
+### v1.6.0 (已完成 - 2025-01-29) ✅
+
+- [x] **多语言支持** - 完整支持16种语言，智能语言切换
+- [x] **时间戳修复** - 解决 "Invalid Date" 问题
+- [x] **Svelte 5 升级** - 全面使用新响应式系统
+
+### v1.7.0 (规划中)
+
 - [ ] **插件系统** - 支持自定义插件扩展功能
 - [ ] **指标仪表板** - 详细的性能和使用指标
 - [ ] **告警系统** - 支持邮件/Webhook 告警
 
 ### v1.5.0 (规划中)
+
 - [ ] **集群部署** - 支持多节点部署
 - [ ] **负载均衡** - 内置负载均衡算法
 - [ ] **灰度发布** - 支持 A/B 测试
 - [ ] **自动扩缩容** - 基于负载的动态扩缩容
 
 ### v2.0.0 (长期规划)
+
 - [ ] **微服务架构** - 完全微服务化
 - [ ] **实时协作** - 多用户实时编辑配置
 - [ ] **AI 模型市场** - 内置模型市场
@@ -1072,6 +1156,7 @@ SOFTWARE.
 ## 🏆 致谢
 
 感谢以下开源项目：
+
 - [FastAPI](https://fastapi.tiangolo.com/) - 现代化 Python Web 框架
 - [Svelte](https://svelte.dev/) - 新一代前端框架
 - [Docker](https://www.docker.com/) - 容器化平台

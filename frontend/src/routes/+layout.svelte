@@ -5,18 +5,22 @@
   import Header from '$components/layout/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
   import { theme } from '$stores/theme';
+  import { language, tStore } from '$stores/language';
   import { authService } from '$services/auth';
   import '../lib/styles/global.css';
 
+  // 获取翻译函数（响应式）
+  const t = $derived($tStore);
+
   // 导航项配置
   const navItems = [
-    { href: '/', label: '首页' },
-    { href: '/chat', label: '聊天' },
-    { href: '/providers', label: '供应商' },
-    { href: '/health', label: '健康监控' },
-    { href: '/config', label: '配置' },
-    { href: '/stats', label: '性能监控' },
-    { href: '/api-keys', label: 'API Key 管理' }
+    { href: '/', label: 'nav.home' },
+    { href: '/chat', label: 'nav.chat' },
+    { href: '/providers', label: 'nav.providers' },
+    { href: '/health', label: 'nav.health' },
+    { href: '/config', label: 'nav.config' },
+    { href: '/stats', label: 'nav.stats' },
+    { href: '/api-keys', label: 'nav.apiKeys' }
   ];
 
   // 检查链接是否激活
@@ -27,10 +31,11 @@
     return $page.url.pathname.startsWith(href);
   }
 
-  // 初始化主题和认证检查
+  // 初始化主题和语言，以及认证检查
   onMount(() => {
     theme.init();
-    
+    language.init();
+
     // 注册 Service Worker for PWA
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js')
@@ -51,26 +56,30 @@
   function _handleLogout() {
     authService.logout();
   }
+
+  let { children } = $props();
 </script>
 
 <div class="app" class:chat-layout={$page.url.pathname === '/chat'}>
   {#if $page.url.pathname !== '/login'}
     <Header title="Anthropic OpenAI Bridge">
-      <nav slot="nav">
-        {#each navItems as item}
-          <a
-            href={item.href}
-            class="nav-link"
-            class:active={isActive(item.href)}
-          >
-            {item.label}
-          </a>
-        {/each}
-      </nav>
+      {#snippet nav()}
+        <nav>
+          {#each navItems as item}
+            <a
+              href={item.href}
+              class="nav-link"
+              class:active={isActive(item.href)}
+            >
+              {t(item.label)}
+            </a>
+          {/each}
+        </nav>
+      {/snippet}
     </Header>
   {/if}
   <main class="main">
-    <slot />
+    {@render children()}
   </main>
   {#if $page.url.pathname !== '/login'}
     <footer class="footer">
@@ -128,11 +137,19 @@
   .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     border-radius: 0.25rem;
     transition: all 0.2s;
     border-bottom: 2px solid transparent;
     white-space: nowrap;
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 1200px) {
+    .nav-link {
+      padding: 0.5rem 0.5rem;
+      font-size: 0.9rem;
+    }
   }
 
   .nav-link:hover {

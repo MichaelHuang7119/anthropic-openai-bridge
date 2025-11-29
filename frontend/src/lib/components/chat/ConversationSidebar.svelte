@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
   import { chatService, type Conversation } from "$services/chatService";
+  import { tStore, language } from "$stores/language";
 
   interface ProviderConfig {
     name: string;
@@ -56,6 +57,12 @@
   let visibleCount = $state<number>(50); // Initial number of conversations to show
   let openMenuId = $state<number | null>(null); // Track which menu is open
 
+  // 获取翻译函数
+  const t = $derived($tStore);
+
+  // Get current language
+  const currentLanguage = $derived($language);
+
   onMount(async () => {
     try {
       loading = true;
@@ -77,7 +84,7 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "加载失败";
+      error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to load conversations:", err);
     } finally {
       loading = false;
@@ -159,7 +166,7 @@
   function startEdit(conversation: Conversation, event: Event) {
     event.stopPropagation();
     editingId = conversation.id;
-    editingTitle = conversation.title || "无标题";
+    editingTitle = conversation.title || t('chat.untitled');
   }
 
   function cancelEdit() {
@@ -197,7 +204,7 @@
     }
 
     if (!editingTitle.trim()) {
-      alert("标题不能为空");
+      alert(t('common.error'));
       return;
     }
 
@@ -222,7 +229,7 @@
       cancelEdit();
     } catch (err) {
       console.error("Failed to update conversation:", err);
-      alert("重命名失败");
+      alert(t('common.error'));
     }
   }
 
@@ -234,7 +241,7 @@
   async function handleDelete(conversationId: number, event: Event) {
     event.stopPropagation();
 
-    if (!confirm("确定要删除这个对话吗？")) {
+    if (!confirm(t('chat.confirmDelete'))) {
       return;
     }
 
@@ -249,7 +256,7 @@
       }
     } catch (err) {
       console.error("Failed to delete conversation:", err);
-      alert("删除失败");
+      alert(t('common.error'));
     } finally {
       deletingId = null;
     }
@@ -257,7 +264,7 @@
 
   function handleNewConversation() {
     if (!selectedProviderName || !selectedApiFormat || !selectedModelValue) {
-      alert("请先配置模型");
+      alert(t('common.error'));
       return;
     }
 
@@ -270,19 +277,19 @@
 
 function formatDate(dateString: string): string {
   try {
-    if (!dateString) return "未知时间";
+    if (!dateString) return t('common.error');
 
     // 直接解析ISO时间字符串（包含时区信息）
     const date = new Date(dateString);
 
     // 验证解析是否成功
     if (isNaN(date.getTime())) {
-      console.warn("无法解析时间:", dateString);
+      console.warn("Cannot parse the time:", dateString);
       return dateString;
     }
 
-    // 调试日志（临时）
-    console.log(`时间解析 - 原始: ${dateString}, 解析后: ${date.toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}`);
+    // 根据当前语言选择 locale
+    const locale = currentLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
 
     // 获取当前北京时间用于比较
     const now = new Date();
@@ -299,21 +306,20 @@ function formatDate(dateString: string): string {
 
     if (diffDays === 0) {
       // 今天：显示北京时间 HH:MM
-      const timeStr = date.toLocaleTimeString("zh-CN", {
+      const timeStr = date.toLocaleTimeString(locale, {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
         timeZone: "Asia/Shanghai"
       });
-      console.log(`今天时间显示: ${timeStr}`);
       return timeStr;
     } else if (diffDays === 1) {
-      return "昨天";
+      return t('chat.yesterday');
     } else if (diffDays < 7) {
-      return `${diffDays}天前`;
+      return t('chat.daysAgo').replace('{days}', diffDays.toString());
     } else {
       // 超过7天：显示完整日期（北京时间）
-      return date.toLocaleDateString("zh-CN", {
+      return date.toLocaleDateString(locale, {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -321,14 +327,14 @@ function formatDate(dateString: string): string {
       });
     }
   } catch (error) {
-    console.error("时间格式化错误:", error, dateString);
+    console.error("Failed to format the time:", error, dateString);
     return dateString;
   }
 }
 
   // Format model name for display
   function formatModelName(model: string | null): string {
-    if (!model) return "未知模型";
+    if (!model) return t('common.error');
     if (model.includes("/")) {
       return model.split("/")[1] || model;
     }
@@ -338,7 +344,7 @@ function formatDate(dateString: string): string {
 
 <div class="conversation-sidebar">
   <div class="sidebar-header">
-    <button class="collapse-btn" onclick={() => dispatch("toggleSidebar")} title="折叠侧边栏">
+    <button class="collapse-btn" onclick={() => dispatch("toggleSidebar")} title={t('chat.collapseSidebar')}>
       <span class="hamburger-icon">
         <span class="line line-1"></span>
         <span class="line line-2"></span>
@@ -348,10 +354,10 @@ function formatDate(dateString: string): string {
     <input
       type="text"
       class="search-input"
-      placeholder="搜索对话..."
+      placeholder={t('chat.search')}
       bind:value={searchQuery}
     />
-    <button class="new-btn" onclick={handleNewConversation} title="新建对话">
+    <button class="new-btn" onclick={handleNewConversation} title={t('chat.newConversation')}>
       +
     </button>
   </div>
@@ -360,23 +366,23 @@ function formatDate(dateString: string): string {
     {#if loading}
       <div class="loading">
         <div class="spinner"></div>
-        <p>加载中...</p>
+        <p>{t('common.loading')}</p>
       </div>
     {:else if error}
       <div class="error">
-        <p>加载失败: {error}</p>
-        <button onclick={loadConversations}>重试</button>
+        <p>{t('common.error')}: {error}</p>
+        <button onclick={loadConversations}>{t('common.error')}</button>
       </div>
     {:else if conversations.length === 0}
       <div class="empty">
-        <p>暂无对话记录</p>
+        <p>{t('chatArea.noMessages')}</p>
         <button class="secondary" onclick={handleNewConversation}>
-          开始新对话
+          {t('chatArea.startConversation')}
         </button>
       </div>
     {:else if displayConversations.length === 0}
       <div class="empty">
-        <p>没有找到匹配的对话</p>
+        <p>{t('chat.search')}</p>
       </div>
     {:else}
       {#each displayConversations as conversation}
@@ -419,7 +425,7 @@ function formatDate(dateString: string): string {
                   <button
                     class="action-btn save-btn"
                     onclick={(e) => saveEdit(conversation, e)}
-                    title="保存"
+                    title={t('common.save')}
                   >
                     ✓
                   </button>
@@ -429,20 +435,20 @@ function formatDate(dateString: string): string {
                       e.stopPropagation();
                       cancelEdit();
                     }}
-                    title="取消"
+                    title={t('common.cancel')}
                   >
                     ×
                   </button>
                 </div>
               {:else}
-                <h3 class="title">{conversation.title || "无标题"}</h3>
+                <h3 class="title">{conversation.title || t('chat.untitled')}</h3>
                 <div class="right-area">
                   <span class="time">{formatDate(conversation.updated_at)}</span>
                   <div class="menu-container">
                     <button
                       class="menu-btn"
                       onclick={(e) => toggleMenu(conversation.id, e)}
-                      title="更多操作"
+                      title={t('common.edit')}
                     >
                       ⋯
                     </button>
@@ -456,7 +462,7 @@ function formatDate(dateString: string): string {
                             startEdit(conversation, e);
                           }}
                         >
-                          重命名
+                          {t('chat.rename')}
                         </button>
                         <button
                           class="menu-item delete {deletingId === conversation.id
@@ -469,7 +475,7 @@ function formatDate(dateString: string): string {
                           }}
                           disabled={deletingId === conversation.id}
                         >
-                          删除
+                          {t('chat.delete')}
                         </button>
                       </div>
                     {/if}
@@ -485,7 +491,7 @@ function formatDate(dateString: string): string {
       {/each}
       {#if displayConversations.length > 0 && displayConversations.length < filteredConversations.length}
         <div class="lazy-loading-indicator">
-          <p>已显示 {displayConversations.length} / {filteredConversations.length} 个对话</p>
+          <p>{displayConversations.length} / {filteredConversations.length}</p>
         </div>
       {/if}
     {/if}

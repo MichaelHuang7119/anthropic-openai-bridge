@@ -6,16 +6,20 @@
   import { configService } from '$services/config';
   import { toast } from '$stores/toast';
   import type { GlobalConfig } from '$types/config';
+  import { tStore } from '$stores/language';
 
-  let loading = true;
-  let saving = false;
-  let config: GlobalConfig = {
+  let loading = $state(true);
+  let saving = $state(false);
+  let config: GlobalConfig = $state({
     fallback_strategy: 'priority',
     circuit_breaker: {
       failure_threshold: 5,
       recovery_timeout: 60
     }
-  };
+  });
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
@@ -55,7 +59,7 @@
         return;
       }
       console.error('Failed to load config:', error);
-      toast.error('加载配置失败');
+      toast.error(t('config.loadFailed'));
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -67,17 +71,17 @@
     saving = true;
     try {
       await configService.update(config);
-      toast.success('配置保存成功');
+      toast.success(t('config.saved'));
     } catch (error) {
       console.error('Failed to save config:', error);
-      toast.error('保存配置失败: ' + (error as Error).message);
+      toast.error(t('config.error') + ': ' + (error as Error).message);
     } finally {
       saving = false;
     }
   }
 
   function handleReset() {
-    if (!confirm('确定要重置配置吗？')) {
+    if (!confirm(t('config.confirmResetConfig'))) {
       return;
     }
     loadConfig();
@@ -87,14 +91,14 @@
 <div class="container">
   <div class="page-header">
     <div class="actions">
-      <Button variant="secondary" on:click={handleReset} disabled={loading || saving} title="重置配置" class="icon-button">
+      <Button variant="secondary" on:click={handleReset} disabled={loading || saving} title={t('config.resetConfig')} class="icon-button">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <polyline points="1 20 1 14 7 14"></polyline>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
         </svg>
       </Button>
-      <Button variant="primary" on:click={handleSave} disabled={loading || saving} title={saving ? '保存中...' : '保存配置'} class="icon-button">
+      <Button variant="primary" on:click={handleSave} disabled={loading || saving} title={saving ? t('config.saving') : t('config.save')} class="icon-button">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -106,31 +110,31 @@
 
   {#if loading}
     <div class="loading">
-      <p>加载中...</p>
+      <p>{t('config.loading')}</p>
     </div>
   {:else}
     <div class="config-grid">
-      <Card title="回退策略">
+      <Card title={t('config.fallbackStrategy')}>
         <div class="form-section">
           <div class="form-group">
-            <label for="fallback-strategy">回退策略:</label>
+            <label for="fallback-strategy">{t('config.fallbackStrategy')}:</label>
             <select
               id="fallback-strategy"
               bind:value={config.fallback_strategy}
               class="form-control"
             >
-              <option value="priority">优先级（按优先级顺序尝试）</option>
-              <option value="random">随机（随机选择可用供应商）</option>
+              <option value="priority">{t('config.priorityOption')}</option>
+              <option value="random">{t('config.randomOption')}</option>
             </select>
-            <p class="help-text">当主供应商不可用时，使用的回退策略</p>
+            <p class="help-text">{t('config.fallbackStrategyDesc')}</p>
           </div>
         </div>
       </Card>
 
-      <Card title="熔断器配置">
+      <Card title={t('config.circuitBreaker')}>
         <div class="form-section">
           <div class="form-group">
-            <label for="failure-threshold">失败阈值:</label>
+            <label for="failure-threshold">{t('config.failureThreshold')}:</label>
             <input
               id="failure-threshold"
               type="number"
@@ -139,11 +143,11 @@
               bind:value={config.circuit_breaker.failure_threshold}
               class="form-control"
             />
-            <p class="help-text">连续失败多少次后触发熔断（1-20次）</p>
+            <p class="help-text">{t('config.failureThresholdHelp')}</p>
           </div>
 
           <div class="form-group">
-            <label for="recovery-timeout">恢复超时（秒）:</label>
+            <label for="recovery-timeout">{t('config.recoveryTimeout')}:</label>
             <input
               id="recovery-timeout"
               type="number"
@@ -152,7 +156,7 @@
               bind:value={config.circuit_breaker.recovery_timeout}
               class="form-control"
             />
-            <p class="help-text">熔断后等待多长时间再尝试恢复（10-600秒）</p>
+            <p class="help-text">{t('config.recoveryTimeoutHelp')}</p>
           </div>
         </div>
       </Card>

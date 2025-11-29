@@ -12,64 +12,70 @@
   import type { PerformanceSummary, RequestLog, TokenUsage } from '$services/stats';
   import type { Provider } from '$types/provider';
   import { toast } from '$stores/toast';
+  import { tStore, language } from '$stores/language';
 
-  let loading = true;
-  let summary: PerformanceSummary | null = null;
-  let requests: RequestLog[] = [];
-  let tokenUsage: TokenUsage[] = [];
-  let dateFilter = '7d'; // 7d, 30d, all
-  
+  // 获取翻译函数（响应式）
+  const t = $derived($tStore);
+
+  // 获取当前语言（响应式）
+  const currentLanguage = $derived($language);
+
+  let loading = $state(true);
+  let summary: PerformanceSummary | null = $state(null);
+  let tokenUsage: TokenUsage[] = $state([]);
+  let dateFilter = $state('7d'); // 7d, 30d, all
+
   // 请求日志数据（存储所有已加载的数据）
-  let allRequestsData: RequestLog[] = [];
-  
+  let allRequestsData: RequestLog[] = $state([]);
+
   // 请求日志分页相关
-  let currentPage = 1;
+  let currentPage = $state(1);
   const pageSize = 5;
-  let totalPages = 1;
-  let totalCount = 0;
-  let loadingRequests = false;
-  
+  let totalPages = $state(1);
+  let totalCount = $state(0);
+  let loadingRequests = $state(false);
+
   // 请求日志显示数据（响应式，根据分页切片）
-  $: requests = (() => {
+  let requests = $derived.by(() => {
     if (allRequestsData.length === 0) return [];
-    
+
     // 客户端分页切片
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
     return allRequestsData.slice(start, end);
-  })();
-  
+  });
+
   // Token使用详情分页相关
-  let tokenUsagePage = 1;
+  let tokenUsagePage = $state(1);
   const tokenUsagePageSize = 5;
-  let tokenUsageTotalPages = 1;
-  let tokenUsageTotalCount = 0;
-  
+  let tokenUsageTotalPages = $state(1);
+  let tokenUsageTotalCount = $state(0);
+
   // 供应商统计筛选相关
-  let providerStatsSearch = '';
-  
+  let providerStatsSearch = $state('');
+
   // 供应商统计分页相关
-  let providerStatsPage = 1;
+  let providerStatsPage = $state(1);
   const providerStatsPageSize = 5;
-  let providerStatsTotalPages = 1;
-  let providerStatsTotalCount = 0;
-  
+  let providerStatsTotalPages = $state(1);
+  let providerStatsTotalCount = $state(0);
+
   // Token使用详情筛选相关
-  let tokenUsageProviderFilter = '';
-  let tokenUsageModelFilter = '';
-  
+  let tokenUsageProviderFilter = $state('');
+  let tokenUsageModelFilter = $state('');
+
   // 请求日志筛选相关
-  let filterProvider = '';
-  let filterModel = '';
-  let filterStatus: 'all' | 'success' | 'failed' = 'all';
-  let providers: Provider[] = [];
-  let _availableModels: string[] = [];
-  
+  let filterProvider = $state('');
+  let filterModel = $state('');
+  let filterStatus: 'all' | 'success' | 'failed' = $state('all');
+  let providers: Provider[] = $state([]);
+  let _availableModels: string[] = $state([]);
+
   // 防抖定时器
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  
+  let debounceTimer: ReturnType<typeof setTimeout> | null = $state(null);
+
   // 请求取消控制器（用于组件卸载时取消请求）
-  let abortController: AbortController | null = null;
+  let abortController: AbortController | null = $state(null);
 
   onMount(async () => {
     abortController = new AbortController();
@@ -148,7 +154,7 @@
         return;
       }
       console.error('Failed to load stats:', error);
-      toast.error('加载性能数据失败');
+      toast.error(t('stats.loadingPerformanceDataFailed'));
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -157,30 +163,42 @@
   }
 
   // 供应商统计过滤和分页（响应式）
-  $: filteredProviderStats = (() => {
+  let filteredProviderStats = $derived.by(() => {
     if (!summary) return [];
     const entries = Object.entries(summary.provider_stats);
     let filtered = entries;
-    
+
     if (providerStatsSearch.trim()) {
       const searchLower = providerStatsSearch.toLowerCase();
       filtered = entries.filter(([provider]) => provider.toLowerCase().includes(searchLower));
     }
-    
-    // 更新分页信息
-    providerStatsTotalCount = filtered.length;
-    providerStatsTotalPages = Math.ceil(providerStatsTotalCount / providerStatsPageSize);
-    
-    // 如果当前页超出范围或没有数据，重置到第一页
-    if (providerStatsTotalPages === 0 || (providerStatsPage > providerStatsTotalPages && providerStatsTotalPages > 0)) {
-      providerStatsPage = 1;
-    }
-    
+
     // 分页切片
     const start = (providerStatsPage - 1) * providerStatsPageSize;
     const end = start + providerStatsPageSize;
     return filtered.slice(start, end);
-  })();
+  });
+
+  // 供应商统计分页信息更新（副作用）
+  $effect(() => {
+    if (!summary) return;
+    const entries = Object.entries(summary.provider_stats);
+    let filtered = entries;
+
+    if (providerStatsSearch.trim()) {
+      const searchLower = providerStatsSearch.toLowerCase();
+      filtered = entries.filter(([provider]) => provider.toLowerCase().includes(searchLower));
+    }
+
+    // 更新分页信息
+    providerStatsTotalCount = filtered.length;
+    providerStatsTotalPages = Math.ceil(providerStatsTotalCount / providerStatsPageSize);
+
+    // 如果当前页超出范围或没有数据，重置到第一页
+    if (providerStatsTotalPages === 0 || (providerStatsPage > providerStatsTotalPages && providerStatsTotalPages > 0)) {
+      providerStatsPage = 1;
+    }
+  });
 
   function handleProviderStatsSearchChange() {
     providerStatsPage = 1;
@@ -198,35 +216,54 @@
   }
 
   // Token使用详情过滤和分页（响应式）
-  $: filteredTokenUsage = (() => {
+  let filteredTokenUsage = $derived.by(() => {
     let filtered = tokenUsage;
-    
+
     if (tokenUsageProviderFilter.trim()) {
       const filterLower = tokenUsageProviderFilter.toLowerCase().trim();
-      filtered = filtered.filter(u => 
+      filtered = filtered.filter(u =>
         u.provider_name.toLowerCase().includes(filterLower)
       );
     }
-    
+
     if (tokenUsageModelFilter.trim()) {
       const filterLower = tokenUsageModelFilter.toLowerCase().trim();
-      filtered = filtered.filter(u => 
+      filtered = filtered.filter(u =>
         u.model.toLowerCase().includes(filterLower)
       );
     }
-    
+
+    const start = (tokenUsagePage - 1) * tokenUsagePageSize;
+    const end = start + tokenUsagePageSize;
+    return filtered.slice(start, end);
+  });
+
+  // Token使用详情分页信息更新（副作用）
+  $effect(() => {
+    let filtered = tokenUsage;
+
+    if (tokenUsageProviderFilter.trim()) {
+      const filterLower = tokenUsageProviderFilter.toLowerCase().trim();
+      filtered = filtered.filter(u =>
+        u.provider_name.toLowerCase().includes(filterLower)
+      );
+    }
+
+    if (tokenUsageModelFilter.trim()) {
+      const filterLower = tokenUsageModelFilter.toLowerCase().trim();
+      filtered = filtered.filter(u =>
+        u.model.toLowerCase().includes(filterLower)
+      );
+    }
+
     tokenUsageTotalCount = filtered.length;
     tokenUsageTotalPages = Math.ceil(tokenUsageTotalCount / tokenUsagePageSize);
-    
+
     // 如果当前页超出范围或没有数据，重置到第一页
     if (tokenUsageTotalPages === 0 || (tokenUsagePage > tokenUsageTotalPages && tokenUsageTotalPages > 0)) {
       tokenUsagePage = 1;
     }
-    
-    const start = (tokenUsagePage - 1) * tokenUsagePageSize;
-    const end = start + tokenUsagePageSize;
-    return filtered.slice(start, end);
-  })();
+  });
   
   function handleTokenUsageFilterChange() {
     // 客户端过滤，实时搜索，不需要防抖
@@ -246,8 +283,8 @@
   }
 
   // 添加状态变量来跟踪是否已加载所有记录
-  let hasLoadedAll = false;
-  let offset = 0;
+  let hasLoadedAll = $state(false);
+  let offset = $state(0);
   const initialLimit = 100;
   const loadMoreLimit = 1000;
 
@@ -340,7 +377,7 @@
         return;
       }
       console.error('Failed to load requests:', error);
-      toast.error('加载请求日志失败');
+      toast.error(t('stats.loadingRequestLogsFailed'));
     } finally {
       if (!abortController?.signal.aborted) {
         loadingRequests = false;
@@ -393,7 +430,7 @@
   }
 
   function formatNumber(num: number): string {
-    return new Intl.NumberFormat('zh-CN').format(num);
+    return new Intl.NumberFormat(currentLanguage).format(num);
   }
 
   function formatCurrency(amount: number): string {
@@ -428,9 +465,9 @@
       
       // 如果是今天，显示相对时间
       if (diffMins < 1) {
-        return '刚刚';
+        return t('stats.justNow');
       } else if (diffMins < 60) {
-        return `${diffMins}分钟前`;
+        return t('stats.minutesAgo').replace('{minutes}', diffMins.toString());
       } else if (diffHours < 24) {
         // 检查是否是同一天（使用本地时区）
         const dateDay = date.getDate();
@@ -441,17 +478,17 @@
         const nowYear = now.getFullYear();
         
         if (dateYear === nowYear && dateMonth === nowMonth && dateDay === nowDay) {
-          return `${diffHours}小时前`;
+          return t('stats.hoursAgo').replace('{hours}', diffHours.toString());
         }
       }
-      
+
       // 如果大于等于1天且小于7天，显示天数
       if (diffDays >= 1 && diffDays < 7) {
-        return `${diffDays}天前`;
+        return t('stats.daysAgo').replace('{days}', diffDays.toString());
       }
       
       // 否则显示完整时间，使用明确的时区选项
-      return date.toLocaleString('zh-CN', {
+      return date.toLocaleString(currentLanguage, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -466,11 +503,11 @@
 
   function getStatusBadge(statusCode: number) {
     if (statusCode >= 200 && statusCode < 300) {
-      return { type: 'success' as const, text: '成功' };
+      return { type: 'success' as const, text: t('stats.success') };
     } else if (statusCode >= 400 && statusCode < 500) {
-      return { type: 'warning' as const, text: '客户端错误' };
+      return { type: 'warning' as const, text: t('stats.clientError') };
     } else if (statusCode >= 500) {
-      return { type: 'danger' as const, text: '服务器错误' };
+      return { type: 'danger' as const, text: t('stats.serverError') };
     }
     return { type: 'info' as const, text: `HTTP ${statusCode}` };
   }
@@ -490,12 +527,12 @@
   }
 
   // 错误信息模态框相关
-  let showErrorModal = false;
-  let selectedError: string = '';
-  let selectedRequestInfo: string = '';
+  let showErrorModal = $state(false);
+  let selectedError: string = $state('');
+  let selectedRequestInfo: string = $state('');
 
   function showErrorMessage(request: RequestLog) {
-    selectedRequestInfo = `请求 ID: ${request.request_id || 'N/A'} | 供应商: ${request.provider_name || 'N/A'} | 模型: ${request.model || 'N/A'}`;
+    selectedRequestInfo = `${t('stats.requestID')}: ${request.request_id || 'N/A'} | ${t('stats.provider')}: ${request.provider_name || 'N/A'} | ${t('stats.model')}: ${request.model || 'N/A'}`;
     selectedError = request.error_message || '';
     showErrorModal = true;
   }
@@ -507,7 +544,7 @@
   }
 
   // 供应商Token使用饼图数据
-  $: providerTokenChartData = (() => {
+  let providerTokenChartData = $derived.by(() => {
     if (!summary) return null;
 
     const providers = Object.entries(summary.provider_stats);
@@ -520,7 +557,7 @@
       labels: totalTokensData.map(d => d.name),
       datasets: [
         {
-          label: 'Token 使用量',
+          label: t('stats.tokenUsageShare'),
           data: totalTokensData.map(d => d.value),
           backgroundColor: [
             'rgba(54, 162, 235, 0.7)',
@@ -550,10 +587,10 @@
         }
       ]
     };
-  })();
+  });
 
   // Token使用趋势图数据
-  $: tokenUsageTrendChartData = (() => {
+  let tokenUsageTrendChartData = $derived.by(() => {
     if (!tokenUsage || tokenUsage.length === 0) return null;
 
     // 按日期聚合数据
@@ -580,7 +617,7 @@
       labels: sortedDates.map(d => d.date),
       datasets: [
         {
-          label: 'Token 使用量',
+          label: t('stats.tokenUsage'),
           data: sortedDates.map(d => d.totalTokens),
           borderColor: 'rgba(54, 162, 235, 1)',
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
@@ -588,7 +625,7 @@
           fill: true
         },
         {
-          label: '成本估算',
+          label: t('stats.estimatedCost'),
           data: sortedDates.map(d => d.totalCost),
           borderColor: 'rgba(255, 99, 132, 1)',
           backgroundColor: 'rgba(255, 99, 132, 0.2)',
@@ -598,10 +635,10 @@
         }
       ]
     };
-  })();
+  });
 
   // Token使用柱状图数据（按供应商）
-  $: tokenUsageBarChartData = (() => {
+  let tokenUsageBarChartData = $derived.by(() => {
     if (!tokenUsage || tokenUsage.length === 0) return null;
 
     // 按供应商聚合数据
@@ -628,7 +665,7 @@
       labels: sortedProviders.map(d => d.provider),
       datasets: [
         {
-          label: 'Token 使用量',
+          label: t('stats.tokenUsage'),
           data: sortedProviders.map(d => d.totalTokens),
           backgroundColor: 'rgba(54, 162, 235, 0.7)',
           borderColor: 'rgba(54, 162, 235, 1)',
@@ -636,18 +673,18 @@
         }
       ]
     };
-  })();
+  });
 </script>
 
 <div class="container">
   <div class="page-header">
     <div class="actions">
-      <select class="date-filter" bind:value={dateFilter} on:change={loadData}>
-        <option value="7d">最近7天</option>
-        <option value="30d">最近30天</option>
-        <option value="all">全部</option>
+      <select class="date-filter" bind:value={dateFilter} onchange={loadData}>
+        <option value="7d">{t('stats.last7Days')}</option>
+        <option value="30d">{t('stats.last30Days')}</option>
+        <option value="all">{t('stats.allRecords')}</option>
       </select>
-      <Button variant="primary" on:click={loadData} disabled={loading} title={loading ? '加载中...' : '刷新'} class="icon-button {loading ? 'spinning' : ''}">
+      <Button variant="primary" on:click={loadData} disabled={loading} title={loading ? t('stats.loading') : t('stats.refresh')} class="icon-button {loading ? 'spinning' : ''}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <polyline points="1 20 1 14 7 14"></polyline>
@@ -659,52 +696,52 @@
 
   {#if loading}
     <div class="loading">
-      <p>加载中...</p>
+      <p>{t('stats.loading')}</p>
     </div>
   {:else if summary}
     <!-- 性能摘要 -->
     <div class="summary-grid">
-      <Card title="请求统计" subtitle="总体请求情况">
+      <Card title={t('stats.requestStats')} subtitle={t('stats.requestStatsSubtitle')}>
         <div class="stat-items">
           <div class="stat-item">
-            <span class="label">总请求数</span>
+            <span class="label">{t('stats.totalRequests')}</span>
             <span class="value">{formatNumber(summary.total_requests)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">成功请求</span>
+            <span class="label">{t('stats.successfulRequests')}</span>
             <span class="value success">{formatNumber(summary.successful_requests)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">失败请求</span>
+            <span class="label">{t('stats.failedRequests')}</span>
             <span class="value danger">{formatNumber(summary.failed_requests)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">成功率</span>
+            <span class="label">{t('stats.successRate')}</span>
             <span class="value">{summary.success_rate.toFixed(2)}%</span>
           </div>
           <div class="stat-item">
-            <span class="label">平均响应时间</span>
+            <span class="label">{t('stats.avgResponseTime')}</span>
             <span class="value">{summary.avg_response_time_ms.toFixed(0)}ms</span>
           </div>
         </div>
       </Card>
 
-      <Card title="Token 使用" subtitle="Token 消耗统计">
+      <Card title={t('stats.tokenUsage')} subtitle={t('stats.tokenUsageSubtitle')}>
         <div class="stat-items">
           <div class="stat-item">
-            <span class="label">输入 Token</span>
+            <span class="label">{t('stats.inputTokens')}</span>
             <span class="value">{formatNumber(summary.token_usage.total_input_tokens)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">输出 Token</span>
+            <span class="label">{t('stats.outputTokens')}</span>
             <span class="value">{formatNumber(summary.token_usage.total_output_tokens)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">总 Token</span>
+            <span class="label">{t('stats.totalTokens')}</span>
             <span class="value">{formatNumber(summary.token_usage.total_input_tokens + summary.token_usage.total_output_tokens)}</span>
           </div>
           <div class="stat-item">
-            <span class="label">估算成本</span>
+            <span class="label">{t('stats.estimatedCost')}</span>
             <span class="value">{formatCurrency(summary.token_usage.total_cost_estimate)}</span>
           </div>
         </div>
@@ -713,11 +750,11 @@
 
     <!-- 供应商统计 -->
     {#if Object.keys(summary.provider_stats).length > 0}
-      <Card title="供应商统计" subtitle="各供应商性能指标">
+      <Card title={t('stats.providerStats')} subtitle={t('stats.providerStatsSubtitle')}>
         <!-- 图表展示 -->
         {#if providerTokenChartData}
           <div class="charts-section">
-            <h3 class="chart-title">Token 使用占比</h3>
+            <h3 class="chart-title">{t('stats.tokenUsageShare')}</h3>
             <div class="chart-wrapper">
               <Chart
                 type="pie"
@@ -760,12 +797,12 @@
                   type="text"
                   bind:value={providerStatsSearch}
                   on:input={handleProviderStatsSearchChange}
-                  placeholder="搜索供应商名称..."
+                  placeholder={t('stats.searchProviderName')}
                 />
               </div>
 
-              <Button variant="secondary" size="sm" on:click={clearProviderStatsFilters} title="清除筛选" class="clear-button">
-                清除
+              <Button variant="secondary" size="sm" on:click={clearProviderStatsFilters} title={t('stats.clearFilters')} class="clear-button">
+                {t('stats.clear')}
               </Button>
             </div>
           </div>
@@ -775,13 +812,13 @@
               <table class="stats-table">
                 <thead>
                   <tr>
-                    <th>供应商</th>
-                    <th>总请求</th>
-                    <th>成功</th>
-                    <th>失败</th>
-                    <th>成功率</th>
-                    <th>Token 消耗</th>
-                    <th>成本估算</th>
+                    <th>{t('stats.provider')}</th>
+                    <th>{t('stats.totalRequests')}</th>
+                    <th>{t('stats.success')}</th>
+                    <th>{t('stats.failed')}</th>
+                    <th>{t('stats.successRate')}</th>
+                    <th>{t('stats.totalTokenConsumption')}</th>
+                    <th>{t('stats.estimatedCost')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -804,28 +841,28 @@
             {#if providerStatsTotalPages > 1}
               <div class="pagination">
                 <div class="pagination-info">
-                  共 {providerStatsTotalCount} 条记录，第 {providerStatsPage} / {providerStatsTotalPages} 页
+                  {t('stats.paginationInfo').replace('{totalCount}', providerStatsTotalCount.toString()).replace('{currentPage}', providerStatsPage.toString()).replace('{totalPages}', providerStatsTotalPages.toString())}
                 </div>
                 <div class="pagination-controls">
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={providerStatsPage === 1}
                     on:click={() => handleProviderStatsPageChange(providerStatsPage - 1)}
-                    title="上一页"
+                    title={t('stats.previousPage')}
                     class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
                   </Button>
-                  <span class="page-info">{providerStatsPage} / {providerStatsTotalPages}</span>
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <span class="page-info">{t('stats.pageInfo').replace('{current}', providerStatsPage.toString()).replace('{total}', providerStatsTotalPages.toString())}</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={providerStatsPage === providerStatsTotalPages}
                     on:click={() => handleProviderStatsPageChange(providerStatsPage + 1)}
-                    title="下一页"
+                    title={t('stats.nextPage')}
                     class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -837,7 +874,7 @@
             {/if}
           {:else}
             <div class="empty">
-              <p>没有匹配的供应商</p>
+              <p>{t('stats.noMatchingProviders')}</p>
             </div>
           {/if}
       </Card>
@@ -845,11 +882,11 @@
 
     <!-- Token 使用详情 -->
     {#if tokenUsage.length > 0}
-      <Card title="Token 使用详情" subtitle="按日期和供应商统计">
+      <Card title={t('stats.tokenUsageDetails')} subtitle={t('stats.tokenUsageDetailsSubtitle')}>
         <!-- 图表展示 -->
         <div class="charts-section">
           {#if tokenUsageTrendChartData}
-            <h3 class="chart-title">Token 使用趋势</h3>
+            <h3 class="chart-title">{t('stats.tokenUsageTrend')}</h3>
             <div class="chart-wrapper">
               <Chart
                 type="line"
@@ -877,7 +914,7 @@
                         label: (context) => {
                           const label = context.dataset.label || '';
                           const value = context.parsed.y || 0;
-                          const formattedValue = label === '成本估算' ? formatCurrency(value) : formatNumber(value);
+                          const formattedValue = label === t('stats.estimatedCost') ? formatCurrency(value) : formatNumber(value);
                           return `${label}: ${formattedValue}`;
                         }
                       }
@@ -924,7 +961,7 @@
           {/if}
 
           {#if tokenUsageBarChartData}
-            <h3 class="chart-title">供应商 Token 使用排行</h3>
+            <h3 class="chart-title">{t('stats.providerTokenUsageRanking')}</h3>
             <div class="chart-wrapper">
               <Chart
                 type="bar"
@@ -939,7 +976,7 @@
                     tooltip: {
                       callbacks: {
                         label: (context) => {
-                          return `Token 使用量: ${formatNumber(context.parsed.y || 0)}`;
+                          return `${t('stats.tokenUsage')}: ${formatNumber(context.parsed.y || 0)}`;
                         }
                       }
                     }
@@ -975,29 +1012,29 @@
         <div class="filters">
             <div class="filter-row">
               <div class="filter-group">
-                <label for="token-provider-filter">供应商:</label>
+                <label for="token-provider-filter">{t('stats.provider')}:</label>
                 <Input
                   id="token-provider-filter"
                   type="text"
-                  placeholder="搜索供应商..."
+                  placeholder={t('stats.searchProvider')}
                   bind:value={tokenUsageProviderFilter}
                   on:input={handleTokenUsageFilterChange}
                 />
               </div>
 
               <div class="filter-group">
-                <label for="token-model-filter">模型:</label>
+                <label for="token-model-filter">{t('stats.model')}:</label>
                 <Input
                   id="token-model-filter"
                   type="text"
-                  placeholder="搜索模型..."
+                  placeholder={t('stats.searchModel')}
                   bind:value={tokenUsageModelFilter}
                   on:input={handleTokenUsageFilterChange}
                 />
               </div>
 
-              <Button variant="secondary" size="sm" on:click={clearTokenUsageFilters} title="清除筛选" class="clear-button">
-                清除
+              <Button variant="secondary" size="sm" on:click={clearTokenUsageFilters} title={t('stats.clearFilters')} class="clear-button">
+                {t('stats.clear')}
               </Button>
             </div>
           </div>
@@ -1007,14 +1044,14 @@
               <table class="stats-table">
                 <thead>
                   <tr>
-                    <th>日期</th>
-                    <th>供应商</th>
-                    <th>模型</th>
-                    <th>请求数</th>
-                    <th>输入 Token</th>
-                    <th>输出 Token</th>
-                    <th>总 Token</th>
-                    <th>成本估算</th>
+                    <th>{t('stats.date')}</th>
+                    <th>{t('stats.provider')}</th>
+                    <th>{t('stats.model')}</th>
+                    <th>{t('stats.requestCount')}</th>
+                    <th>{t('stats.inputTokens')}</th>
+                    <th>{t('stats.outputTokens')}</th>
+                    <th>{t('stats.totalTokens')}</th>
+                    <th>{t('stats.estimatedCost')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1038,15 +1075,15 @@
             {#if tokenUsageTotalPages > 1}
               <div class="pagination">
                 <div class="pagination-info">
-                  共 {tokenUsageTotalCount} 条记录，第 {tokenUsagePage} / {tokenUsageTotalPages} 页
+                  {t('stats.paginationInfo').replace('{totalCount}', tokenUsageTotalCount.toString()).replace('{currentPage}', tokenUsagePage.toString()).replace('{totalPages}', tokenUsageTotalPages.toString())}
                 </div>
                 <div class="pagination-controls">
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={tokenUsagePage === 1}
                     on:click={() => handleTokenUsagePageChange(tokenUsagePage - 1)}
-                    title="上一页"
+                    title={t('common.previousPage')}
                     class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1054,12 +1091,12 @@
                     </svg>
                   </Button>
                   <span class="page-info">{tokenUsagePage} / {tokenUsageTotalPages}</span>
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={tokenUsagePage === tokenUsageTotalPages}
                     on:click={() => handleTokenUsagePageChange(tokenUsagePage + 1)}
-                    title="下一页"
+                    title={t('common.nextPage')}
                     class="icon-button"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1071,71 +1108,71 @@
             {/if}
           {:else}
             <div class="empty">
-              <p>没有匹配的记录</p>
+              <p>{t('stats.noMatchingRecords')}</p>
             </div>
           {/if}
       </Card>
     {/if}
 
     <!-- 请求日志 -->
-    <Card title="请求日志" subtitle="API请求记录">
+    <Card title={t('stats.requestLogs')} subtitle={t('stats.requestLogsSubtitle')}>
       <!-- 筛选器 -->
       <div class="filters">
           <div class="filter-row">
             <div class="filter-group">
-              <label for="request-provider-filter">供应商:</label>
+              <label for="request-provider-filter">{t('stats.provider')}:</label>
               <Input
                 id="request-provider-filter"
                 type="text"
-                placeholder="搜索供应商..."
+                placeholder={t('stats.searchProvider')}
                 bind:value={filterProvider}
                 on:input={handleFilterChange}
               />
             </div>
 
             <div class="filter-group">
-              <label for="request-model-filter">模型:</label>
+              <label for="request-model-filter">{t('stats.model')}:</label>
               <Input
                 id="request-model-filter"
                 type="text"
-                placeholder="搜索模型..."
+                placeholder={t('stats.searchModel')}
                 bind:value={filterModel}
                 on:input={handleFilterChange}
               />
             </div>
 
             <div class="filter-group">
-              <label for="request-status-filter">状态:</label>
-              <select id="request-status-filter" class="filter-select" bind:value={filterStatus} on:change={handleFilterChange}>
-                <option value="all">全部</option>
-                <option value="success">成功</option>
-                <option value="failed">失败</option>
+              <label for="request-status-filter">{t('stats.status')}:</label>
+              <select id="request-status-filter" class="filter-select" bind:value={filterStatus} onchange={handleFilterChange}>
+                <option value="all">{t('stats.all')}</option>
+                <option value="success">{t('stats.successStatus')}</option>
+                <option value="failed">{t('stats.failedStatus')}</option>
               </select>
             </div>
-            
-            <Button variant="secondary" size="sm" on:click={clearFilters} title="清除筛选" class="clear-button">
-              清除
+
+            <Button variant="secondary" size="sm" on:click={clearFilters} title={t('stats.clearFilters')} class="clear-button">
+              {t('stats.clear')}
             </Button>
           </div>
         </div>
 
         {#if loadingRequests}
           <div class="loading-requests">
-            <p>加载中...</p>
+            <p>{t('stats.loading')}</p>
           </div>
         {:else if requests.length > 0}
           <div class="table-container">
             <table class="stats-table">
               <thead>
                 <tr>
-                  <th>时间</th>
-                  <th>供应商</th>
-                  <th>模型</th>
-                  <th>状态</th>
-                  <th>响应时间</th>
-                  <th>输入 Token</th>
-                  <th>输出 Token</th>
-                  <th>错误</th>
+                  <th>{t('stats.time')}</th>
+                  <th>{t('stats.provider')}</th>
+                  <th>{t('stats.model')}</th>
+                  <th>{t('stats.status')}</th>
+                  <th>{t('stats.responseTime')}</th>
+                  <th>{t('stats.inputTokens')}</th>
+                  <th>{t('stats.outputTokens')}</th>
+                  <th>{t('stats.error')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1158,14 +1195,14 @@
                           class="error-preview clickable"
                           role="button"
                           tabindex="0"
-                          on:click={() => showErrorMessage(request)}
-                          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && showErrorMessage(request)}
-                          title="点击查看完整错误信息"
+                          onclick={() => showErrorMessage(request)}
+                          onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && showErrorMessage(request)}
+                          title={t('stats.clickToViewError')}
                         >
                           {truncated}
                         </span>
                       {:else}
-                        <span class="no-error">-</span>
+                        <span class="no-error">{t('stats.noError')}</span>
                       {/if}
                     </td>
                   </tr>
@@ -1177,7 +1214,7 @@
           <!-- 分页控件 -->
           <div class="pagination">
             <div class="pagination-info">
-              共 {formatNumber(totalCount)} 条记录，第 {currentPage} / {totalPages} 页
+              {t('stats.paginationInfo').replace('{totalCount}', formatNumber(totalCount)).replace('{currentPage}', currentPage.toString()).replace('{totalPages}', totalPages.toString())}
             </div>
             <div class="pagination-controls">
               <Button
@@ -1185,7 +1222,7 @@
                 size="sm"
                 disabled={currentPage === 1 || loadingRequests}
                 on:click={() => handlePageChange(currentPage - 1)}
-                title="上一页"
+                title={t('common.previousPage')}
                 class="icon-button"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1198,7 +1235,7 @@
                 size="sm"
                 disabled={currentPage === totalPages || loadingRequests}
                 on:click={() => handlePageChange(currentPage + 1)}
-                title="下一页"
+                title={t('common.nextPage')}
                 class="icon-button"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1216,32 +1253,32 @@
                 on:click={loadMore}
                 disabled={loadingRequests}
                 class="load-more-button"
-                title="新增1000条记录"
+                title={t('stats.loadMoreRecords')}
               >
                 {#if loadingRequests}
                   <svg class="loading-spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  <span>加载中...</span>
+                  <span>{t('common.loading')}</span>
                 {:else}
                   <svg class="more-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 12h14" />
                     <path d="M12 5v14" />
                   </svg>
-                  <span>查看更多</span>
+                  <span>{t('stats.viewMore')}</span>
                 {/if}
               </Button>
             </div>
           {/if}
         {:else}
           <div class="empty-requests">
-            <p>暂无请求记录</p>
+            <p>{t('stats.noRequestRecords')}</p>
           </div>
         {/if}
     </Card>
   {:else}
     <div class="empty">
-      <p>暂无性能数据</p>
+      <p>{t('stats.noPerformanceData')}</p>
     </div>
   {/if}
 </div>
@@ -1250,7 +1287,7 @@
 <ErrorMessageModal
   show={showErrorModal}
   errorMessage={selectedError}
-  title={selectedRequestInfo ? `错误信息 - ${selectedRequestInfo}` : '错误信息'}
+  title={selectedRequestInfo ? `${t('stats.errorMessage')} - ${selectedRequestInfo}` : t('stats.errorMessage')}
   on:close={closeErrorModal}
 />
 
@@ -1269,13 +1306,19 @@
   }
 
   .date-filter {
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 0.875rem;
     cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
   }
 
   .date-filter:focus {

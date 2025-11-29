@@ -3,6 +3,7 @@
   import { providerService } from "$services/providers";
   import type { ModelChoice } from "$services/chatService";
   import SlidingList from "$components/ui/SlidingList.svelte";
+  import { tStore } from "$stores/language";
 
   interface Props {
     selectedModel?: ModelChoice | null;
@@ -45,6 +46,9 @@
 
   let loading = $state(true);
   let error = $state<string | null>(null);
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   // Computed sorted providers for display
   let sortedProviders: ProviderConfig[] = $derived(
@@ -113,9 +117,9 @@
 
   // Format categories as options
   let categoryOptions = $derived([
-    { value: 'big', label: '大模型' },
-    { value: 'middle', label: '中等模型' },
-    { value: 'small', label: '小模型' }
+    { value: 'big', label: t('modelSelector.bigModel') },
+    { value: 'middle', label: t('modelSelector.middleModel') },
+    { value: 'small', label: t('modelSelector.smallModel') }
   ]);
 
   // Format models as options
@@ -315,7 +319,7 @@
   <!-- Collapsed Header - Always Visible -->
   <div class="selector-header" onclick={toggleExpanded} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleExpanded()}>
     <div class="header-content">
-      <span class="header-label">供应商</span>
+      <span class="header-label">{t('modelSelector.provider')}</span>
       <span class="header-value">
         {#if selectedProvider}
           <strong>{selectedProvider}</strong>
@@ -323,7 +327,7 @@
             <span class="api-format">{selectedApiFormat}</span>
           {/if}
         {:else}
-          <span class="placeholder">请选择供应商</span>
+          <span class="placeholder">{t('modelSelector.placeholderSelectProvider')}</span>
         {/if}
       </span>
     </div>
@@ -336,37 +340,37 @@
   {#if isExpanded}
     <div class="expanded-content">
       {#if loading}
-        <div class="loading">加载模型配置中...</div>
+        <div class="loading">{t('modelSelector.loadingModels')}</div>
       {:else if error}
         <div class="error">{error}</div>
       {:else if providers.length > 0}
         <div class="selector-row">
           <div class="selector-group">
-            <label for="provider-select">供应商</label>
+            <label for="provider-select">{t('modelSelector.provider')}</label>
             <SlidingList
               options={providerOptions}
               value={`${selectedProvider}||${selectedApiFormat}`}
-              placeholder="请选择供应商"
+              placeholder={t('modelSelector.selectProvider')}
               onChange={handleProviderChange}
             />
           </div>
 
           <div class="selector-group">
-            <label for="category-select">模型类别</label>
+            <label for="category-select">{t('modelSelector.category')}</label>
             <SlidingList
               options={categoryOptions}
               value={selectedCategory}
-              placeholder="请选择模型类别"
+              placeholder={t('modelSelector.selectCategory')}
               onChange={handleCategoryChange}
             />
           </div>
 
           <div class="selector-group">
-            <label for="model-select">具体模型</label>
+            <label for="model-select">{t('modelSelector.model')}</label>
             <SlidingList
               options={modelOptions}
               value={selectedModelName}
-              placeholder={availableModels.length === 0 ? "暂无可用模型" : "请选择具体模型"}
+              placeholder={availableModels.length === 0 ? t('modelSelector.noModels') : t('modelSelector.selectModel')}
               onChange={handleModelChange}
             />
           </div>
@@ -375,16 +379,16 @@
         {#if selectedModel}
           <div class="model-info">
             <span class="provider"
-              >供应商: <strong>{selectedModel.providerName}</strong></span
+              >{t('modelSelector.provider')}: <strong>{selectedModel.providerName}</strong></span
             >
             <span class="format"
-              >API格式: <strong>{selectedModel.apiFormat}</strong></span
+              >{t('modelSelector.apiFormat')}: <strong>{selectedModel.apiFormat}</strong></span
             >
-            <span class="model">模型: <strong>{selectedModel.model}</strong></span>
+            <span class="model">{t('modelSelector.model')}: <strong>{selectedModel.model}</strong></span>
           </div>
         {/if}
       {:else}
-        <div class="error">未找到可用的供应商配置</div>
+        <div class="error">{t('common.error')}</div>
       {/if}
     </div>
   {/if}

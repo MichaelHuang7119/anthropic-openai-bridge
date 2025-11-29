@@ -10,6 +10,7 @@
   import Input from "$components/ui/Input.svelte";
   import { apiKeysService } from "$services/apiKeys";
   import { toast } from "$stores/toast";
+  import { tStore } from "$stores/language";
   import {
     saveFullApiKey,
     getFullApiKey,
@@ -24,20 +25,61 @@
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   import type { APIKeyListResponse } from "$services/apiKeys";
 
-  let loading = true;
-  let apiKeys: APIKey[] = [];
-  let allAPIKeysData: APIKey[] = []; // 存储所有已加载的数据
-  let showCreateForm = false;
-  let editingKey: APIKey | null = null;
-  let saving = false;
-  let newKey: CreateAPIKeyRequest = { name: "" };
-  let editForm: UpdateAPIKeyRequest = {};
-  let expandedKeyIds: Set<string> = new Set(); // 存储已展开显示完整Key的ID
-  let fullApiKeysCache: Record<number, string> = {}; // 缓存完整 API Key（使用对象而不是Map）
-  let loadingFullKeys: Set<number> = new Set(); // 正在加载完整 Key 的 ID 集合
+  // 获取翻译函数
+  const t = $derived($tStore);
+
+  let loading = $state(true);
+  let allAPIKeysData: APIKey[] = $state([]); // 存储所有已加载的数据
+  let showCreateForm = $state(false);
+  let editingKey: APIKey | null = $state(null);
+  let saving = $state(false);
+  let newKey: CreateAPIKeyRequest = $state({ name: "" });
+  let editForm: UpdateAPIKeyRequest = $state({});
+  let expandedKeyIds: Set<string> = $state(new Set()); // 存储已展开显示完整Key的ID
+  let fullApiKeysCache: Record<number, string> = $state({}); // 缓存完整 API Key（使用对象而不是Map）
+  let loadingFullKeys: Set<number> = $state(new Set()); // 正在加载完整 Key 的 ID 集合
 
   // 筛选和分页（响应式）
-  $: filteredAPIKeys = (() => {
+  let searchQuery = $state("");
+  let filterStatus: "all" | "active" | "inactive" = $state("all");
+
+  // 分页相关
+  let currentPage = $state(1);
+  const pageSize = 10;
+  let totalPages = $state(1);
+  let totalCount = $state(0);
+  let loadingKeys = $state(false);
+
+  // 筛选和分页（纯计算，不修改状态）
+  let filteredAPIKeys = $derived.by(() => {
+    let filtered = allAPIKeysData;
+
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((key) =>
+        key.name.toLowerCase().includes(query),
+      );
+    }
+
+    // 状态过滤
+    if (filterStatus === "active") {
+      filtered = filtered.filter((key) => key.is_active);
+    } else if (filterStatus === "inactive") {
+      filtered = filtered.filter((key) => !key.is_active);
+    }
+
+    // 分页切片
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filtered.slice(start, end);
+  });
+
+  // 当前页显示的数据（响应式）
+  let apiKeys = $derived(filteredAPIKeys);
+
+  // 使用 $effect 来更新分页信息（避免在 $derived 中修改状态）
+  $effect(() => {
     let filtered = allAPIKeysData;
 
     // 搜索过滤
@@ -67,26 +109,7 @@
     } else if (currentPage < 1) {
       currentPage = 1;
     }
-
-    // 分页切片
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return filtered.slice(start, end);
-  })();
-
-  // 当前页显示的数据（响应式）
-  $: apiKeys = filteredAPIKeys;
-
-  // 分页相关
-  let currentPage = 1;
-  const pageSize = 10;
-  let totalPages = 1;
-  let totalCount = 0;
-  let loadingKeys = false;
-
-  // 筛选相关
-  let searchQuery = "";
-  let filterStatus: "all" | "active" | "inactive" = "all";
+  });
 
   // 防抖定时器
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -153,7 +176,7 @@
         return;
       }
       console.error("Failed to load API keys:", error);
-      toast.error("加载 API Key 列表失败");
+      toast.error(t('apiKeys.loadFailed'));
       // 确保 allAPIKeysData 始终是数组
       allAPIKeysData = [];
     } finally {
@@ -201,7 +224,7 @@
 
   async function handleSaveCreate() {
     if (!newKey.name.trim()) {
-      toast.error("请输入用户名");
+      toast.error(t('apiKeys.enterName'));
       return;
     }
 
@@ -216,14 +239,14 @@
       const response = await apiKeysService.create(requestData);
       // 保存完整 key 到 localStorage
       saveFullApiKey(response.id, response.api_key);
-      toast.success("API Key 创建成功");
+      toast.success(t('apiKeys.created'));
       await loadAPIKeys();
       handleCloseCreateForm();
     } catch (error) {
       console.error("Failed to create API key:", error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      toast.error("创建失败: " + errorMessage);
+      toast.error(`${t('apiKeys.createFailed')}: ${errorMessage}`);
     } finally {
       saving = false;
     }
@@ -259,12 +282,12 @@
       };
 
       await apiKeysService.update(editingKey.id, requestData);
-      toast.success("更新成功");
+      toast.success(t('apiKeys.updated'));
       await loadAPIKeys();
       handleCancelEdit();
     } catch (error) {
       console.error("Failed to update API key:", error);
-      toast.error("更新失败: " + (error as Error).message);
+      toast.error(`${t('apiKeys.updateFailed')}: ${(error as Error).message}`);
     } finally {
       saving = false;
     }
@@ -272,9 +295,9 @@
 
   async function handleDelete(key: APIKey) {
     const message =
-      `确定要删除 API Key "${key.name}" 吗？\n\n` +
-      `删除后该 Key 将立即失效，且无法恢复。\n` +
-      `如果 Key 已丢失，删除后可以重新创建。`;
+      t('apiKeys.deleteConfirm').replace('{name}', key.name) + '\n\n' +
+      t('apiKeys.deleteConfirm2') + '\n' +
+      t('apiKeys.deleteConfirm3');
 
     if (!confirm(message)) {
       return;
@@ -284,22 +307,22 @@
       await apiKeysService.delete(key.id);
       // 删除 localStorage 中保存的完整 key
       removeFullApiKey(key.id);
-      toast.success("删除成功");
+      toast.success(t('apiKeys.deleted'));
       await loadAPIKeys();
     } catch (error) {
       console.error("Failed to delete API key:", error);
-      toast.error("删除失败: " + (error as Error).message);
+      toast.error(`${t('apiKeys.deleteFailed')}: ${(error as Error).message}`);
     }
   }
 
   async function handleToggleActive(key: APIKey) {
     try {
       await apiKeysService.update(key.id, { is_active: !key.is_active });
-      toast.success(key.is_active ? "已禁用" : "已启用");
+      toast.success(key.is_active ? t('apiKeys.disabled') : t('apiKeys.enabledAction'));
       await loadAPIKeys();
     } catch (error) {
       console.error("Failed to toggle API key status:", error);
-      toast.error("操作失败: " + (error as Error).message);
+      toast.error(`${t('apiKeys.operationFailed')}: ${(error as Error).message}`);
     }
   }
 
@@ -309,7 +332,7 @@
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        toast.success("已复制到剪贴板");
+        toast.success(t('apiKeys.copiedToClipboard'));
       } else {
         // 降级方案
         const textArea = document.createElement("textarea");
@@ -321,11 +344,11 @@
         textArea.select();
         document.execCommand("copy");
         document.body.removeChild(textArea);
-        toast.success("已复制到剪贴板");
+        toast.success(t('apiKeys.copiedToClipboard'));
       }
     } catch (error) {
       console.error("Failed to copy:", error);
-      toast.error("复制失败，请手动复制");
+      toast.error(t('apiKeys.copyFailed'));
     }
   }
 
@@ -335,7 +358,7 @@
   async function copyFullKey(key: APIKey) {
     const fullKey = await ensureFullApiKey(key.id);
     if (!fullKey) {
-      toast.error("无法获取完整 Key。如果 Key 已丢失，请删除后重新创建。");
+      toast.error(t('apiKeys.keyUnavailable'));
       return;
     }
     await copyToClipboard(fullKey);
@@ -408,13 +431,13 @@
    * 获取显示的 API Key 文本（完整或前缀）
    * 响应式函数，当依赖项变化时会自动重新计算
    */
-  $: getDisplayKeyText = (keyId: number, keyPrefix: string) => {
+  let getDisplayKeyText = $derived((keyId: number, keyPrefix: string) => {
     const keyIdStr = keyId.toString();
 
     if (expandedKeyIds.has(keyIdStr)) {
       // 如果正在加载，显示加载状态
       if (loadingFullKeys.has(keyId)) {
-        return "正在加载...";
+        return t('apiKeys.loadingFullKey');
       }
 
       // 如果已展开，优先使用内存缓存
@@ -435,7 +458,7 @@
       return keyPrefix + "...";
     }
     return keyPrefix + "...";
-  };
+  });
 
   function formatDate(dateStr?: string): string {
     if (!dateStr) return "-";
@@ -476,7 +499,7 @@
 
 <div class="container">
   <div class="page-header">
-    <Button on:click={handleCreate} title="创建 API Key" class="icon-button">
+    <Button on:click={handleCreate} title={t('apiKeys.createApiKey')} class="icon-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="20"
@@ -496,7 +519,7 @@
 
   {#if loading}
     <div class="loading">
-      <p>加载中...</p>
+      <p>{t('apiKeys.loading')}</p>
     </div>
   {:else}
     <Card>
@@ -508,21 +531,21 @@
               type="text"
               bind:value={searchQuery}
               on:input={handleSearch}
-              placeholder="搜索用户名..."
+              placeholder={t('apiKeys.searchPlaceholder')}
             />
           </div>
 
           <div class="filter-group">
-            <label for="api-key-filter-status">状态:</label>
+            <label for="api-key-filter-status">{t('apiKeys.statusLabel')}</label>
             <select
               id="api-key-filter-status"
               class="filter-select"
               bind:value={filterStatus}
-              on:change={handleFilterChange}
+              onchange={handleFilterChange}
             >
-              <option value="all">全部</option>
-              <option value="active">已启用</option>
-              <option value="inactive">已禁用</option>
+              <option value="all">{t('apiKeys.all')}</option>
+              <option value="active">{t('apiKeys.enabled')}</option>
+              <option value="inactive">{t('apiKeys.disabled')}</option>
             </select>
           </div>
 
@@ -530,33 +553,33 @@
             variant="secondary"
             size="sm"
             on:click={clearFilters}
-            title="清除筛选"
+            title={t('apiKeys.clear')}
             class="clear-button"
           >
-            清除
+            {t('apiKeys.clear')}
           </Button>
         </div>
       </div>
 
       {#if loadingKeys}
         <div class="loading-keys">
-          <p>加载中...</p>
+          <p>{t('apiKeys.loading')}</p>
         </div>
       {:else if !apiKeys || apiKeys.length === 0}
         <div class="empty">
-          <p>暂无 API Key</p>
+          <p>{t('apiKeys.noApiKeys')}</p>
         </div>
       {:else}
         <div class="table-container">
           <table class="api-keys-table">
             <thead>
               <tr>
-                <th>用户</th>
-                <th>Key</th>
-                <th style="text-align: center;">状态</th>
-                <th>创建时间</th>
-                <th>最后使用</th>
-                <th>操作</th>
+                <th>{t('apiKeys.user')}</th>
+                <th>{t('apiKeys.key')}</th>
+                <th style="text-align: center;">{t('apiKeys.status')}</th>
+                <th>{t('apiKeys.createdAt')}</th>
+                <th>{t('apiKeys.lastUsed')}</th>
+                <th>{t('apiKeys.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -567,7 +590,7 @@
                       <Input
                         type="text"
                         bind:value={editForm.name}
-                        placeholder="用户"
+                        placeholder={t('apiKeys.user')}
                       />
                     {:else}
                       <span class="key-name">{key.name}</span>
@@ -578,7 +601,7 @@
                       <div
                         class="key-prefix-container"
                         title={expandedKeyIds.has(key.id.toString())
-                          ? "可使用左右方向键或鼠标拖动查看完整 Key"
+                          ? t('apiKeys.expandedKeyHint')
                           : ""}
                       >
                         <code
@@ -597,8 +620,8 @@
                           size="sm"
                           on:click={() => toggleExpanded(key.id.toString())}
                           title={expandedKeyIds.has(key.id.toString())
-                            ? "收起"
-                            : "查看完整 Key"}
+                            ? t('apiKeys.collapse')
+                            : t('apiKeys.viewFullKey')}
                           class="icon-button eye-button"
                         >
                           {#if expandedKeyIds.has(key.id.toString())}
@@ -641,7 +664,7 @@
                           variant="secondary"
                           size="sm"
                           on:click={() => copyFullKey(key)}
-                          title="复制完整 Key"
+                          title={t('apiKeys.copyFullKey')}
                           class="icon-button copy-button"
                         >
                           <svg
@@ -671,7 +694,7 @@
                       {:else}
                         <span
                           class="key-unavailable"
-                          title="完整 Key 不可用，如果 Key 已丢失，请删除后重新创建"
+                          title={t('apiKeys.keyUnavailable')}
                           >⚠️</span
                         >
                       {/if}
@@ -691,7 +714,7 @@
                         <input
                           type="checkbox"
                           checked={key.is_active}
-                          on:change={() => handleToggleActive(key)}
+                          onchange={() => handleToggleActive(key)}
                         />
                         <span class="toggle-slider"></span>
                       </label>
@@ -712,7 +735,7 @@
                           size="sm"
                           disabled={saving}
                           on:click={handleSaveEdit}
-                          title={saving ? "保存中..." : "保存"}
+                          title={saving ? t('apiKeys.saving') : t('apiKeys.save')}
                           class="icon-button"
                         >
                           <svg
@@ -738,7 +761,7 @@
                           size="sm"
                           disabled={saving}
                           on:click={handleCancelEdit}
-                          title="取消"
+                          title={t('apiKeys.cancel')}
                           class="icon-button"
                         >
                           <svg
@@ -763,7 +786,7 @@
                           variant="secondary"
                           size="sm"
                           on:click={() => handleEdit(key)}
-                          title="编辑"
+                          title={t('apiKeys.editKey')}
                           class="icon-button"
                         >
                           <svg
@@ -789,7 +812,7 @@
                           variant="danger"
                           size="sm"
                           on:click={() => handleDelete(key)}
-                          title="删除"
+                          title={t('apiKeys.deleteKey')}
                           class="icon-button"
                         >
                           <svg
@@ -825,7 +848,7 @@
       {#if !loadingKeys && apiKeys && apiKeys.length > 0 && totalPages > 1}
         <div class="pagination">
           <div class="pagination-info">
-            共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页
+            {t('apiKeys.paginationInfo').replace('{totalCount}', totalCount.toString()).replace('{currentPage}', currentPage.toString()).replace('{totalPages}', totalPages.toString())}
           </div>
           <div class="pagination-controls">
             <Button
@@ -833,7 +856,7 @@
               size="sm"
               disabled={currentPage === 1 || loadingKeys}
               on:click={() => handlePageChange(currentPage - 1)}
-              title="上一页"
+              title={t('apiKeys.previousPage')}
               class="icon-button"
             >
               <svg
@@ -856,7 +879,7 @@
               size="sm"
               disabled={currentPage === totalPages || loadingKeys}
               on:click={() => handlePageChange(currentPage + 1)}
-              title="下一页"
+              title={t('apiKeys.nextPage')}
               class="icon-button"
             >
               <svg
@@ -886,40 +909,39 @@
     class="modal-overlay"
     role="button"
     tabindex="0"
-    on:click={() => {}}
-    on:keydown={() => {}}
+    onclick={() => {}}
+    onkeydown={() => {}}
   >
     <div
       class="modal-content"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      on:click|stopPropagation
-      on:keydown|stopPropagation
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
-      <h2>创建 API Key</h2>
+      <h2>{t('apiKeys.createKeyTitle')}</h2>
 
-      <form on:submit|preventDefault={handleSaveCreate} class="create-form">
+      <form onsubmit={(e) => { e.preventDefault(); handleSaveCreate(); }} class="create-form">
         <div class="info-box">
-          <p><strong>💡 提示</strong></p>
+          <p><strong>{t('apiKeys.createKeyTip')}</strong></p>
           <p>
-            API Key 将由系统自动生成（格式：sk-前缀 + 64个字符），您只需为此 Key
-            起个用户名即可。
+            {t('apiKeys.createKeyDescription')}
           </p>
         </div>
 
         <div class="form-group">
           <label for="key-name">
-            用户 <span class="required">*</span>
+            {t('apiKeys.user')} <span class="required">*</span>
           </label>
           <Input
             id="key-name"
             type="text"
             bind:value={newKey.name}
-            placeholder="例如：Alice"
+            placeholder={t('apiKeys.createKeyPrompt')}
             required
           />
-          <p class="form-hint">用于标识此 API Key 所属用户</p>
+          <p class="form-hint">{t('apiKeys.createKeyHint')}</p>
         </div>
 
         <div class="modal-actions">
@@ -927,7 +949,7 @@
             type="submit"
             variant="primary"
             disabled={saving}
-            title={saving ? "创建中..." : "创建"}
+            title={saving ? t('apiKeys.creating') : t('apiKeys.creatingKey')}
             class="icon-button"
           >
             <svg
@@ -950,7 +972,7 @@
             variant="secondary"
             disabled={saving}
             on:click={handleCloseCreateForm}
-            title="取消"
+            title={t('apiKeys.cancel')}
             class="icon-button"
           >
             <svg

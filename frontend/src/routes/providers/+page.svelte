@@ -11,71 +11,93 @@
   import { toast } from "$stores/toast";
   import type { Provider } from "$types/provider";
   import Input from "$components/ui/Input.svelte";
+  import { tStore } from "$stores/language";
 
-  let showForm = false;
-  let editingProvider: Provider | null = null;
-  let loading = true;
-  let saving = false;
-  let providersList: Provider[] = [];
-  let providersForEdit: Provider[] = []; // 包含真实API key的完整数据
-  let showTestResult = false;
-  let testResult: any = null;
-  let testingProvider: string | null = null;
+  let showForm = $state(false);
+  let editingProvider: Provider | null = $state(null);
+  let loading = $state(true);
+  let saving = $state(false);
+  let providersForEdit: Provider[] = $state([]); // 包含真实API key的完整数据
+  let showTestResult = $state(false);
+  let testResult: any = $state(null);
+  let testingProvider: string | null = $state(null);
+
+  // 获取翻译函数
+  const t = $derived($tStore);
+
+  // 模型类别翻译
+  function getCategoryLabel(category: string): string {
+    const labels: Record<string, string> = {
+      big: t("providers.bigModels"),
+      middle: t("providers.middleModels"),
+      small: t("providers.smallModels"),
+    };
+    return labels[category] || category;
+  }
+
+  // 获取带参数的翻译
+  function tWithParams(key: string, params: Record<string, string>): string {
+    let result = t(key);
+    for (const [k, v] of Object.entries(params)) {
+      result = result.replace(`{${k}}`, v);
+    }
+    return result;
+  }
 
   // 优先级编辑相关
-  let editingPriorityKey: string | null = null; // 格式: "name||api_format"
-  let editingPriorityValue: number = 0;
+  let editingPriorityKey: string | null = $state(null); // 格式: "name||api_format"
+  let editingPriorityValue: number = $state(0);
 
   // 搜索和筛选相关
-  let searchQuery = "";
-  let filterEnabled: "all" | "enabled" | "disabled" = "all";
+  let searchQuery = $state("");
+  let filterEnabled: "all" | "enabled" | "disabled" = $state("all");
 
   // 分页相关
-  let currentPage = 1;
+  let currentPage = $state(1);
   const pageSize = 10;
 
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
 
-  $: providersList = $providers;
-
   // 客户端过滤和排序
-  $: allFilteredProviders = providersList
-    .filter((p) => {
-      // 搜索过滤
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        if (
-          !p.name.toLowerCase().includes(query) &&
-          !p.base_url.toLowerCase().includes(query)
-        ) {
-          return false;
+  let allFilteredProviders = $derived(
+    $providers
+      .filter((p) => {
+        // 搜索过滤
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          if (
+            !p.name.toLowerCase().includes(query) &&
+            !p.base_url.toLowerCase().includes(query)
+          ) {
+            return false;
+          }
         }
-      }
 
-      // 状态过滤
-      if (filterEnabled === "enabled" && !p.enabled) return false;
-      if (filterEnabled === "disabled" && p.enabled) return false;
+        // 状态过滤
+        if (filterEnabled === "enabled" && !p.enabled) return false;
+        if (filterEnabled === "disabled" && p.enabled) return false;
 
-      return true;
-    })
-    .sort((a, b) => {
-      // 按名称排序（不区分大小写）
-      const nameCompare = a.name
-        .toLowerCase()
-        .localeCompare(b.name.toLowerCase());
-      if (nameCompare !== 0) return nameCompare;
+        return true;
+      })
+      .sort((a, b) => {
+        // 按名称排序（不区分大小写）
+        const nameCompare = a.name
+          .toLowerCase()
+          .localeCompare(b.name.toLowerCase());
+        if (nameCompare !== 0) return nameCompare;
 
-      // 如果名称相同，按 API 格式排序
-      return (a.api_format || '').localeCompare(b.api_format || '');
-    });
+        // 如果名称相同，按 API 格式排序
+        return (a.api_format || '').localeCompare(b.api_format || '');
+      })
+  );
 
   // 分页计算
-  $: totalCount = allFilteredProviders.length;
-  $: totalPages = Math.ceil(totalCount / pageSize);
+  let totalCount = $derived(allFilteredProviders.length);
+  let totalPages = $derived(Math.ceil(totalCount / pageSize));
 
   // 确保当前页在有效范围内
-  $: {
+  $effect(() => {
     if (totalPages === 0) {
       // 没有数据时，设置为第1页
       currentPage = 1;
@@ -84,14 +106,15 @@
     } else if (currentPage < 1) {
       currentPage = 1;
     }
-  }
+  });
 
   // 当前页显示的数据
-  $: filteredProviders = (() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return allFilteredProviders.slice(start, end);
-  })();
+  let filteredProviders = $derived(
+    allFilteredProviders.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    )
+  );
 
   onMount(async () => {
     abortController = new AbortController();
@@ -132,7 +155,7 @@
         return;
       }
       console.error("Failed to load providers:", error);
-      toast.error("加载供应商失败");
+      toast.error(t("providers.loadFailed"));
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -164,7 +187,7 @@
         (p) => p.name === provider.name && p.api_format === provider.api_format,
       );
       if (!fullProvider) {
-        toast.error("找不到该供应商的配置数据");
+        toast.error(t("providers.providerNotFound"));
         return;
       }
 
@@ -189,15 +212,15 @@
         provider.api_format,
       );
       await loadProviders();
-      toast.success(newEnabled ? "供应商已启用" : "供应商已禁用");
+      toast.success(newEnabled ? t("providers.providerEnabled") : t("providers.providerDisabled"));
     } catch (error) {
       console.error("Failed to toggle provider status:", error);
-      toast.error("操作失败: " + (error as Error).message);
+      toast.error(t("providers.operationFailed") + ": " + (error as Error).message);
     }
   }
 
   async function handleDelete(provider: Provider) {
-    if (!confirm(`确定要删除供应商 "${provider.name}" 吗？`)) {
+    if (!confirm(t("providers.confirmDeleteProvider").replace("{name}", provider.name))) {
       return;
     }
 
@@ -206,10 +229,10 @@
       // 清空编辑数据缓存
       providersForEdit = [];
       await loadProviders();
-      toast.success("删除成功");
+      toast.success(t("providers.deleteSuccess"));
     } catch (error) {
       console.error("Failed to delete provider:", error);
-      toast.error("删除失败: " + (error as Error).message);
+      toast.error(t("providers.deleteFailed") + ": " + (error as Error).message);
     }
   }
 
@@ -222,13 +245,13 @@
 
       // Also show a summary toast
       if (result.healthy) {
-        toast.success(`测试完成\n总体状态: 健康`);
+        toast.success(t("providers.testCompleted") + "\n" + t("providers.healthyStatus"));
       } else {
-        toast.error(`测试完成\n总体状态: 不健康`);
+        toast.error(t("providers.testCompleted") + "\n" + t("providers.unhealthyStatus"));
       }
     } catch (error) {
       console.error("Failed to test provider:", error);
-      toast.error("测试失败: " + (error as Error).message);
+      toast.error(t("providers.testFailed") + ": " + (error as Error).message);
       testingProvider = null;
     }
   }
@@ -257,7 +280,7 @@
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        toast.success("已复制到剪贴板");
+        toast.success(t("providers.copiedToClipboard"));
       } else {
         // Fallback for older browsers
         const textArea = document.createElement("textarea");
@@ -270,11 +293,11 @@
         textArea.select();
         document.execCommand("copy");
         document.body.removeChild(textArea);
-        toast.success("已复制到剪贴板");
+        toast.success(t("providers.copiedToClipboard"));
       }
     } catch (error) {
       console.error("Failed to copy:", error);
-      toast.error("复制失败，请手动复制");
+      toast.error(t("providers.copyFailed"));
     }
   }
 
@@ -282,42 +305,33 @@
     if (!testResult) return;
 
     const lines: string[] = [];
-    lines.push(`测试结果 - ${testingProvider}`);
-    lines.push(`总体状态: ${testResult.healthy ? "健康" : "不健康"}`);
+    lines.push(`${t("providers.testResult")} ${testingProvider}`);
+    lines.push(`${t("providers.overallStatus")} ${testResult.healthy ? t("providers.healthyStatus") : t("providers.unhealthyStatus")}`);
     if (testResult.responseTime !== null) {
-      lines.push(`响应时间: ${testResult.responseTime}ms`);
+      lines.push(tWithParams("providers.responseTimeMs", { time: String(testResult.responseTime) }));
     }
     lines.push("");
-    lines.push("类别健康状态:");
+    lines.push(t("providers.categoryHealthStatus").replace(":", ""));
 
     if (testResult.categories) {
       for (const [category, status] of Object.entries(testResult.categories)) {
         const catStatus = status as any;
         lines.push(
-          `  ${getCategoryLabel(category)}: ${catStatus.healthy ? "健康" : "不健康"}`,
+          `  ${getCategoryLabel(category)}: ${catStatus.healthy ? t("providers.healthyStatus") : t("providers.unhealthyStatus")}`,
         );
         if (catStatus.responseTime !== null) {
-          lines.push(`    响应时间: ${catStatus.responseTime}ms`);
+          lines.push(`    ${t("providers.responseTime")} ${catStatus.responseTime}ms`);
         }
         if (catStatus.workingModel) {
-          lines.push(`    可用模型: ${catStatus.workingModel}`);
+          lines.push(`    ${t("providers.availableModels")} ${catStatus.workingModel}`);
         }
         if (catStatus.error) {
-          lines.push(`    错误: ${catStatus.error}`);
+          lines.push(`    ${t("providers.categoryError")} ${catStatus.error}`);
         }
       }
     }
 
     copyToClipboard(lines.join("\n"));
-  }
-
-  function getCategoryLabel(category: string): string {
-    const labels: Record<string, string> = {
-      big: "大模型",
-      middle: "中模型",
-      small: "小模型",
-    };
-    return labels[category] || category;
   }
 
   function truncateError(errorMessage: string, maxLength: number = 50): string {
@@ -327,12 +341,12 @@
   }
 
   // 错误信息模态框相关
-  let showErrorModal = false;
-  let selectedError: string = "";
-  let selectedErrorTitle: string = "";
+  let showErrorModal = $state(false);
+  let selectedError: string = $state("");
+  let selectedErrorTitle: string = $state("");
 
   function showErrorMessage(category: string, error: string) {
-    selectedErrorTitle = `错误信息 - ${testingProvider} - ${getCategoryLabel(category)}`;
+    selectedErrorTitle = `${t("health.errorMessage")} - ${testingProvider} - ${getCategoryLabel(category)}`;
     selectedError = error;
     showErrorModal = true;
   }
@@ -369,10 +383,10 @@
       providersForEdit = [];
       // 刷新供应商列表
       await loadProviders();
-      toast.success("保存成功");
+      toast.success(t("providers.saveSuccess"));
     } catch (error) {
       console.error("Failed to save provider:", error);
-      toast.error("保存失败: " + (error as Error).message);
+      toast.error(tWithParams("providers.saveFailed", { error: (error as Error).message }));
     } finally {
       saving = false;
     }
@@ -412,7 +426,7 @@
 
     // 验证优先级值
     if (editingPriorityValue < 0) {
-      toast.error("优先级不能为负数");
+      toast.error(t("providers.priorityValidation"));
       return;
     }
 
@@ -430,7 +444,7 @@
       );
 
       if (!fullProvider) {
-        toast.error("找不到该供应商的配置数据");
+        toast.error(t("providers.providerNotFound"));
         return;
       }
 
@@ -445,12 +459,12 @@
         updatedData,
         provider.api_format,
       );
-      toast.success("优先级更新成功");
+      toast.success(t("providers.priorityUpdateSuccess"));
       await loadProviders();
       handleCancelEditPriority();
     } catch (error) {
       console.error("Failed to update priority:", error);
-      toast.error("更新失败: " + (error as Error).message);
+      toast.error(tWithParams("providers.priorityUpdateFailed", { error: (error as Error).message }));
     } finally {
       saving = false;
     }
@@ -459,7 +473,7 @@
 
 <div class="container">
   <div class="page-header">
-    <Button on:click={handleAdd} title="添加供应商" class="icon-button">
+    <Button on:click={handleAdd} title={t("providers.addProvider")} class="icon-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="20"
@@ -479,12 +493,12 @@
 
   {#if loading}
     <div class="loading">
-      <p>加载中...</p>
+      <p>{t("providers.loading")}</p>
     </div>
-  {:else if providersList.length === 0}
+  {:else if $providers.length === 0}
     <div class="empty">
-      <p>暂无供应商配置</p>
-      <Button on:click={handleAdd} title="添加第一个供应商" class="icon-button">
+      <p>{t("providers.noProviders")}</p>
+      <Button on:click={handleAdd} title={t("providers.addFirstProvider")} class="icon-button">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -510,20 +524,20 @@
             <Input
               type="text"
               bind:value={searchQuery}
-              placeholder="搜索供应商名称或URL..."
+              placeholder={t("providers.searchPlaceholder")}
             />
           </div>
 
           <div class="filter-group">
-            <label for="provider-filter-status">状态:</label>
+            <label for="provider-filter-status">{t("providers.status")}:</label>
             <select
               id="provider-filter-status"
               class="filter-select"
               bind:value={filterEnabled}
             >
-              <option value="all">全部</option>
-              <option value="enabled">已启用</option>
-              <option value="disabled">已禁用</option>
+              <option value="all">{t("providers.all")}</option>
+              <option value="enabled">{t("providers.enabled")}</option>
+              <option value="disabled">{t("providers.disabled")}</option>
             </select>
           </div>
 
@@ -531,10 +545,10 @@
             variant="secondary"
             size="sm"
             on:click={clearFilters}
-            title="清除筛选"
+            title={t("providers.clearFilters")}
             class="clear-button"
           >
-            清除
+            {t("providers.clearFilter")}
           </Button>
         </div>
       </div>
@@ -542,20 +556,20 @@
 
     {#if filteredProviders.length === 0}
       <div class="empty">
-        <p>没有匹配的供应商</p>
+        <p>{t("providers.noMatch")}</p>
       </div>
     {:else}
       <div class="table-container">
         <table class="providers-table">
           <thead>
             <tr>
-              <th>名称</th>
-              <th style="text-align: center;">状态</th>
-              <th>Base URL</th>
-              <th>API格式</th>
-              <th style="text-align: center;">优先级</th>
-              <th>模型数量</th>
-              <th>操作</th>
+              <th>{t("providers.name")}</th>
+              <th style="text-align: center;">{t("providers.status")}</th>
+              <th>{t("providers.baseUrl")}</th>
+              <th>{t("providers.apiFormat")}</th>
+              <th style="text-align: center;">{t("health.priority")}</th>
+              <th>{t("health.models")}</th>
+              <th>{t("providers.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -573,7 +587,7 @@
                     <input
                       type="checkbox"
                       checked={provider.enabled}
-                      on:change={() => handleToggleEnabled(provider)}
+                      onchange={() => handleToggleEnabled(provider)}
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -607,17 +621,17 @@
                       <div class="priority-actions">
                         <button
                           class="priority-btn save-btn"
-                          on:click={() => handleSavePriority(provider)}
+                          onclick={() => handleSavePriority(provider)}
                           disabled={saving}
-                          title="保存"
+                          title={t("providers.save")}
                         >
                           ✓
                         </button>
                         <button
                           class="priority-btn cancel-btn"
-                          on:click={handleCancelEditPriority}
+                          onclick={handleCancelEditPriority}
                           disabled={saving}
-                          title="取消"
+                          title={t("providers.cancel")}
                         >
                           ✕
                         </button>
@@ -628,8 +642,8 @@
                       <span class="priority-value">{provider.priority}</span>
                       <button
                         class="priority-edit-icon"
-                        on:click={() => handleEditPriority(provider)}
-                        title="编辑优先级"
+                        onclick={() => handleEditPriority(provider)}
+                        title={t("providers.editPriority")}
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -656,13 +670,13 @@
                 <td class="models-cell">
                   <div class="models-badge">
                     <Badge type="info"
-                      >大 {provider.models.big?.length || 0}</Badge
+                      >{t("providers.bigModels")} {provider.models.big?.length || 0}</Badge
                     >
                     <Badge type="info"
-                      >中 {provider.models.middle?.length || 0}</Badge
+                      >{t("providers.middleModels")} {provider.models.middle?.length || 0}</Badge
                     >
                     <Badge type="info"
-                      >小 {provider.models.small?.length || 0}</Badge
+                      >{t("providers.smallModels")} {provider.models.small?.length || 0}</Badge
                     >
                   </div>
                 </td>
@@ -672,7 +686,7 @@
                       variant="secondary"
                       size="sm"
                       on:click={() => handleTest(provider)}
-                      title="测试连接"
+                      title={t("providers.testConnection")}
                       class="icon-button"
                     >
                       <svg
@@ -693,7 +707,7 @@
                       variant="secondary"
                       size="sm"
                       on:click={() => handleEdit(provider)}
-                      title="编辑"
+                      title={t("providers.editProvider")}
                       class="icon-button"
                     >
                       <svg
@@ -719,7 +733,7 @@
                       variant="danger"
                       size="sm"
                       on:click={() => handleDelete(provider)}
-                      title="删除"
+                      title={t("providers.deleteProvider")}
                       class="icon-button"
                     >
                       <svg
@@ -753,7 +767,11 @@
       {#if totalPages > 1}
         <div class="pagination">
           <div class="pagination-info">
-            共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页
+            {tWithParams("health.paginationInfo", {
+              totalCount: String(totalCount),
+              currentPage: String(currentPage),
+              totalPages: String(totalPages)
+            })}
           </div>
           <div class="pagination-controls">
             <Button
@@ -761,7 +779,7 @@
               size="sm"
               disabled={currentPage === 1}
               on:click={() => handlePageChange(currentPage - 1)}
-              title="上一页"
+              title={t("common.previousPage")}
               class="icon-button"
             >
               <svg
@@ -784,7 +802,7 @@
               size="sm"
               disabled={currentPage === totalPages}
               on:click={() => handlePageChange(currentPage + 1)}
-              title="下一页"
+              title={t("common.nextPage")}
               class="icon-button"
             >
               <svg
@@ -814,18 +832,18 @@
     class="modal-overlay"
     role="button"
     tabindex="0"
-    on:click={handleFormOverlayClick}
-    on:keydown={() => {}}
+    onclick={handleFormOverlayClick}
+    onkeydown={() => {}}
   >
     <div
       class="modal-content"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      on:click|stopPropagation
-      on:keydown|stopPropagation
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
-      <h2>{editingProvider ? "编辑供应商" : "添加供应商"}</h2>
+      <h2>{editingProvider ? t("providers.editProvider") : t("providers.addProvider")}</h2>
       <ProviderForm
         provider={editingProvider}
         apiFormat={editingProvider?.api_format}
@@ -843,25 +861,25 @@
     class="modal-overlay"
     role="button"
     tabindex="0"
-    on:click={handleOverlayClick}
-    on:keydown={(e) => e.key === "Escape" && handleOverlayClick(e)}
+    onclick={handleOverlayClick}
+    onkeydown={(e) => e.key === "Escape" && handleOverlayClick(e)}
   >
     <div
       class="modal-content test-result-modal"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      on:click|stopPropagation
-      on:keydown|stopPropagation
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
       <div class="test-result-header">
-        <h2>测试结果 - {testingProvider}</h2>
+        <h2>{tWithParams("providers.testResultTitle", { name: testingProvider || "" })}</h2>
         <div class="header-actions">
           <Button
             variant="secondary"
             size="sm"
             on:click={copyTestResult}
-            title="复制结果"
+            title={t("providers.copyResult")}
             class="icon-button"
           >
             <svg
@@ -884,7 +902,7 @@
             variant="secondary"
             size="sm"
             on:click={closeTestResult}
-            title="关闭"
+            title={t("providers.close")}
             class="icon-button"
           >
             <svg
@@ -907,21 +925,21 @@
 
       <div class="test-summary">
         <div class="summary-item">
-          <span class="summary-label">总体状态:</span>
+          <span class="summary-label">{t("providers.overallStatus")}</span>
           <Badge type={testResult.healthy ? "success" : "danger"}>
-            {testResult.healthy ? "健康" : "不健康"}
+            {testResult.healthy ? t("providers.healthyStatus") : t("providers.unhealthyStatus")}
           </Badge>
         </div>
         {#if testResult.responseTime !== null}
           <div class="summary-item">
-            <span class="summary-label">响应时间:</span>
+            <span class="summary-label">{t("providers.responseTime")}</span>
             <span class="summary-value">{testResult.responseTime}ms</span>
           </div>
         {/if}
       </div>
 
       <div class="categories-section">
-        <h3>类别健康状态</h3>
+        <h3>{t("providers.categoryHealthStatus").replace(":", "")}</h3>
         <div class="categories-list">
           {#each Object.entries(testResult.categories || {}) as [category, status]}
             {@const catStatus = status as any}
@@ -929,7 +947,7 @@
               <div class="category-header">
                 <span class="category-name">{getCategoryLabel(category)}</span>
                 <Badge type={catStatus.healthy ? "success" : "danger"}>
-                  {catStatus.healthy ? "健康" : "不健康"}
+                  {catStatus.healthy ? t("providers.healthyStatus") : t("providers.unhealthyStatus")}
                 </Badge>
               </div>
 
@@ -937,7 +955,7 @@
                 <div class="category-details">
                   {#if catStatus.responseTime !== null}
                     <div class="detail-item">
-                      <span class="detail-label">响应时间:</span>
+                      <span class="detail-label">{t("providers.responseTime")}</span>
                       <span class="detail-value"
                         >{catStatus.responseTime}ms</span
                       >
@@ -945,7 +963,7 @@
                   {/if}
                   {#if catStatus.workingModel}
                     <div class="detail-item">
-                      <span class="detail-label">可用模型:</span>
+                      <span class="detail-label">{t("providers.availableModels")}</span>
                       <span class="detail-value code"
                         >{catStatus.workingModel}</span
                       >
@@ -953,9 +971,9 @@
                   {/if}
                   {#if catStatus.testedModels && catStatus.testedModels.length > 0}
                     <div class="detail-item">
-                      <span class="detail-label">已测试模型:</span>
+                      <span class="detail-label">{t("providers.testedModels")}</span>
                       <span class="detail-value"
-                        >{catStatus.testedModels.length} 个</span
+                        >{tWithParams("providers.testedModelsCount", { count: String(catStatus.testedModels.length) })}</span
                       >
                     </div>
                   {/if}
@@ -966,20 +984,20 @@
                     {@const truncated = truncateError(catStatus.error)}
                     {@const isTruncated = catStatus.error.length > 50}
                     <div class="detail-item error">
-                      <span class="detail-label">错误:</span>
+                      <span class="detail-label">{t("providers.categoryError")}</span>
                       <span
                         class="detail-value error-value clickable"
                         role="button"
                         tabindex="0"
-                        on:click={() =>
+                        onclick={() =>
                           showErrorMessage(category, catStatus.error)}
-                        on:keydown={(e) => {
+                        onkeydown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             showErrorMessage(category, catStatus.error);
                           }
                         }}
-                        title={isTruncated ? "点击查看完整错误信息" : ""}
+                        title={isTruncated ? t("providers.viewFullError") : ""}
                       >
                         {truncated}
                       </span>
@@ -987,9 +1005,9 @@
                   {/if}
                   {#if catStatus.testedModels && catStatus.testedModels.length > 0}
                     <div class="detail-item">
-                      <span class="detail-label">已测试模型:</span>
+                      <span class="detail-label">{t("providers.testedModels")}</span>
                       <span class="detail-value"
-                        >{catStatus.testedModels.length} 个</span
+                        >{tWithParams("providers.testedModelsCount", { count: String(catStatus.testedModels.length) })}</span
                       >
                     </div>
                   {/if}
@@ -1001,7 +1019,7 @@
       </div>
 
       <div class="test-result-actions">
-        <Button variant="primary" on:click={closeTestResult}>关闭</Button>
+        <Button variant="primary" on:click={closeTestResult}>{t("providers.close")}</Button>
       </div>
     </div>
   </div>

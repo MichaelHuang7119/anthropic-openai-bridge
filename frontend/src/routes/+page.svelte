@@ -11,52 +11,70 @@
   import { authService } from '$services/auth';
   import { toast } from '$stores/toast';
   import Input from '$components/ui/Input.svelte';
+  import { tStore, language } from '$stores/language';
 
-  let loading = true;
-  let currentUrl = '';
-  let copySuccess = false;
+  let loading = $state(true);
+  let currentUrl = $state('');
+  let copySuccess = $state(false);
+
+  // 获取翻译函数和当前语言
+  const t = $derived($tStore);
+  const currentLang = $derived($language);
+
+  // 翻译函数，支持参数替换
+  function translateWithParams(key: string, params: Record<string, string | number> = {}): string {
+    let text = t(key);
+    Object.keys(params).forEach((paramKey) => {
+      text = text.replace(new RegExp(`{${paramKey}}`, 'g'), String(params[paramKey]));
+    });
+    return text;
+  }
 
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
-  
+
   // 供应商概览搜索和筛选
-  let providerSearchQuery = '';
-  let providerFilterEnabled: 'all' | 'enabled' | 'disabled' = 'all';
+  let providerSearchQuery = $state('');
+  let providerFilterEnabled: 'all' | 'enabled' | 'disabled' = $state('all');
   const maxDisplayProviders = 5; // 首页最多显示5个
   
   // 客户端过滤
-  $: filteredProvidersForPreview = $providers.filter(p => {
-    // 搜索过滤
-    if (providerSearchQuery.trim()) {
-      const query = providerSearchQuery.toLowerCase();
-      if (!p.name.toLowerCase().includes(query) && 
-          !p.base_url.toLowerCase().includes(query)) {
-        return false;
+  const filteredProvidersForPreview = $derived(
+    $providers.filter(p => {
+      // 搜索过滤
+      if (providerSearchQuery.trim()) {
+        const query = providerSearchQuery.toLowerCase();
+        if (!p.name.toLowerCase().includes(query) &&
+            !p.base_url.toLowerCase().includes(query)) {
+          return false;
+        }
       }
-    }
-    
-    // 状态过滤
-    if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
-    if (providerFilterEnabled === 'disabled' && p.enabled) return false;
-    
-    return true;
-  }).slice(0, maxDisplayProviders);
+
+      // 状态过滤
+      if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
+      if (providerFilterEnabled === 'disabled' && p.enabled) return false;
+
+      return true;
+    }).slice(0, maxDisplayProviders)
+  );
   
   // 计算是否有更多供应商（优化：复用过滤逻辑）
-  $: allFilteredProviders = $providers.filter(p => {
-    if (providerSearchQuery.trim()) {
-      const query = providerSearchQuery.toLowerCase();
-      if (!p.name.toLowerCase().includes(query) && 
-          !p.base_url.toLowerCase().includes(query)) {
-        return false;
+  const allFilteredProviders = $derived(
+    $providers.filter(p => {
+      if (providerSearchQuery.trim()) {
+        const query = providerSearchQuery.toLowerCase();
+        if (!p.name.toLowerCase().includes(query) &&
+            !p.base_url.toLowerCase().includes(query)) {
+          return false;
+        }
       }
-    }
-    if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
-    if (providerFilterEnabled === 'disabled' && p.enabled) return false;
-    return true;
-  });
-  
-  $: hasMoreProviders = filteredProvidersForPreview.length < allFilteredProviders.length;
+      if (providerFilterEnabled === 'enabled' && !p.enabled) return false;
+      if (providerFilterEnabled === 'disabled' && p.enabled) return false;
+      return true;
+    })
+  );
+
+  const hasMoreProviders = $derived(filteredProvidersForPreview.length < allFilteredProviders.length);
 
   onMount(async () => {
     // 确保已认证后再加载数据
@@ -88,7 +106,7 @@
         return;
       }
       console.error('Failed to load dashboard data:', error);
-      toast.error('加载数据失败');
+      toast.error(t('home.messages.loadingFailed'));
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -112,7 +130,7 @@
       try {
         await navigator.clipboard.writeText(text);
         copySuccess = true;
-        toast.success('已复制到剪贴板');
+        toast.success(t('home.messages.copiedToClipboard'));
         setTimeout(() => {
           copySuccess = false;
         }, 2000);
@@ -139,7 +157,7 @@
 
       if (successful) {
         copySuccess = true;
-        toast.success('已复制到剪贴板');
+        toast.success(t('home.messages.copiedToClipboard'));
         setTimeout(() => {
           copySuccess = false;
         }, 2000);
@@ -148,95 +166,97 @@
       }
     } catch (error) {
       console.error('Failed to copy:', error);
-      toast.error('复制失败，请手动复制');
+      toast.error(t('home.messages.copyFailed'));
     }
   }
 
   // 计算健康状态统计（基于store中的数据）
-  $: healthyCount = $healthStatus.providers.filter(p => p.healthy === true).length;
-  $: unhealthyCount = $healthStatus.providers.filter(p => p.healthy === false).length;
-  $: hasHealthData = $healthStatus.providers.length > 0 && healthyCount + unhealthyCount > 0;
+  const healthyCount = $derived($healthStatus.providers.filter(p => p.healthy === true).length);
+  const unhealthyCount = $derived($healthStatus.providers.filter(p => p.healthy === false).length);
+  const hasHealthData = $derived($healthStatus.providers.length > 0 && healthyCount + unhealthyCount > 0);
 
   // 使用后端返回的总体状态，而不是自己计算
-  $: overallStatus = $healthStatus.status;
-  $: statusBadgeType = 
-    overallStatus === 'healthy' ? 'success' as const : 
-    overallStatus === 'partial' ? 'warning' as const : 
-    overallStatus === 'unhealthy' ? 'danger' as const : 
-    'info' as const;
-  $: statusBadgeText = 
-    overallStatus === 'healthy' ? '健康' : 
-    overallStatus === 'partial' ? '部分健康' : 
-    overallStatus === 'unhealthy' ? '不健康' : 
-    '未检查';
+  const overallStatus = $derived($healthStatus.status);
+  const statusBadgeType = $derived(
+    overallStatus === 'healthy' ? 'success' as const :
+    overallStatus === 'partial' ? 'warning' as const :
+    overallStatus === 'unhealthy' ? 'danger' as const :
+    'info' as const
+  );
+  const statusBadgeText = $derived(
+    overallStatus === 'healthy' ? t('health.healthy') :
+    overallStatus === 'partial' ? t('health.partialHealthy') :
+    overallStatus === 'unhealthy' ? t('health.unhealthy') :
+    t('health.notChecked')
+  );
 
-  $: anthropicBaseUrl = currentUrl || 'http://localhost:5175';
-  $: configCommand = `export ANTHROPIC_BASE_URL=${anthropicBaseUrl}\nexport ANTHROPIC_API_KEY="any-value"`;
+  const anthropicBaseUrl = $derived(currentUrl || 'http://localhost:5175');
+  const configCommand = $derived(`export ANTHROPIC_BASE_URL=${anthropicBaseUrl}\nexport ANTHROPIC_API_KEY="any-value"`);
 </script>
 
 <div class="container">
 
   {#if loading}
     <div class="loading">
-      <p>加载中...</p>
+      <p>{t('common.loading')}</p>
     </div>
   {:else}
     <div class="stats-grid">
-      <Card title="供应商统计" subtitle="供应商总体情况">
+      <Card title={t('home.providerStats.title')} subtitle={t('home.providerStats.subtitle')}>
         <div slot="title">
-          <Badge type="info">总计 {$providerStats.total}</Badge>
+          <Badge type="info">{t('home.providerStats.total')} {$providerStats.total}</Badge>
         </div>
         <div class="stat-items">
           <div class="stat-item">
-            <span class="label">已启用</span>
+            <span class="label">{t('home.providerStats.enabled')}</span>
             <span class="value success">{$providerStats.enabled}</span>
           </div>
           <div class="stat-item">
-            <span class="label">已禁用</span>
+            <span class="label">{t('home.providerStats.disabled')}</span>
             <span class="value danger">{$providerStats.disabled}</span>
           </div>
         </div>
       </Card>
 
-      <Card title="健康状态" subtitle={hasHealthData ? '供应商健康状态概览' : '点击健康监控页面手动检查'}>
+      <Card title={t('home.healthStatus.title')} subtitle={hasHealthData ? t('home.healthStatus.subtitle') : t('home.healthStatus.subtitleNoData')}>
         <div slot="title">
           {#if hasHealthData}
             <Badge type={statusBadgeType}>{statusBadgeText}</Badge>
           {:else}
-            <Badge type="info">未检查</Badge>
+            <Badge type="info">{t('health.notChecked')}</Badge>
           {/if}
         </div>
         <div class="stat-items">
           <div class="stat-item">
-            <span class="label">健康</span>
+            <span class="label">{t('health.healthy')}</span>
             <span class="value success">{healthyCount}</span>
           </div>
           <div class="stat-item">
-            <span class="label">不健康</span>
+            <span class="label">{t('health.unhealthy')}</span>
             <span class="value danger">{unhealthyCount}</span>
           </div>
           {#if !hasHealthData}
             <div class="stat-item">
-              <span class="label">操作</span>
-              <a href="/health" class="value link">前往健康监控页面检查</a>
+              <span class="label">{t('home.healthStatus.action')}</span>
+              <a href="/health" class="value link">{t('home.healthStatus.goToHealthPage')}</a>
             </div>
           {/if}
         </div>
       </Card>
 
-      <Card title="系统信息" subtitle="当前系统状态">
+      <Card title={t('home.systemInfo.title')} subtitle={t('home.systemInfo.subtitle')}>
         <div class="sys-info">
           <div class="info-item">
-            <span class="label">前端状态</span>
-            <Badge type="success">运行中</Badge>
+            <span class="label">{t('home.systemInfo.frontendStatus')}</span>
+            <Badge type="success">{t('home.systemInfo.running')}</Badge>
           </div>
           <div class="info-item">
-            <span class="label">最后检查</span>
+            <span class="label">{t('home.systemInfo.lastCheck')}</span>
             <span class="value">{$lastHealthCheck ? (() => {
               try {
                 const date = $lastHealthCheck instanceof Date ? $lastHealthCheck : new Date($lastHealthCheck);
-                if (isNaN(date.getTime())) return '未检查';
-                return date.toLocaleString('zh-CN', {
+                if (isNaN(date.getTime())) return t('health.notChecked');
+                return date.toLocaleString(currentLang === 'zh-CN' ? 'zh-CN' : 'en-US', {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -246,28 +266,28 @@
                   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                 });
               } catch {
-                return '未检查';
+                return t('health.notChecked');
               }
-            })() : '未检查'}</span>
+            })() : t('health.notChecked')}</span>
           </div>
           <div class="info-item">
-            <span class="label">检查模式</span>
-            <span class="value">手动模式</span>
+            <span class="label">{t('home.systemInfo.checkMode')}</span>
+            <span class="value">{t('home.systemInfo.manualMode')}</span>
           </div>
         </div>
       </Card>
     </div>
 
     <div class="config-section">
-      <Card title="Claude Code 配置" subtitle="在 Claude Code 中使用本服务">
+      <Card title={t('home.config.title')} subtitle={t('home.config.subtitle')}>
         <div class="config-content">
           <p class="config-description">
-            请在 Claude Code 中配置以下环境变量，然后启动 Claude Code 进行 Vibe Coding：
+            {t('home.config.description')}
           </p>
           <div class="config-code">
             <div class="code-header">
-              <span class="code-label">环境变量配置</span>
-              <Button variant="secondary" size="sm" on:click={() => copyToClipboard(configCommand)} title={copySuccess ? '已复制' : '复制'} class="icon-button">
+              <span class="code-label">{t('home.config.envVarsConfig')}</span>
+              <Button variant="secondary" size="sm" on:click={() => copyToClipboard(configCommand)} title={copySuccess ? t('home.config.copied') : t('home.config.copy')} class="icon-button">
                 {#if copySuccess}
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -284,15 +304,15 @@
 export ANTHROPIC_API_KEY="any-value"</code></pre>
           </div>
           <div class="config-note">
-            <p><strong>方式一：</strong>在 Claude Code 设置中配置环境变量</p>
-            <p><strong>方式二：</strong>在启动 Claude Code 前执行上述命令</p>
-            <p class="note-text">💡 提示：当前服务地址为 <code>{anthropicBaseUrl}</code>，已自动填充到配置中</p>
+            <p><strong>{t('home.config.method1')}</strong></p>
+            <p><strong>{t('home.config.method2')}</strong></p>
+            <p class="note-text">{translateWithParams('home.config.tip', { url: anthropicBaseUrl })}</p>
             <div class="api-key-note">
-              <p><strong>关于 ANTHROPIC_API_KEY：</strong></p>
+              <p><strong>{t('home.config.aboutApiKey')}</strong></p>
               <ul>
-                <li><strong>开发模式：</strong>如果后端启用了开发模式（<code>--dev</code>），API Key 可以是任意值，如 <code>"any-value"</code>、<code>"dev"</code>、<code>"test"</code> 等，或者设置为空字符串</li>
-                <li><strong>生产模式：</strong>如果后端未启用开发模式，必须使用有效的 API Key（在"API Key 管理"页面创建）</li>
-                <li><strong>检查模式：</strong>后端启动时会显示当前模式，开发模式会显示 <code>Development Mode: ✅ Enabled</code></li>
+                <li><strong>{t('home.config.devMode')}</strong>{t('home.config.devModeDesc')}</li>
+                <li><strong>{t('home.config.prodMode')}</strong>{t('home.config.prodModeDesc')}</li>
+                <li><strong>{t('home.config.checkMode')}</strong>{t('home.config.checkModeDesc')}</li>
               </ul>
             </div>
           </div>
@@ -301,17 +321,17 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     </div>
 
     <div class="providers-preview">
-      <Card title="供应商概览" subtitle={$providers.length > 0 ? `共 ${$providers.length} 个供应商` : '暂无供应商配置'}>
+      <Card title={t('home.providersPreview.title')} subtitle={$providers.length > 0 ? translateWithParams('home.providersPreview.subtitle', { count: $providers.length }) : t('home.providersPreview.subtitleEmpty')}>
         <div slot="titleActions">
           {#if $providers.length > 0}
-            <a href="/providers" class="view-all">查看全部 →</a>
+            <a href="/providers" class="view-all">{t('home.providersPreview.viewAll')}</a>
           {/if}
         </div>
 
         {#if $providers.length === 0}
           <div class="empty-state">
-            <p>暂无供应商配置</p>
-            <a href="/providers" class="add-link">立即添加 →</a>
+            <p>{t('home.providersPreview.noProviders')}</p>
+            <a href="/providers" class="add-link">{t('home.providersPreview.addNow')}</a>
           </div>
         {:else}
           <!-- 搜索和筛选 -->
@@ -321,16 +341,16 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                 <Input
                   type="text"
                   bind:value={providerSearchQuery}
-                  placeholder="搜索供应商名称或URL..."
+                  placeholder={t('home.providersPreview.searchPlaceholder')}
                 />
               </div>
-              
+
               <div class="filter-group">
-                <label for="provider-filter-status">状态:</label>
+                <label for="provider-filter-status">{t('home.providersPreview.statusFilter')}</label>
                 <select id="provider-filter-status" class="filter-select" bind:value={providerFilterEnabled}>
-                  <option value="all">全部</option>
-                  <option value="enabled">已启用</option>
-                  <option value="disabled">已禁用</option>
+                  <option value="all">{t('home.providersPreview.all')}</option>
+                  <option value="enabled">{t('home.providersPreview.enabled')}</option>
+                  <option value="disabled">{t('home.providersPreview.disabled')}</option>
                 </select>
               </div>
             </div>
@@ -341,11 +361,11 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
               <table class="providers-table">
                 <thead>
                   <tr>
-                    <th>名称</th>
-                    <th>API格式</th>
-                    <th>状态</th>
-                    <th>Base URL</th>
-                    <th>模型数量</th>
+                    <th>{t('home.providersPreview.table.name')}</th>
+                    <th>{t('home.providersPreview.table.apiFormat')}</th>
+                    <th>{t('home.providersPreview.table.status')}</th>
+                    <th>{t('home.providersPreview.table.baseUrl')}</th>
+                    <th>{t('home.providersPreview.table.modelCount')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -361,7 +381,7 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                       </td>
                       <td>
                         <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                          {provider.enabled ? '已启用' : '已禁用'}
+                          {provider.enabled ? t('home.providerStats.enabled') : t('home.providerStats.disabled')}
                         </Badge>
                       </td>
                       <td class="url-cell">
@@ -369,9 +389,9 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
                       </td>
                       <td class="models-cell">
                         <div class="models-badge">
-                          <Badge type="info">大 {provider.models.big?.length || 0}</Badge>
-                          <Badge type="info">中 {provider.models.middle?.length || 0}</Badge>
-                          <Badge type="info">小 {provider.models.small?.length || 0}</Badge>
+                          <Badge type="info">{t('home.providersPreview.bigModels')} {provider.models.big?.length || 0}</Badge>
+                          <Badge type="info">{t('home.providersPreview.middleModels')} {provider.models.middle?.length || 0}</Badge>
+                          <Badge type="info">{t('home.providersPreview.smallModels')} {provider.models.small?.length || 0}</Badge>
                         </div>
                       </td>
                     </tr>
@@ -382,12 +402,12 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
             {#if hasMoreProviders}
               <div class="view-more">
-                <a href="/providers" class="btn-link">查看全部 {$providers.length} 个供应商 →</a>
+                <a href="/providers" class="btn-link">{translateWithParams('home.providersPreview.viewMore', { count: $providers.length })}</a>
               </div>
             {/if}
           {:else}
             <div class="empty-state">
-              <p>没有匹配的供应商</p>
+              <p>{t('home.providersPreview.noMatch')}</p>
             </div>
           {/if}
         {/if}
@@ -802,22 +822,6 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
   :global([data-theme="dark"]) .config-note p {
     color: var(--text-primary);
-  }
-
-  .config-note code {
-    background: #fff;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-    font-size: 0.875rem;
-    color: #007bff;
-    border: 1px solid #b3d9ff;
-  }
-
-  :global([data-theme="dark"]) .config-note code {
-    background: var(--code-bg, var(--bg-tertiary));
-    color: #58a6ff;
-    border-color: rgba(88, 166, 255, 0.3);
   }
 
   .note-text {

@@ -10,6 +10,7 @@
   } from "$services/chatService";
   import { providerService } from "$services/providers";
   import { toast } from "$stores/toast";
+  import { tStore } from "$stores/language";
 
   interface ProviderConfig {
     name: string;
@@ -40,6 +41,9 @@
 
   let sidebarCollapsed = $state(false);
 
+  // 获取翻译函数
+  const t = $derived($tStore);
+
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
   }
@@ -49,8 +53,8 @@
       isLoading = true;
       await Promise.all([loadConversations(), loadProviders()]);
     } catch (err) {
-      error = err instanceof Error ? err.message : "初始化失败";
-      showToast("初始化失败", "error");
+      error = err instanceof Error ? err.message : t('common.error');
+      showToast(t('common.error'), "error");
     } finally {
       isLoading = false;
     }
@@ -137,9 +141,9 @@
         using: currentConversation.last_model ? 'last_message' : 'initial'
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : "加载对话失败";
+      error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to select conversation:", err);
-      showToast("加载对话失败", "error");
+      showToast(t('common.error'), "error");
       currentConversation = null;
     } finally {
       isLoading = false;
@@ -154,7 +158,7 @@
       error = null;
 
       // Create new conversation
-      const title = "新对话";
+      const title = t('chat.newConversation');
       const conversation = await chatService.createConversation(
         title,
         providerName,
@@ -168,11 +172,11 @@
       // Select the new conversation
       await selectConversation(conversation);
 
-      showToast("新对话已创建", "success");
+      showToast(t('common.success'), "success");
     } catch (err) {
-      error = err instanceof Error ? err.message : "创建对话失败";
+      error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to create conversation:", err);
-      showToast("创建对话失败", "error");
+      showToast(t('common.error'), "error");
     } finally {
       isLoading = false;
     }
@@ -191,7 +195,7 @@
 
   function handleError(event: CustomEvent) {
     error = event.detail.message;
-    showToast(error || "发生错误", "error");
+    showToast(error || t('common.error'), "error");
   }
 
   function showToast(
@@ -240,7 +244,7 @@
   {#if isLoading && !currentConversation && conversations.length === 0}
     <div class="page-loading">
       <div class="spinner"></div>
-      <p>加载中...</p>
+      <p>{t('common.loading')}</p>
     </div>
   {/if}
 </div>

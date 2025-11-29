@@ -9,29 +9,34 @@
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { healthService } from '$services/health';
   import type { ProviderHealth, CategoryHealth } from '$types/health';
+  import { tStore, language } from '$stores/language';
 
-  let loading = false;
-  let hasData = false;
-  
+  let loading = $state(false);
+  let hasData = $state(false);
+
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
+
+  // 获取翻译函数
+  const t = $derived($tStore);
+  const currentLanguage = $derived($language);
   
   // 搜索和筛选相关
-  let searchQuery = '';
-  let filterHealth: 'all' | 'healthy' | 'unhealthy' | 'disabled' = 'all';
-  
+  let searchQuery = $state('');
+  let filterHealth: 'all' | 'healthy' | 'unhealthy' | 'disabled' = $state('all');
+
   // 分页相关
-  let currentPage = 1;
+  let currentPage = $state(1);
   const pageSize = 5;
 
   // 监听健康状态变化
-  $: {
+  $effect(() => {
     // 检查是否有健康数据（来自localStorage或新检查）
     hasData = $healthStatus.providers && $healthStatus.providers.length > 0;
-  }
+  });
   
   // 客户端过滤
-  $: allFilteredProviders = $healthStatus.providers.filter(p => {
+  let allFilteredProviders = $derived($healthStatus.providers.filter(p => {
     // 搜索过滤
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -39,21 +44,21 @@
         return false;
       }
     }
-    
+
     // 健康状态过滤
     if (filterHealth === 'healthy' && (!p.enabled || p.healthy !== true)) return false;
     if (filterHealth === 'unhealthy' && (p.enabled && p.healthy === false)) return false;
     if (filterHealth === 'disabled' && p.enabled) return false;
-    
+
     return true;
-  });
-  
+  }));
+
   // 分页计算
-  $: totalCount = allFilteredProviders.length;
-  $: totalPages = Math.ceil(totalCount / pageSize);
-  
+  let totalCount = $derived(allFilteredProviders.length);
+  let totalPages = $derived(Math.ceil(totalCount / pageSize));
+
   // 确保当前页在有效范围内
-  $: {
+  $effect(() => {
     if (totalPages === 0) {
       // 没有数据时，设置为第1页
       currentPage = 1;
@@ -62,14 +67,13 @@
     } else if (currentPage < 1) {
       currentPage = 1;
     }
-  }
-  
+  });
+
   // 当前页显示的数据
-  $: filteredProviders = (() => {
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
-    return allFilteredProviders.slice(start, end);
-  })();
+  let filteredProviders = $derived(allFilteredProviders.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  ));
 
   onMount(async () => {
     abortController = new AbortController();
@@ -111,24 +115,24 @@
 
   function getStatusBadge(provider: ProviderHealth) {
     if (!provider.enabled) {
-      return { type: 'secondary' as const, text: '已禁用' };
+      return { type: 'secondary' as const, text: t('health.disabled') };
     }
     if (provider.healthy === true) {
-      return { type: 'success' as const, text: '健康' };
+      return { type: 'success' as const, text: t('health.healthy') };
     }
     if (provider.healthy === false) {
-      return { type: 'danger' as const, text: '不健康' };
+      return { type: 'danger' as const, text: t('health.unhealthy') };
     }
-    return { type: 'warning' as const, text: '未知' };
+    return { type: 'warning' as const, text: t('health.unknown') };
   }
 
   function formatTime(time: string | null) {
-    if (!time) return '从未检查';
+    if (!time) return t('health.neverChecked');
     try {
       // 后端现在返回 ISO 格式的 UTC 时间（如 "2024-01-01T12:00:00+00:00" 或 "2024-01-01T12:00:00.000000+00:00"）
       // Date 对象会自动处理 ISO 格式的时间字符串，包括时区转换
       let date: Date;
-      
+
       if (time.includes('T')) {
         // ISO 格式，直接解析（Date 会自动处理时区）
         date = new Date(time);
@@ -140,14 +144,17 @@
         // 尝试直接解析
         date = new Date(time);
       }
-      
+
       // 检查日期是否有效
       if (isNaN(date.getTime())) {
         return time; // 如果日期无效，返回原始字符串
       }
-      
+
+      // 根据当前语言选择 locale
+      const locale = currentLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
+
       // toLocaleString 默认会使用本地时区，自动将 UTC 时间转换为本地时间
-      return date.toLocaleString('zh-CN', {
+      return date.toLocaleString(locale, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -162,9 +169,9 @@
 
   function getCategoryLabel(category: string): string {
     const labels: Record<string, string> = {
-      big: '大模型',
-      middle: '中模型',
-      small: '小模型'
+      big: t('providerForm.bigModels'),
+      middle: t('providerForm.middleModels'),
+      small: t('providerForm.smallModels')
     };
     return labels[category] || category;
   }
@@ -192,9 +199,9 @@
   }
 
   // 错误信息模态框相关
-  let showErrorModal = false;
-  let selectedError: string = '';
-  let selectedProviderName: string = '';
+  let showErrorModal = $state(false);
+  let selectedError: string = $state('');
+  let selectedProviderName: string = $state('');
 
   function showErrorMessage(providerName: string, error: string) {
     selectedProviderName = providerName;
@@ -212,7 +219,7 @@
 <div class="container">
   <div class="page-header">
     <div class="actions">
-      <Button variant="primary" on:click={loadHealth} disabled={loading} title="重新测试" class="icon-button {loading ? 'spinning' : ''}">
+      <Button variant="primary" on:click={loadHealth} disabled={loading} title={t('health.checkNow')} class="icon-button {loading ? 'spinning' : ''}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
         </svg>
@@ -222,14 +229,14 @@
 
   {#if loading}
     <div class="loading">
-      <p>测试中...</p>
+      <p>{t('health.checking')}</p>
     </div>
   {:else if hasData}
     <div class="summary-card">
-      <Card title="监控信息">
+      <Card title={t('health.monitoringInfo')}>
         <div class="summary-items">
           <div class="summary-item">
-            <span class="label">最后检查时间:</span>
+            <span class="label">{t('health.lastCheck')}:</span>
             <span class="value">{$lastHealthCheck ? (() => {
               try {
                 // lastHealthCheck 存储为 ISO 字符串（UTC），需要转换为本地时区显示
@@ -240,17 +247,18 @@
                   // ISO 字符串会被正确解析为 UTC 时间
                   date = new Date($lastHealthCheck);
                 } else {
-                  return '从未检查';
+                  return t('health.neverChecked');
                 }
-                
+
                 if (isNaN(date.getTime())) {
-                  return '从未检查';
+                  return t('health.neverChecked');
                 }
-                
+
                 // Date 对象内部存储的是 UTC 时间戳
                 // toLocaleString 会自动转换为本地时区，不需要指定 timeZone
                 // 但为了确保一致性，我们明确指定格式选项
-                return date.toLocaleString('zh-CN', {
+                const locale = currentLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
+                return date.toLocaleString(locale, {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -259,12 +267,12 @@
                   second: '2-digit'
                 });
               } catch {
-                return '从未检查';
+                return t('health.neverChecked');
               }
-            })() : '从未检查'}</span>
+            })() : t('health.neverChecked')}</span>
           </div>
           <div class="summary-item">
-            <span class="label">总体状态:</span>
+            <span class="label">{t('health.overallStatus')}:</span>
             <Badge type={
               $healthStatus.status === 'healthy' ? 'success' :
               $healthStatus.status === 'partial' ? 'warning' :
@@ -272,10 +280,10 @@
               'info'
             }>
               {
-                $healthStatus.status === 'healthy' ? '健康' :
-                $healthStatus.status === 'partial' ? '部分健康' :
-                $healthStatus.status === 'unhealthy' ? '不健康' :
-                '未检查'
+                $healthStatus.status === 'healthy' ? t('health.healthy') :
+                $healthStatus.status === 'partial' ? t('health.partialHealthy') :
+                $healthStatus.status === 'unhealthy' ? t('health.unhealthy') :
+                t('health.notChecked')
               }
             </Badge>
           </div>
@@ -291,22 +299,22 @@
             <Input
               type="text"
               bind:value={searchQuery}
-              placeholder="搜索供应商名称..."
+              placeholder={t('providers.searchPlaceholder')}
             />
           </div>
-          
+
           <div class="filter-group">
-            <label for="health-filter-status">状态:</label>
+            <label for="health-filter-status">{t('health.status')}:</label>
             <select id="health-filter-status" class="filter-select" bind:value={filterHealth}>
-              <option value="all">全部</option>
-              <option value="healthy">健康</option>
-              <option value="unhealthy">不健康</option>
-              <option value="disabled">已禁用</option>
+              <option value="all">{t('common.all')}</option>
+              <option value="healthy">{t('health.healthy')}</option>
+              <option value="unhealthy">{t('health.unhealthy')}</option>
+              <option value="disabled">{t('health.disabled')}</option>
             </select>
           </div>
-          
-          <Button variant="secondary" size="sm" on:click={clearFilters} title="清除筛选" class="clear-button">
-            清除
+
+          <Button variant="secondary" size="sm" on:click={clearFilters} title={t('health.clearFilters')} class="clear-button">
+            {t('common.clear')}
           </Button>
         </div>
       </div>
@@ -316,14 +324,14 @@
       <table class="health-table">
         <thead>
           <tr>
-            <th>供应商名称</th>
-            <th>API格式</th>
-            <th>健康状态</th>
-            <th>类别健康状态</th>
-            <th>启用状态</th>
-            <th>优先级</th>
-            <th>最后检查</th>
-            <th>错误信息</th>
+            <th>{t('providers.name')}</th>
+            <th>{t('providers.apiFormat')}</th>
+            <th>{t('health.healthStatus')}</th>
+            <th>{t('health.categoryHealthStatus')}</th>
+            <th>{t('health.enabledStatus')}</th>
+            <th>{t('health.priority')}</th>
+            <th>{t('health.lastCheck')}</th>
+            <th>{t('health.errorMessage')}</th>
           </tr>
         </thead>
         <tbody>
@@ -350,7 +358,7 @@
                         <div class="category-item">
                           <span class="category-label">{getCategoryLabel(category)}:</span>
                           <Badge type={catStatus.healthy ? 'success' : 'danger'}>
-                            {catStatus.healthy ? '健康' : '不健康'}
+                            {catStatus.healthy ? t('health.healthy') : t('health.unhealthy')}
                           </Badge>
                           {#if catStatus.healthy && catStatus.responseTime !== null}
                             <span class="category-response-time">({catStatus.responseTime}ms)</span>
@@ -365,7 +373,7 @@
               </td>
               <td>
                 <Badge type={provider.enabled ? 'success' : 'secondary'}>
-                  {provider.enabled ? '已启用' : '已禁用'}
+                  {provider.enabled ? t('providers.enabled') : t('providers.disabled')}
                 </Badge>
               </td>
               <td class="priority-cell">
@@ -381,9 +389,14 @@
                     class="error-value clickable"
                     role="button"
                     tabindex="0"
-                    on:click={() => showErrorMessage(provider.name, provider.error || '')}
-                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && showErrorMessage(provider.name, provider.error || '')}
-                    title="点击查看完整错误信息"
+                    onclick={() => showErrorMessage(provider.name, provider.error || '')}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        showErrorMessage(provider.name, provider.error || '');
+                      }
+                    }}
+                    title={t('health.viewError')}
                   >
                     {truncated}
                   </span>
@@ -401,15 +414,18 @@
     {#if totalPages > 1}
       <div class="pagination">
         <div class="pagination-info">
-          共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页
+          {t('health.paginationInfo')
+            .replace('{totalCount}', String(totalCount))
+            .replace('{currentPage}', String(currentPage))
+            .replace('{totalPages}', String(totalPages))}
         </div>
         <div class="pagination-controls">
-          <Button 
-            variant="secondary" 
-            size="sm" 
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage === 1}
             on:click={() => handlePageChange(currentPage - 1)}
-            title="上一页"
+            title={t('common.previousPage')}
             class="icon-button"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -417,12 +433,12 @@
             </svg>
           </Button>
           <span class="page-info">{currentPage} / {totalPages}</span>
-          <Button 
-            variant="secondary" 
-            size="sm" 
+          <Button
+            variant="secondary"
+            size="sm"
             disabled={currentPage === totalPages}
             on:click={() => handlePageChange(currentPage + 1)}
-            title="下一页"
+            title={t('common.nextPage')}
             class="icon-button"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -435,7 +451,7 @@
 
     {#if filteredProviders.length === 0 && hasData}
       <div class="empty">
-        <p>没有匹配的供应商</p>
+        <p>{t('providers.noMatch')}</p>
       </div>
     {/if}
   {/if}
@@ -445,7 +461,7 @@
 <ErrorMessageModal
   show={showErrorModal}
   errorMessage={selectedError}
-  title={`错误信息 - ${selectedProviderName}`}
+  title={`${t('health.errorMessage')} - ${selectedProviderName}`}
   on:close={closeErrorModal}
 />
 
