@@ -25,6 +25,7 @@
       apiFormat: string,
       model: string,
     ) => void;
+    onToggleSidebar?: () => void;
   }
 
   let {
@@ -36,17 +37,24 @@
     providers = [],
     onConversationSelected: _onConversationSelected,
     onNewConversation: _onNewConversation,
+    onToggleSidebar: _onToggleSidebar,
   }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     conversationSelected: { conversation: Conversation };
     newConversation: { providerName: string; apiFormat: string; model: string };
+    toggleSidebar: void;
   }>();
 
   // Local state
   let loading = $state(false);
   let error = $state<string | null>(null);
   let deletingId = $state<number | null>(null);
+  let editingId = $state<number | null>(null);
+  let editingTitle = $state<string>("");
+  let searchQuery = $state<string>("");
+  let visibleCount = $state<number>(50); // Initial number of conversations to show
+  let openMenuId = $state<number | null>(null); // Track which menu is open
 
   onMount(async () => {
     try {
@@ -96,9 +104,125 @@
   async function loadConversations() {
     try {
       conversations = await chatService.getConversations();
+      filteredConversations = conversations; // Initialize filtered conversations
+      resetVisibleCount(); // Reset pagination when conversations are loaded
     } catch (err) {
       console.error("Failed to load conversations:", err);
       throw err;
+    }
+  }
+
+  // Filter conversations based on search query
+  let filteredConversations = $state<Conversation[]>([]);
+
+  $effect(() => {
+    if (!searchQuery.trim()) {
+      filteredConversations = conversations;
+    } else {
+      const query = searchQuery.toLowerCase();
+      filteredConversations = conversations.filter(
+        (conv) =>
+          conv.title?.toLowerCase().includes(query) ||
+          formatModelName(conv.last_model || conv.model).toLowerCase().includes(query),
+      );
+    }
+  });
+
+  // Get conversations to display (with pagination for lazy loading)
+  let displayConversations = $state<Conversation[]>([]);
+
+  $effect(() => {
+    displayConversations = filteredConversations.slice(0, visibleCount);
+  });
+
+  function handleScroll(event: Event) {
+    const target = event.target as HTMLDivElement;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+
+    // Load more when user scrolls near bottom (within 100px)
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      if (visibleCount < filteredConversations.length) {
+        visibleCount = Math.min(visibleCount + 50, filteredConversations.length);
+      }
+    }
+  }
+
+  function resetVisibleCount() {
+    visibleCount = 50;
+  }
+
+  // Reset visible count when search query changes
+  $effect(() => {
+    resetVisibleCount();
+  });
+
+  function startEdit(conversation: Conversation, event: Event) {
+    event.stopPropagation();
+    editingId = conversation.id;
+    editingTitle = conversation.title || "无标题";
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    editingTitle = "";
+  }
+
+  function toggleMenu(conversationId: number, event: Event) {
+    event.stopPropagation();
+    openMenuId = openMenuId === conversationId ? null : conversationId;
+  }
+
+  function closeMenu() {
+    openMenuId = null;
+  }
+
+  // Close menu when clicking outside
+  function handleClickOutside(event: Event) {
+    const target = event.target as Element;
+    if (!target.closest('.conversation-item')) {
+      closeMenu();
+    }
+  }
+
+  $effect(() => {
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  });
+
+  async function saveEdit(conversation: Conversation, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    if (!editingTitle.trim()) {
+      alert("标题不能为空");
+      return;
+    }
+
+    if (editingTitle === conversation.title) {
+      cancelEdit();
+      return;
+    }
+
+    try {
+      const updatedConversation = await chatService.updateConversation(
+        conversation.id,
+        editingTitle.trim(),
+      );
+
+      // Update local list with the response from API
+      conversations = conversations.map((c) =>
+        c.id === conversation.id
+          ? { ...c, title: updatedConversation.title }
+          : c
+      );
+
+      cancelEdit();
+    } catch (err) {
+      console.error("Failed to update conversation:", err);
+      alert("重命名失败");
     }
   }
 
@@ -214,13 +338,25 @@ function formatDate(dateString: string): string {
 
 <div class="conversation-sidebar">
   <div class="sidebar-header">
-    <h2>对话历史</h2>
+    <button class="collapse-btn" onclick={() => dispatch("toggleSidebar")} title="折叠侧边栏">
+      <span class="hamburger-icon">
+        <span class="line line-1"></span>
+        <span class="line line-2"></span>
+        <span class="line line-3"></span>
+      </span>
+    </button>
+    <input
+      type="text"
+      class="search-input"
+      placeholder="搜索对话..."
+      bind:value={searchQuery}
+    />
     <button class="new-btn" onclick={handleNewConversation} title="新建对话">
       +
     </button>
   </div>
 
-  <div class="conversations-list">
+  <div class="conversations-list" onscroll={handleScroll}>
     {#if loading}
       <div class="loading">
         <div class="spinner"></div>
@@ -238,8 +374,12 @@ function formatDate(dateString: string): string {
           开始新对话
         </button>
       </div>
+    {:else if displayConversations.length === 0}
+      <div class="empty">
+        <p>没有找到匹配的对话</p>
+      </div>
     {:else}
-      {#each conversations as conversation}
+      {#each displayConversations as conversation}
         <div
           class="conversation-item {currentConversationId === conversation.id
             ? 'active'
@@ -252,25 +392,102 @@ function formatDate(dateString: string): string {
             selectConversation(conversation)}
         >
           <div class="conversation-info">
-            <h3 class="title">{conversation.title || "无标题"}</h3>
+            <div class="title-row">
+              {#if editingId === conversation.id}
+                <input
+                  class="title-input"
+                  bind:value={editingTitle}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveEdit(conversation);
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelEdit();
+                    }
+                  }}
+                  onblur={(_e) => {
+                    // Delay blur to allow Enter key to be processed first
+                    setTimeout(() => {
+                      if (editingId === conversation.id) {
+                        saveEdit(conversation);
+                      }
+                    }, 100);
+                  }}
+                />
+                <div class="title-actions">
+                  <button
+                    class="action-btn save-btn"
+                    onclick={(e) => saveEdit(conversation, e)}
+                    title="保存"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    class="action-btn cancel-btn"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      cancelEdit();
+                    }}
+                    title="取消"
+                  >
+                    ×
+                  </button>
+                </div>
+              {:else}
+                <h3 class="title">{conversation.title || "无标题"}</h3>
+                <div class="right-area">
+                  <span class="time">{formatDate(conversation.updated_at)}</span>
+                  <div class="menu-container">
+                    <button
+                      class="menu-btn"
+                      onclick={(e) => toggleMenu(conversation.id, e)}
+                      title="更多操作"
+                    >
+                      ⋯
+                    </button>
+                    {#if openMenuId === conversation.id}
+                      <div class="dropdown-menu">
+                        <button
+                          class="menu-item"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            closeMenu();
+                            startEdit(conversation, e);
+                          }}
+                        >
+                          重命名
+                        </button>
+                        <button
+                          class="menu-item delete {deletingId === conversation.id
+                            ? 'deleting'
+                            : ''}"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            closeMenu();
+                            handleDelete(conversation.id, e);
+                          }}
+                          disabled={deletingId === conversation.id}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
+            </div>
             <div class="meta">
               <span class="model">{formatModelName(conversation.last_model || conversation.model)}</span>
-              <span class="time">{formatDate(conversation.updated_at)}</span>
             </div>
-          </div>
-          <div class="actions">
-            <button
-              class="delete-btn {deletingId === conversation.id
-                ? 'deleting'
-                : ''}"
-              onclick={(e) => handleDelete(conversation.id, e)}
-              disabled={deletingId === conversation.id}
-              title="删除对话"
-            >
-            </button>
           </div>
         </div>
       {/each}
+      {#if displayConversations.length > 0 && displayConversations.length < filteredConversations.length}
+        <div class="lazy-loading-indicator">
+          <p>已显示 {displayConversations.length} / {filteredConversations.length} 个对话</p>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -282,21 +499,99 @@ function formatDate(dateString: string): string {
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
   }
 
   .sidebar-header {
-    padding: 1.5rem 1.5rem 1rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
+    transition: padding 0.2s ease;
   }
 
-  .sidebar-header h2 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 600;
+  .search-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
     color: var(--text-primary);
+    background: var(--bg-secondary);
+    outline: none;
+    transition: all 0.2s ease;
+    min-width: 0;
+  }
+
+  .search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    background: var(--bg-primary);
+  }
+
+  .search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .collapse-btn {
+    padding: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .collapse-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+
+  .collapse-btn:active {
+    transform: scale(0.98);
+  }
+
+  .hamburger-icon {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 18px;
+    height: 14px;
+  }
+
+  .hamburger-icon .line {
+    display: block;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+    transition: all 0.2s ease;
+  }
+
+  .hamburger-icon .line-1 {
+    width: 100%;
+  }
+
+  .hamburger-icon .line-2 {
+    width: 65%;
+    align-self: flex-end;
+  }
+
+  .hamburger-icon .line-3 {
+    width: 100%;
+  }
+
+  .collapse-btn:hover .hamburger-icon .line {
+    background: var(--text-primary);
   }
 
   .new-btn {
@@ -325,9 +620,6 @@ function formatDate(dateString: string): string {
     background: white;
     color: var(--primary-color) !important;
     transform: scale(1.1);
-    box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.15),
-      0 0 0 2px var(--primary-color);
   }
 
   .new-btn:active {
@@ -418,6 +710,13 @@ function formatDate(dateString: string): string {
     min-width: 0;
   }
 
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
   .title {
     margin: 0;
     font-size: 0.875rem;
@@ -427,11 +726,83 @@ function formatDate(dateString: string): string {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .title-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--primary-color);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    outline: none;
+  }
+
+  .title-input:focus {
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.3);
+  }
+
+  .title-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .action-btn {
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    min-width: 24px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+  }
+
+  .action-btn.save-btn {
+    color: #10b981;
+  }
+
+  .action-btn.save-btn:hover {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  .action-btn.cancel-btn {
+    color: var(--text-tertiary);
+  }
+
+  .action-btn.cancel-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .right-area {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .time {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+  }
+
+  .active .time {
+    color: rgba(255, 255, 255, 0.8);
   }
 
   .meta {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     margin-top: 0.25rem;
     font-size: 0.75rem;
@@ -447,44 +818,83 @@ function formatDate(dateString: string): string {
     color: rgba(255, 255, 255, 0.8);
   }
 
-  .actions {
+  .menu-container {
+    position: relative;
+  }
+
+  .menu-btn {
     opacity: 0;
     transition: opacity 0.2s;
-  }
-
-  .conversation-item:hover .actions {
-    opacity: 1;
-  }
-
-  .delete-btn {
-    padding: 0.375rem;
-    background: none;
+    padding: 0.375rem 0.5rem;
+    background: transparent;
     border: none;
-    color: var(--text-tertiary);
     cursor: pointer;
     border-radius: 0.25rem;
-    transition: all 0.2s;
     min-width: 24px;
     min-height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 1.125rem;
+    color: var(--text-tertiary);
+    line-height: 1;
   }
 
-  .delete-btn:hover {
+  .conversation-item:hover .menu-btn {
+    opacity: 1;
+  }
+
+  .menu-btn:hover {
+    background: rgba(66, 153, 225, 0.1);
+    color: var(--primary-color);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.25rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    min-width: 100px;
+    overflow: hidden;
+  }
+
+  .menu-item {
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    text-align: left;
+    width: 100%;
+    white-space: nowrap;
+  }
+
+  .menu-item:hover {
+    background: var(--bg-secondary);
+  }
+
+  .menu-item.delete:hover {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
   }
 
-  .delete-btn.deleting {
+  .menu-item.deleting {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  .delete-btn::before {
-    content: "×";
-    font-size: 1.125rem;
-    line-height: 1;
+  .lazy-loading-indicator {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 0.75rem;
   }
 
   button {

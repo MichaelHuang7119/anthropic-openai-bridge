@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from "svelte";
   import { providerService } from "$services/providers";
   import type { ModelChoice } from "$services/chatService";
+  import SlidingList from "$components/ui/SlidingList.svelte";
 
   interface Props {
     selectedModel?: ModelChoice | null;
@@ -24,6 +25,9 @@
     selectedCategory = $bindable("middle"),
     onModelSelected: _onModelSelected,
   }: Props = $props();
+
+  let isExpanded = $state(false);
+  let selectorElement: HTMLDivElement;
 
   interface ProviderConfig {
     name: string;
@@ -92,6 +96,35 @@
 
   // Compute available models reactively
   let availableModels: string[] = $derived(getAvailableModels());
+
+  // Format providers as options (name in normal color, api_format in light gray)
+  let providerOptions = $derived(
+    sortedProviders.map(p => ({
+      value: `${p.name}||${p.api_format}`,
+      label: p.name,
+      coloredPart: {
+        text: p.api_format,
+        color: 'var(--text-tertiary)',
+        opacity: 0.7
+      },
+      description: undefined
+    }))
+  );
+
+  // Format categories as options
+  let categoryOptions = $derived([
+    { value: 'big', label: '大模型' },
+    { value: 'middle', label: '中等模型' },
+    { value: 'small', label: '小模型' }
+  ]);
+
+  // Format models as options
+  let modelOptions = $derived(
+    availableModels.map(m => ({
+      value: m,
+      label: m
+    }))
+  );
 
   // Reset model selection when provider, category, or available models change
   $effect(() => {
@@ -211,12 +244,36 @@
     }
   });
 
-  function handleProviderChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    const value = select.value;
+  // Handle click outside to collapse
+  function handleDocumentClick(event: MouseEvent) {
+    if (isExpanded && selectorElement) {
+      // Check if click is outside the selector element
+      if (!selectorElement.contains(event.target as Node)) {
+        isExpanded = false;
+      }
+    }
+  }
 
-    // Value format: "name||api_format"
-    const [name, apiFormat] = value.split("||");
+  // Add click outside handler when component mounts
+  $effect(() => {
+    if (isExpanded) {
+      document.addEventListener('click', handleDocumentClick);
+      return () => {
+        document.removeEventListener('click', handleDocumentClick);
+      };
+    }
+  });
+
+  function toggleExpanded(event?: MouseEvent) {
+    if (event) {
+      event.stopPropagation();
+    }
+    isExpanded = !isExpanded;
+  }
+
+  // Handle provider selection
+  function handleProviderChange(providerValue: string) {
+    const [name, apiFormat] = providerValue.split("||");
     selectedProvider = name;
     selectedApiFormat = apiFormat;
 
@@ -238,101 +295,221 @@
     }
   }
 
-  function handleModelChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    selectedModelName = select.value;
-  }
-
-  function handleCategoryChange(event: Event) {
-    // Category change already handled by bind:value, but we need to reset model selection
-    const select = event.target as HTMLSelectElement;
-    selectedCategory = select.value;
+  // Handle category selection
+  function handleCategoryChange(categoryValue: string) {
+    selectedCategory = categoryValue;
 
     // Reset model to first available one in the new category
     if (availableModels.length > 0) {
       selectedModelName = availableModels[0];
     }
   }
+
+  // Handle model selection
+  function handleModelChange(modelValue: string) {
+    selectedModelName = modelValue;
+  }
 </script>
 
-<div class="model-selector">
-  {#if loading}
-    <div class="loading">加载模型配置中...</div>
-  {:else if error}
-    <div class="error">{error}</div>
-  {:else if providers.length > 0}
-    <div class="selector-row">
-      <div class="selector-group">
-        <label for="provider-select">供应商</label>
-        <select
-          id="provider-select"
-          class="select"
-          onchange={handleProviderChange}
-        >
-          {#each sortedProviders as provider}
-            <option
-              value={`${provider.name}||${provider.api_format}`}
-              selected={selectedProvider === provider.name &&
-                selectedApiFormat === provider.api_format}
-            >
-              {provider.name} ({provider.api_format})
-            </option>
-          {/each}
-        </select>
-      </div>
-
-      <div class="selector-group">
-        <label for="category-select">模型类别</label>
-        <select
-          id="category-select"
-          class="select"
-          bind:value={selectedCategory}
-          onchange={handleCategoryChange}
-        >
-          <option value="big">大模型</option>
-          <option value="middle">中等模型</option>
-          <option value="small">小模型</option>
-        </select>
-      </div>
-
-      <div class="selector-group">
-        <label for="model-select">具体模型</label>
-        <select
-          id="model-select"
-          class="select"
-          bind:value={selectedModelName}
-          onchange={handleModelChange}
-        >
-          {#each availableModels as model}
-            <option value={model}>{model}</option>
-          {:else}
-            <option value="">暂无可用模型</option>
-          {/each}
-        </select>
-      </div>
+<div class="model-selector" bind:this={selectorElement}>
+  <!-- Collapsed Header - Always Visible -->
+  <div class="selector-header" onclick={toggleExpanded} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleExpanded()}>
+    <div class="header-content">
+      <span class="header-label">供应商</span>
+      <span class="header-value">
+        {#if selectedProvider}
+          <strong>{selectedProvider}</strong>
+          {#if selectedApiFormat}
+            <span class="api-format">{selectedApiFormat}</span>
+          {/if}
+        {:else}
+          <span class="placeholder">请选择供应商</span>
+        {/if}
+      </span>
     </div>
+    <div class="expand-icon" class:expanded={isExpanded}>
+      ▼
+    </div>
+  </div>
 
-    {#if selectedModel}
-      <div class="model-info">
-        <span class="provider"
-          >供应商: <strong>{selectedModel.providerName}</strong></span
-        >
-        <span class="format"
-          >API格式: <strong>{selectedModel.apiFormat}</strong></span
-        >
-        <span class="model">模型: <strong>{selectedModel.model}</strong></span>
-      </div>
-    {/if}
-  {:else}
-    <div class="error">未找到可用的供应商配置</div>
+  <!-- Expanded Content -->
+  {#if isExpanded}
+    <div class="expanded-content">
+      {#if loading}
+        <div class="loading">加载模型配置中...</div>
+      {:else if error}
+        <div class="error">{error}</div>
+      {:else if providers.length > 0}
+        <div class="selector-row">
+          <div class="selector-group">
+            <label for="provider-select">供应商</label>
+            <SlidingList
+              options={providerOptions}
+              value={`${selectedProvider}||${selectedApiFormat}`}
+              placeholder="请选择供应商"
+              onChange={handleProviderChange}
+            />
+          </div>
+
+          <div class="selector-group">
+            <label for="category-select">模型类别</label>
+            <SlidingList
+              options={categoryOptions}
+              value={selectedCategory}
+              placeholder="请选择模型类别"
+              onChange={handleCategoryChange}
+            />
+          </div>
+
+          <div class="selector-group">
+            <label for="model-select">具体模型</label>
+            <SlidingList
+              options={modelOptions}
+              value={selectedModelName}
+              placeholder={availableModels.length === 0 ? "暂无可用模型" : "请选择具体模型"}
+              onChange={handleModelChange}
+            />
+          </div>
+        </div>
+
+        {#if selectedModel}
+          <div class="model-info">
+            <span class="provider"
+              >供应商: <strong>{selectedModel.providerName}</strong></span
+            >
+            <span class="format"
+              >API格式: <strong>{selectedModel.apiFormat}</strong></span
+            >
+            <span class="model">模型: <strong>{selectedModel.model}</strong></span>
+          </div>
+        {/if}
+      {:else}
+        <div class="error">未找到可用的供应商配置</div>
+      {/if}
+    </div>
   {/if}
 </div>
 
 <style>
   .model-selector {
-    padding: 1rem;
+    position: relative;
+  }
+
+  /* Collapsed Header */
+  .selector-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    width: fit-content;
+    max-width: calc(100vw - 4rem);
+    position: relative;
+  }
+
+  .selector-header:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    transform: translateY(-1px);
+  }
+
+  .selector-header:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  .header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: calc(100vw - 8rem);
+  }
+
+  .header-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .header-value {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100vw - 10rem);
+  }
+
+  .header-value strong {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .api-format {
+    color: var(--text-tertiary);
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  .placeholder {
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .expand-icon {
+    position: absolute;
+    right: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+  }
+
+  .expand-icon.expanded {
+    transform: rotate(180deg);
+  }
+
+  /* Expanded Content */
+  .expanded-content {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.5rem;
     background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 1rem 2.5rem 1rem 1rem;
+    min-width: 600px;
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    z-index: 100;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .selector-row {
@@ -346,35 +523,17 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    min-width: 200px;
+    min-width: 220px;
     flex: 1;
   }
 
   .selector-group label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .select {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.375rem;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .select:hover {
-    border-color: var(--primary-color);
-  }
-
-  .select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
   }
 
   .model-info {
@@ -415,6 +574,26 @@
   }
 
   @media (max-width: 768px) {
+    .selector-header {
+      padding: 0.5rem 0.625rem;
+      max-width: calc(100vw - 2rem);
+    }
+
+    .header-value {
+      font-size: 0.8rem;
+      max-width: 150px;
+    }
+
+    .header-label {
+      font-size: 0.65rem;
+    }
+
+    .expanded-content {
+      min-width: calc(100vw - 2rem);
+      max-width: calc(100vw - 2rem);
+      width: calc(100vw - 2rem);
+    }
+
     .selector-row {
       flex-direction: column;
       gap: 0.75rem;

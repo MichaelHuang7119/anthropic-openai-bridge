@@ -287,10 +287,17 @@ class ChatService {
       );
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ detail: "Failed to add message" }));
-        throw new Error(error.detail || "Failed to add message");
+        let errorMessage = "Failed to add message";
+        try {
+          const errorData = await response.json();
+          console.error("API Error Response:", errorData);
+          errorMessage =
+            errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          console.error("Failed to parse error response:", e);
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       return await response.json();

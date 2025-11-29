@@ -1,15 +1,16 @@
 <script lang="ts">
   // import { theme } from "$stores/theme";
 
-  let { disabled = false, placeholder = "输入消息...", onsend }: {
+  let { disabled = false, placeholder = "输入消息...", hasMessages = false, onsend }: {
     disabled?: boolean;
     placeholder?: string;
+    hasMessages?: boolean;
     onsend?: (event: { message: string }) => void;
   } = $props();
 
   let message = $state("");
   let textarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let showPrompts = $state(true);
+  let showPrompts = $state(!hasMessages);
   let selectedPromptIndex = $state<number | null>(null);
 
   let promptsScrollContainer: HTMLDivElement | undefined = $state(undefined);
@@ -64,14 +65,18 @@
   }
 
   function handlePromptClick(prompt: string, index: number) {
-    message = prompt;
-    selectedPromptIndex = index;
-    // Hide prompts after selection
-    showPrompts = false;
-    // Focus textarea
-    textarea?.focus();
-    // Auto-resize
-    setTimeout(() => autoResize(), 0);
+    // Only allow selection if this prompt is the center-selected one
+    // OR if nothing is selected yet (allows first selection)
+    if (selectedPromptIndex === null || index === selectedPromptIndex) {
+      message = prompt;
+      selectedPromptIndex = index;
+      // Hide prompts after selection
+      showPrompts = false;
+      // Focus textarea
+      textarea?.focus();
+      // Auto-resize
+      setTimeout(() => autoResize(), 0);
+    }
   }
 
   // Scroll to center the selected prompt
@@ -126,9 +131,13 @@
 
   // Show prompts when input is empty and reset selection
   $effect(() => {
-    if (message.trim() === "") {
+    // Only show prompts if no messages exist and input is empty
+    if (message.trim() === "" && !hasMessages) {
       showPrompts = true;
       selectedPromptIndex = null;
+    } else if (hasMessages) {
+      // Hide prompts if there are messages
+      showPrompts = false;
     }
   });
 
@@ -182,8 +191,6 @@
             {/each}
           </div>
         </div>
-        <!-- Center selection indicator -->
-        <div class="center-indicator"></div>
       </div>
     </div>
   {/if}
@@ -211,7 +218,7 @@
   </div>
 
   <div class="input-hints">
-    <span class="hint">Enter 发送，Shift + Enter 换行</span>
+    <span class="hint">内容由 AI 生成，仅供参考</span>
   </div>
 </div>
 
@@ -253,41 +260,51 @@
   }
 
   .prompts-scroll {
-    height: 200px;
+    height: 144px;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.5rem;
     scroll-behavior: smooth;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     -ms-overflow-style: none;
     position: relative;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
+    /* Enable scroll snap with proximity for smoother control */
+    scroll-snap-type: y proximity;
   }
 
   .prompts-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .prompts-scroll::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-    border-radius: 3px;
-  }
-
-  .prompts-scroll::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
-  }
-
-  .prompts-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--text-tertiary);
+    display: none;
   }
 
   .prompts-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    padding: 0;
+  }
+
+  /* Fade mask effect on scroll container */
+  .prompts-scroll {
+    /* Padding ensures first/last items can snap to center */
+    padding: 48px 0;
+    /* Gradient mask for fading edges */
+    -webkit-mask-image: linear-gradient(to bottom,
+      transparent 0%,
+      black 48px,
+      black calc(100% - 48px),
+      transparent 100%);
+    mask-image: linear-gradient(to bottom,
+      transparent 0%,
+      black 48px,
+      black calc(100% - 48px),
+      transparent 100%);
+    /* Fallback for browsers without mask support */
+    background: linear-gradient(to bottom,
+      transparent 0%,
+      var(--bg-primary) 48px,
+      var(--bg-primary) calc(100% - 48px),
+      transparent 100%);
   }
 
   .prompt-button {
@@ -297,31 +314,27 @@
     justify-content: center;
     padding: 0 1.5rem;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: 0.5rem;
-    color: var(--text-secondary);
+    border: none;
+    border-radius: 0;
+    color: var(--text-tertiary);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s;
-    opacity: 0.7;
+    transition: all 0.15s ease-out;
+    transform: scale(0.9);
+    /* No margin to reduce scroll jump distance */
+    /* Enable scroll snap */
+    scroll-snap-align: center;
   }
 
-  .prompt-button:hover:not(:disabled) {
-    background: var(--bg-secondary);
-    border-color: var(--border-color);
-    color: var(--text-primary);
-    opacity: 1;
-  }
-
-  .prompt-button.selected,
   .prompt-button.centered {
     background: var(--primary-color);
-    border-color: var(--primary-color);
     color: white;
     opacity: 1;
-    transform: none;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    transform: scale(1);
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
     font-weight: 600;
+    border-radius: 0.5rem;
+    margin: 4px 0;
   }
 
   .prompt-button:disabled {
@@ -344,36 +357,11 @@
     font-weight: 500;
   }
 
-  .center-indicator {
-    position: absolute;
-    top: 50%;
-    left: 0.25rem;
-    right: 0.25rem;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
-    transform: translateY(-50%);
-    pointer-events: none;
-    z-index: 1;
-    border-radius: 2px;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 0.6;
-      transform: translateY(-50%) scaleX(0.8);
-    }
-    50% {
-      opacity: 1;
-      transform: translateY(-50%) scaleX(1);
-    }
-  }
-
   .message-input {
     display: flex;
     gap: 0.75rem;
     align-items: flex-end;
-    padding: 1rem;
+    padding: 0.5rem;
     background: var(--bg-primary);
   }
 
@@ -435,7 +423,7 @@
   }
 
   .input-hints {
-    padding: 0 1rem 0.75rem;
+    padding: 0 1rem 0.5rem;
     font-size: 0.75rem;
     color: var(--text-tertiary);
     text-align: center;
@@ -462,11 +450,6 @@
 
     .prompt-icon {
       font-size: 1.125rem;
-    }
-
-    .center-indicator {
-      left: 0.375rem;
-      right: 0.375rem;
     }
 
     .message-input {

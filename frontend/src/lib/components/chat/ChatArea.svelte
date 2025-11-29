@@ -3,10 +3,12 @@
   import { tick } from "svelte";
   import MessageBubble from "./MessageBubble.svelte";
   import MessageInput from "./MessageInput.svelte";
+  import ModelSelector from "./ModelSelector.svelte";
   import {
     chatService,
     type ConversationDetail,
     type Message,
+    type ModelChoice,
   } from "$services/chatService";
   import { authService } from "$services/auth";
 
@@ -14,11 +16,20 @@
   export let selectedModel: any = null;
   export let selectedProvider: string = "";
   export let selectedApiFormat: string = "";
+  export let selectedModelName: string = "";
+  export let selectedCategory: string = "middle";
+  export let sidebarCollapsed: boolean = false;
 
   const dispatch = createEventDispatcher<{
     conversationUpdate: { conversation: ConversationDetail };
     error: { message: string };
+    modelSelected: ModelChoice;
+    toggleSidebar: void;
   }>();
+
+  function handleModelSelected(event: CustomEvent<ModelChoice>) {
+    dispatch("modelSelected", event.detail);
+  }
 
   let messages: Message[] = [];
   let isLoading = false;
@@ -111,7 +122,7 @@
       return;
     }
 
-    if (!selectedModel) {
+    if (!selectedModelName && !conversation.model) {
       error = "请选择模型";
       return;
     }
@@ -119,7 +130,7 @@
     // Use currently selected model configuration instead of conversation's saved config
     const useProvider = selectedProvider || conversation.provider_name || null;
     const useApiFormat = selectedApiFormat || conversation.api_format || null;
-    const useModel = selectedModel || conversation.model || null;
+    const useModel = selectedModelName || conversation.model || null;
 
     if (!useModel) {
       error = "请选择模型";
@@ -315,6 +326,29 @@
 </script>
 
 <div class="chat-area">
+  <!-- Model Selector - Top Left Corner -->
+  <div class="model-selector-container">
+    <!-- Expand Sidebar Button - Only show when sidebar is collapsed -->
+    {#if sidebarCollapsed}
+      <button class="expand-sidebar-btn" onclick={() => dispatch("toggleSidebar")} title="展开对话历史">
+        <span class="hamburger-icon">
+          <span class="line line-1"></span>
+          <span class="line line-2"></span>
+          <span class="line line-3"></span>
+        </span>
+      </button>
+    {/if}
+
+    <ModelSelector
+      bind:selectedModel={selectedModel}
+      bind:selectedProvider={selectedProvider}
+      bind:selectedApiFormat={selectedApiFormat}
+      bind:selectedModelName={selectedModelName}
+      bind:selectedCategory={selectedCategory}
+      on:modelSelected={handleModelSelected}
+    />
+  </div>
+
   <div
     class="messages-container"
     bind:this={messagesContainer}
@@ -389,6 +423,7 @@
       <MessageInput
         disabled={isLoading}
         placeholder="输入消息..."
+        hasMessages={messages.length > 0}
         onsend={handleSendMessage}
       />
     {:else}
@@ -407,6 +442,78 @@
     min-height: 0;
     height: 100%;
     position: relative;
+  }
+
+  .model-selector-container {
+    flex-shrink: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    padding-left: 1rem;
+  }
+
+  .expand-sidebar-btn {
+    padding: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .expand-sidebar-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .expand-sidebar-btn:active {
+    transform: scale(0.98);
+  }
+
+  .expand-sidebar-btn .hamburger-icon {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 18px;
+    height: 14px;
+  }
+
+  .expand-sidebar-btn .hamburger-icon .line {
+    display: block;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+    transition: all 0.2s ease;
+  }
+
+  .expand-sidebar-btn .hamburger-icon .line-1 {
+    width: 100%;
+  }
+
+  .expand-sidebar-btn .hamburger-icon .line-2 {
+    width: 65%;
+    align-self: flex-end;
+  }
+
+  .expand-sidebar-btn .hamburger-icon .line-3 {
+    width: 100%;
+  }
+
+  .expand-sidebar-btn:hover .hamburger-icon .line {
+    background: var(--text-primary);
   }
 
   .messages-container {
@@ -531,16 +638,15 @@
 
   .scroll-to-bottom {
     position: absolute;
-    bottom: 6rem;
-    right: 2rem;
-    width: 44px;
-    height: 44px;
+    bottom: 7rem;
+    left: 50%;
+    width: 36px;
+    height: 36px;
     background: var(--primary-color);
     color: white;
-    border: 2px solid var(--primary-color);
     border-radius: 50%;
     cursor: pointer;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -610,12 +716,20 @@
       width: 4px;
     }
 
+    .model-selector-container {
+      padding: 0.75rem;
+      gap: 0.5rem;
+    }
+
+    .expand-sidebar-btn {
+      width: 36px;
+      height: 36px;
+    }
+
     .scroll-to-bottom {
-      bottom: 5rem;
-      right: 1rem;
-      width: 40px;
-      height: 40px;
-      font-size: 1.25rem;
+      width: 32px;
+      height: 32px;
+      font-size: 1.125rem;
     }
   }
 
@@ -630,11 +744,9 @@
     }
 
     .scroll-to-bottom {
-      bottom: 4.5rem;
-      right: 0.75rem;
-      width: 36px;
-      height: 36px;
-      font-size: 1.125rem;
+      width: 30px;
+      height: 30px;
+      font-size: 1rem;
     }
   }
 </style>

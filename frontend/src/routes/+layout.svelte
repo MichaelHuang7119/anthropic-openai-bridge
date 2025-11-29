@@ -55,7 +55,7 @@
 
 <div class="app" class:chat-layout={$page.url.pathname === '/chat'}>
   {#if $page.url.pathname !== '/login'}
-    <Header title="Anthropic OpenAI Bridge 管理界面" subtitle="供应商管理与监控系统">
+    <Header title="Anthropic OpenAI Bridge">
       <nav slot="nav">
         {#each navItems as item}
           <a
@@ -112,9 +112,9 @@
   }
 
   .footer {
-    background: var(--bg-primary);
-    border-top: 1px solid var(--border-color);
-    padding: 1.5rem 0;
+    background: var(--bg-tertiary);
+    border: none;
+    padding: 0.5rem 0;
     text-align: center;
     color: var(--text-secondary);
   }
@@ -122,6 +122,7 @@
   .footer p {
     margin: 0;
     font-size: 0.875rem;
+    color: rgba(66, 153, 225, 0.6);
   }
 
   .nav-link {

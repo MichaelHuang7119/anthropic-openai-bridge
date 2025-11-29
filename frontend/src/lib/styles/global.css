@@ -1,12 +1,12 @@
 :root {
+  /* 默认颜色主题 - 蓝色 */
   --primary-color: #007bff;
+  --primary-hover: #0056b3;
   --secondary-color: #6c757d;
   --success-color: #28a745;
   --danger-color: #dc3545;
   --warning-color: #ffc107;
-  --info-color: #17a2b8;
-  --light-color: #f8f9fa;
-  --dark-color: #343a40;
+  --info-color: #007bff;
 
   --font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
@@ -50,16 +50,17 @@
   --card-bg: #161b22;
   --card-shadow: rgba(0, 0, 0, 0.5);
 
-  /* GitHub-style accent colors */
-  --primary-color: #58a6ff;
+  /* GitHub-style accent colors - Blue theme */
+  --primary-color: #1f6feb;
+  --primary-hover: #1a5fd0;
   --success-color: #238636;
   --danger-color: #f85149;
   --warning-color: #d29922;
-  --info-color: #58a6ff;
+  --info-color: #1f6feb;
 
   /* Additional GitHub colors */
-  --link-color: #58a6ff;
-  --link-hover-color: #79c0ff;
+  --link-color: #1f6feb;
+  --link-hover-color: #1a5fd0;
   --code-bg: #161b22;
   --code-border: #30363d;
   --input-bg: #0d1117;
@@ -505,4 +506,56 @@ pre code {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 颜色主题配置 */
+
+/* 蓝色主题 */
+[data-color-theme="blue"] {
+  --primary-color: #007bff;
+  --primary-hover: #0056b3;
+  --info-color: #007bff;
+  --link-color: #007bff;
+  --link-hover-color: #0056b3;
+  --input-border-focus: #007bff;
+}
+
+/* 绿色主题 */
+[data-color-theme="green"] {
+  --primary-color: #28a745;
+  --primary-hover: #1e7e34;
+  --info-color: #28a745;
+  --link-color: #28a745;
+  --link-hover-color: #1e7e34;
+  --input-border-focus: #28a745;
+}
+
+/* 紫色主题 */
+[data-color-theme="purple"] {
+  --primary-color: #6f42c1;
+  --primary-hover: #5a32a3;
+  --info-color: #6f42c1;
+  --link-color: #6f42c1;
+  --link-hover-color: #5a32a3;
+  --input-border-focus: #6f42c1;
+}
+
+/* 粉色主题 */
+[data-color-theme="pink"] {
+  --primary-color: #e83e8c;
+  --primary-hover: #c9267d;
+  --info-color: #e83e8c;
+  --link-color: #e83e8c;
+  --link-hover-color: #c9267d;
+  --input-border-focus: #e83e8c;
+}
+
+/* 橙红色主题 */
+[data-color-theme="orange"] {
+  --primary-color: #cc785c;
+  --primary-hover: #b86b4e;
+  --info-color: #cc785c;
+  --link-color: #cc785c;
+  --link-hover-color: #b86b4e;
+  --input-border-focus: #cc785c;
 }

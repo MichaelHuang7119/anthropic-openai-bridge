@@ -19,10 +19,13 @@
 <header class="header">
   <div class="container">
     <div class="brand">
-      <h1>{title}</h1>
-      {#if subtitle}
-        <p class="subtitle">{subtitle}</p>
-      {/if}
+      <img src="/favicon.svg" alt="Anthropic OpenAI Bridge Logo" class="brand-icon" />
+      <div class="brand-text">
+        <h1>{title}</h1>
+        {#if subtitle}
+          <p class="subtitle">{subtitle}</p>
+        {/if}
+      </div>
     </div>
     <div class="header-actions">
       <nav class="nav">
@@ -60,7 +63,21 @@
     gap: 1rem;
   }
 
-  .brand h1 {
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .brand-text h1 {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
@@ -136,7 +153,12 @@
       flex-wrap: wrap;
     }
 
-    .brand h1 {
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .brand-text h1 {
       font-size: 1.25rem;
     }
 
@@ -158,7 +180,12 @@
   }
 
   @media (max-width: 480px) {
-    .brand h1 {
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+    }
+
+    .brand-text h1 {
       font-size: 1.125rem;
     }
 

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import ModelSelector from "$components/chat/ModelSelector.svelte";
   import ConversationSidebar from "$components/chat/ConversationSidebar.svelte";
   import ChatArea from "$components/chat/ChatArea.svelte";
   import {
@@ -22,22 +21,28 @@
     };
   }
 
-  let conversations: Conversation[] = [];
-  let currentConversation: ConversationDetail | null = null;
-  let providers: ProviderConfig[] = [];
+  let conversations = $state<Conversation[]>([]);
+  let currentConversation = $state<ConversationDetail | null>(null);
+  let providers = $state<ProviderConfig[]>([]);
 
   // Model selection state (shared between components)
-  let selectedProvider: string = "";
-  let selectedApiFormat: string = "";
-  let selectedModelName: string = "";
-  let selectedCategory: string = "middle";
+  let selectedProvider = $state<string>("");
+  let selectedApiFormat = $state<string>("");
+  let selectedModelName = $state<string>("");
+  let selectedCategory = $state<string>("middle");
   let _selectedModelChoice: ModelChoice | null = null;
 
-  let isLoading = false;
-  let error: string | null = null;
+  let isLoading = $state<boolean>(false);
+  let error = $state<string | null>(null);
 
   let sidebar: ConversationSidebar;
   let chatArea: ChatArea;
+
+  let sidebarCollapsed = $state(false);
+
+  function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+  }
 
   onMount(async () => {
     try {
@@ -198,16 +203,8 @@
 </script>
 
 <div class="chat-page">
-  <ModelSelector
-    bind:selectedProvider
-    bind:selectedApiFormat
-    bind:selectedModelName
-    bind:selectedCategory
-    on:modelSelected={handleModelSelected}
-  />
-
   <div class="chat-container">
-    <div class="sidebar">
+    <div class="sidebar {sidebarCollapsed ? 'collapsed' : ''}">
       <ConversationSidebar
         bind:this={sidebar}
         {conversations}
@@ -216,6 +213,7 @@
         bind:selectedProviderName={selectedProvider}
         bind:selectedApiFormat
         bind:selectedModelValue={selectedModelName}
+        on:toggleSidebar={toggleSidebar}
         on:conversationSelected={handleConversationSelected}
         on:newConversation={handleNewConversation}
       />
@@ -228,8 +226,13 @@
         selectedModel={selectedModelName}
         {selectedProvider}
         {selectedApiFormat}
+        bind:selectedModelName={selectedModelName}
+        bind:selectedCategory={selectedCategory}
+        {sidebarCollapsed}
+        on:toggleSidebar={toggleSidebar}
         on:conversationUpdate={handleConversationUpdate}
         on:error={handleError}
+        on:modelSelected={handleModelSelected}
       />
     </div>
   </div>
@@ -266,9 +269,19 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    flex-shrink: 0;
-    transition: width 0.3s ease;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    transform: translateX(0);
+    transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1),
+                box-shadow 0.35s;
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    box-shadow: none;
   }
 
   .main-content {
@@ -279,6 +292,12 @@
     background: var(--bg-secondary);
     min-width: 0;
     position: relative;
+    margin-left: 280px;
+    transition: margin-left 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+
+  .sidebar.collapsed + .main-content {
+    margin-left: 0;
   }
 
   .page-loading {
