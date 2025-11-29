@@ -43,7 +43,9 @@
     "nextPage": "अगला पृष्ठ"
   },
   "header": {
-    "logout": "लॉग आउट"
+    "logout": "लॉग आउट",
+    "userCenter": "उपयोगकर्ता केंद्र",
+    "settings": "सेटिंग्स"
   },
   "providerForm": {
     "selectProvider": "प्रदाता चुनें",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "क्लिपबोर्ड में कॉपी किया गया",
       "copyFailed": "कॉपी विफल, कृपया मैन्युअल रूप से कॉपी करें"
     }
+  },
+  "settings": {
+    "title": "सेटिंग्स",
+    "general": "सामान्य",
+    "security": "सुरक्षा",
+    "system": "सिस्टम",
+    "generalSettings": "सामान्य सेटिंग्स",
+    "language": "भाषा",
+    "theme": "थीम",
+    "lightMode": "लाइट मोड",
+    "darkMode": "डार्क मोड",
+    "themeHelp": "लाइट और डार्क थीम के बीच स्विच करें",
+    "languageUpdated": "भाषा अपडेट की गई",
+    "languageUpdateError": "भाषा अपडेट करने में विफल",
+    "tabList": "सेटिंग्स टैब सूची",
+    "changePassword": "पासवर्ड बदलें",
+    "currentPassword": "वर्तमान पासवर्ड",
+    "newPassword": "नया पासवर्ड",
+    "confirmNewPassword": "नया पासवर्ड कन्फर्म करें",
+    "enterCurrentPassword": "वर्तमान पासवर्ड दर्ज करें",
+    "enterNewPassword": "नया पासवर्ड दर्ज करें",
+    "confirmNewPasswordPlaceholder": "नया पासवर्ड फिर से दर्ज करें",
+    "passwordMismatch": "पासवर्ड मैच नहीं कर रहे",
+    "passwordTooShort": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए",
+    "passwordMinLength": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए",
+    "passwordChanged": "पासवर्ड सफलतापूर्वक बदला गया",
+    "passwordChangeError": "पासवर्ड बदलने में विफल",
+    "saveSuccess": "सफलतापूर्वक सहेजा गया",
+    "saveError": "सहेजने में विफल",
+    "loadError": "लोड करने में विफल",
+    "seconds": "सेकंड",
+    "showPassword": "पासवर्ड दिखाएं",
+    "hidePassword": "पासवर्ड छुपाएं"
   }
 }

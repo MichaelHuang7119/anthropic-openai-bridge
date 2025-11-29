@@ -43,7 +43,9 @@
     "nextPage": "次のページ"
   },
   "header": {
-    "logout": "ログアウト"
+    "logout": "ログアウト",
+    "userCenter": "ユーザーセンター",
+    "settings": "設定"
   },
   "providerForm": {
     "selectProvider": "プロバイダー選択",
@@ -530,5 +532,38 @@
       "copiedToClipboard": " clipboard にコピーしました",
       "copyFailed": "コピー失敗。手動でコピーしてください"
     }
+  },
+  "settings": {
+    "title": "設定",
+    "general": "一般",
+    "security": "セキュリティ",
+    "system": "システム",
+    "generalSettings": "一般設定",
+    "language": "言語",
+    "theme": "テーマ",
+    "lightMode": "ライトモード",
+    "darkMode": "ダークモード",
+    "themeHelp": "ライトテーマとダークテーマを切り替え",
+    "languageUpdated": "言語が更新されました",
+    "languageUpdateError": "言語の更新に失敗しました",
+    "tabList": "設定タブ一覧",
+    "changePassword": "パスワード変更",
+    "currentPassword": "現在のパスワード",
+    "newPassword": "新しいパスワード",
+    "confirmNewPassword": "新しいパスワードの確認",
+    "enterCurrentPassword": "現在のパスワードを入力",
+    "enterNewPassword": "新しいパスワードを入力",
+    "confirmNewPasswordPlaceholder": "新しいパスワードを再入力",
+    "passwordMismatch": "パスワードが一致しません",
+    "passwordTooShort": "パスワードは8文字以上で入力してください",
+    "passwordMinLength": "パスワードは8文字以上で入力してください",
+    "passwordChanged": "パスワードが正常に変更されました",
+    "passwordChangeError": "パスワードの変更に失敗しました",
+    "saveSuccess": "正常に保存されました",
+    "saveError": "保存に失敗しました",
+    "loadError": "読み込みに失敗しました",
+    "seconds": "秒",
+    "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを隠す"
   }
 }

@@ -111,6 +111,18 @@ class DatabaseManager:
         """Update user last login (delegates to users manager)."""
         return await self.users.update_user_last_login(*args, **kwargs)
 
+    async def get_user_language(self, *args, **kwargs):
+        """Get user language (delegates to users manager)."""
+        return await self.users.get_user_language(*args, **kwargs)
+
+    async def update_user_language(self, *args, **kwargs):
+        """Update user language (delegates to users manager)."""
+        return await self.users.update_user_language(*args, **kwargs)
+
+    async def update_user_password(self, *args, **kwargs):
+        """Update user password (delegates to users manager)."""
+        return await self.users.update_user_password(*args, **kwargs)
+
     async def create_api_key(self, *args, **kwargs):
         """Create API key (delegates to api_keys manager)."""
         return await self.api_keys.create_api_key(*args, **kwargs)

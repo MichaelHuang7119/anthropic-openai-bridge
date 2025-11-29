@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { theme } from '$stores/theme';
-  import { language, tStore, languages, type Language } from '$stores/language';
+  import { tStore } from '$stores/language';
   import { authService } from '$services/auth';
+  import SettingsModal from '$components/SettingsModal.svelte';
   import { onMount } from 'svelte';
 
   let { title = 'Anthropic OpenAI Bridge', subtitle = '', nav } = $props<{
@@ -10,23 +10,15 @@
     nav?: () => any;
   }>();
 
-  // 语言下拉菜单状态
-  let showLanguageMenu = $state(false);
+  // 设置弹窗状态
+  let showSettingsModal = $state(false);
 
-  // 下拉菜单容器引用
-  let languageDropdownRef = $state<HTMLDivElement | null>(null);
+  // 用户菜单状态
+  let showUserMenu = $state(false);
+  let userMenuRef = $state<HTMLDivElement | null>(null);
 
   // 获取翻译函数（响应式）
   const t = $derived($tStore);
-
-  function toggleTheme() {
-    theme.toggle();
-  }
-
-  function selectLanguage(lang: Language) {
-    language.set(lang);
-    showLanguageMenu = false;
-  }
 
   function handleLogout() {
     const message = t('common.logoutConfirm');
@@ -35,19 +27,24 @@
     }
   }
 
-  // 点击外部关闭下拉菜单
-  function handleClickOutside(event: MouseEvent) {
-    if (showLanguageMenu && languageDropdownRef && !languageDropdownRef.contains(event.target as Node)) {
-      showLanguageMenu = false;
+  function openSettings() {
+    showSettingsModal = true;
+    showUserMenu = false;
+  }
+
+  // 点击外部关闭用户菜单
+  function handleUserMenuClickOutside(event: MouseEvent) {
+    if (showUserMenu && userMenuRef && !userMenuRef.contains(event.target as Node)) {
+      showUserMenu = false;
     }
   }
 
   // 添加和移除文档级点击监听器
   onMount(() => {
-    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('click', handleUserMenuClickOutside);
 
     return () => {
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('click', handleUserMenuClickOutside);
     };
   });
 </script>
@@ -69,48 +66,54 @@
           {@render nav()}
         </nav>
       {/if}
-      <div class="language-selector" bind:this={languageDropdownRef}>
+      <div class="user-menu" bind:this={userMenuRef}>
         <button
-          class="language-toggle"
-          onclick={() => showLanguageMenu = !showLanguageMenu}
-          aria-label={t('common.toggleLanguage')}
-          aria-expanded={showLanguageMenu}
+          class="user-menu-button"
+          onclick={() => showUserMenu = !showUserMenu}
+          aria-label={t('header.userCenter')}
+          aria-expanded={showUserMenu}
           aria-haspopup="true"
         >
-          <span class="language-text">
-            {languages[$language]}
-          </span>
-          <span class="dropdown-arrow">▼</span>
+          <span class="user-avatar">👤</span>
+          <span class="user-name">{t('header.userCenter')}</span>
+          <span class="dropdown-arrow" class:rotated={showUserMenu}>▼</span>
         </button>
 
-        {#if showLanguageMenu}
-          <div class="language-dropdown" role="menu">
-            {#each Object.entries(languages) as [code, name]}
-              <button
-                class="language-option"
-                class:active={$language === code}
-                onclick={() => selectLanguage(code as Language)}
-                role="menuitem"
-              >
-                {name}
-              </button>
-            {/each}
+        {#if showUserMenu}
+          <div class="user-menu-dropdown" role="menu">
+            <button
+              class="menu-item"
+              onclick={openSettings}
+              role="menuitem"
+            >
+              <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>{t('header.settings')}</span>
+            </button>
+            <div class="menu-separator"></div>
+            <button
+              class="menu-item logout-item"
+              onclick={handleLogout}
+              role="menuitem"
+            >
+              <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <span>{t('header.logout')}</span>
+            </button>
           </div>
         {/if}
       </div>
-      <button class="theme-toggle" onclick={toggleTheme} aria-label={t('common.toggleTheme')}>
-        {#if $theme === 'dark'}
-          <span class="theme-icon">☀️</span>
-        {:else}
-          <span class="theme-icon">🌙</span>
-        {/if}
-      </button>
-      <button class="logout-button" onclick={handleLogout} aria-label={t('header.logout')}>
-        {t('header.logout')}
-      </button>
     </div>
   </div>
 </header>
+
+<!-- 设置弹窗 -->
+<SettingsModal show={showSettingsModal} onClose={() => showSettingsModal = false} />
 
 <style>
   .header {
@@ -183,72 +186,57 @@
 
   .nav {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    max-width: 600px;
   }
 
   /* 响应式调整 - 在较小屏幕上缩小间距 */
-  @media (max-width: 1024px) {
+  @media (max-width: 1200px) {
     .nav {
-      gap: 0.5rem;
+      gap: 0.375rem;
+      max-width: 500px;
     }
   }
 
-  .theme-toggle {
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 2.5rem;
-    height: 2.5rem;
-    transition: all 0.2s;
-    background: transparent;
-    border: none;
+  @media (max-width: 1024px) {
+    .nav {
+      gap: 0.25rem;
+      max-width: 400px;
+    }
   }
 
-  .theme-toggle:hover {
-    background: rgba(127, 127, 127, 0.1);
-    transform: scale(1.05);
-  }
-
-  :global([data-theme="dark"]) .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .theme-icon {
-    font-size: 1.25rem;
-    line-height: 1;
-  }
-
-  .language-selector {
+  .user-menu {
     position: relative;
   }
 
-  .language-toggle {
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
+  .user-menu-button {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.2s;
-    background: transparent;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background: var(--bg-primary);
     color: var(--text-primary);
-    min-width: 6.5rem;
-    height: 2.5rem;
-  }
-
-  .language-toggle:hover {
-    background: var(--bg-secondary);
-    transform: scale(1.05);
-  }
-
-  .language-text {
+    cursor: pointer;
     font-size: 0.875rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .user-menu-button:hover {
+    background: var(--bg-secondary);
+    border-color: var(--primary-color);
+  }
+
+  .user-avatar {
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+
+  .user-name {
     font-weight: 500;
   }
 
@@ -257,11 +245,11 @@
     transition: transform 0.2s;
   }
 
-  :global([data-theme="dark"]) .language-toggle:hover {
-    background: rgba(255, 255, 255, 0.05);
+  .dropdown-arrow.rotated {
+    transform: rotate(180deg);
   }
 
-  .language-dropdown {
+  .user-menu-dropdown {
     position: absolute;
     top: 100%;
     right: 0;
@@ -270,75 +258,51 @@
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     box-shadow: 0 4px 12px var(--card-shadow);
-    min-width: 9rem;
-    max-width: 12rem;
-    overflow-y: auto;
-    max-height: 17.5rem; /* 显示5个选项 */
+    min-width: 12rem;
     z-index: 1000;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
+    overflow: hidden;
   }
 
-  .language-dropdown::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .language-dropdown::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .language-dropdown::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 3px;
-  }
-
-  .language-dropdown::-webkit-scrollbar-thumb:hover {
-    background-color: var(--text-secondary);
-  }
-
-  .language-option {
-    display: block;
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     width: 100%;
     padding: 0.75rem 1rem;
-    text-align: left;
     background: none;
     border: none;
     color: var(--text-primary);
     cursor: pointer;
     font-size: 0.875rem;
     transition: background 0.15s;
-    flex-shrink: 0;
+    text-align: left;
   }
 
-  .language-option:hover {
+  .menu-item:hover {
     background: var(--bg-secondary);
   }
 
-  .language-option.active {
-    background: var(--bg-tertiary);
-    color: var(--primary-color);
-    font-weight: 600;
+  .menu-item.logout-item {
+    color: var(--danger-color);
   }
 
-  .language-option + .language-option {
-    border-top: 1px solid var(--border-color);
+  .menu-item.logout-item:hover {
+    background: var(--bg-secondary);
   }
 
-  .logout-button {
-    background: var(--danger-color);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: all 0.2s;
+  .menu-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
   }
 
-  .logout-button:hover {
-    background: var(--danger-color-dark, #c82333);
-    transform: scale(1.05);
+  .menu-item.logout-item .menu-icon {
+    color: var(--danger-color);
+  }
+
+  .menu-separator {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0.25rem 0;
   }
 
   @media (max-width: 768px) {
@@ -361,7 +325,7 @@
     }
 
     .nav {
-      gap: 0.5rem;
+      gap: 0.375rem;
       order: 3;
       width: 100%;
       overflow-x: auto;
@@ -370,6 +334,16 @@
 
     .header-actions {
       flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .user-name {
+      display: none;
+    }
+
+    .user-menu-button {
+      padding: 0.5rem;
+      min-width: 2.5rem;
     }
   }
 
@@ -380,28 +354,6 @@
     }
 
     .brand-text h1 {
-      font-size: 1.125rem;
-    }
-
-    .language-toggle {
-      min-width: 5.5rem;
-      height: 2.25rem;
-      padding: 0.375rem 0.75rem;
-    }
-
-    .language-dropdown {
-      right: 0;
-      min-width: 8rem;
-      max-width: 11rem;
-    }
-
-    .theme-toggle {
-      min-width: 2.25rem;
-      height: 2.25rem;
-      padding: 0.375rem;
-    }
-
-    .theme-icon {
       font-size: 1.125rem;
     }
   }

@@ -77,8 +77,40 @@
 
   onMount(async () => {
     abortController = new AbortController();
-    // 健康状态不会自动加载，仅在用户点击"重新测试"时加载
-    // 数据会自动从localStorage恢复
+    // 页面加载时不自动进行新的健康检查
+    // 首先检查localStorage中是否有数据
+    // 如果没有，则从后端数据库加载最新的健康检查记录
+    try {
+      // 检查是否有健康数据（来自localStorage）
+      const hasLocalData = $healthStatus.providers && $healthStatus.providers.length > 0;
+
+      if (!hasLocalData) {
+        // 没有本地数据，从后端数据库获取最新的健康检查记录
+        console.log('No local health data found, loading from backend database...');
+        const latestData = await healthService.getLatest({ signal: abortController.signal });
+
+        // 检查是否已被取消
+        if (abortController.signal.aborted) return;
+
+        // 如果后端有数据，则使用后端数据
+        if (latestData.providers && latestData.providers.length > 0) {
+          healthStatus.set(latestData);
+          lastHealthCheck.set(new Date(latestData.timestamp));
+          console.log('Loaded health data from backend database');
+        } else {
+          console.log('No health data available in backend database');
+        }
+      } else {
+        console.log('Using local health data from localStorage');
+      }
+    } catch (error) {
+      // 忽略取消错误
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to load health status:', error);
+      // 即使加载失败，也保持localStorage中的数据
+    }
   });
 
   onDestroy(() => {

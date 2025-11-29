@@ -28,16 +28,10 @@
         var stored = localStorage.getItem("language");
         var lang = stored;
 
+        // 如果 localStorage 中没有语言设置，使用英文作为默认语言
+        // 清除缓存后不会自动根据浏览器语言设置，避免意外切换语言
         if (!lang) {
-          var browserLang =
-            navigator.language || navigator.userLanguage || "en-US";
-          if (browserLang.startsWith("zh")) {
-            lang = "zh-CN";
-          } else if (browserLang.startsWith("en")) {
-            lang = "en-US";
-          } else {
-            lang = "en-US";
-          }
+          lang = "en-US";
         }
 
         document.documentElement.setAttribute("data-language", lang);

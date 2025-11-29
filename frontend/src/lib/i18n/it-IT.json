@@ -43,7 +43,9 @@
     "nextPage": "Pagina successiva"
   },
   "header": {
-    "logout": "Esci"
+    "logout": "Disconnetti",
+    "userCenter": "Centro utente",
+    "settings": "Impostazioni"
   },
   "providerForm": {
     "selectProvider": "Seleziona provider",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Copiato negli appunti",
       "copyFailed": "Copia fallita, per favore copia manualmente"
     }
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "general": "Generale",
+    "security": "Sicurezza",
+    "system": "Sistema",
+    "generalSettings": "Impostazioni generali",
+    "language": "Lingua",
+    "theme": "Tema",
+    "lightMode": "Modalità chiara",
+    "darkMode": "Modalità scura",
+    "themeHelp": "Cambia tra tema chiaro e scuro",
+    "languageUpdated": "Lingua aggiornata",
+    "languageUpdateError": "Aggiornamento lingua fallito",
+    "tabList": "Elenco tab impostazioni",
+    "changePassword": "Cambia password",
+    "currentPassword": "Password corrente",
+    "newPassword": "Nuova password",
+    "confirmNewPassword": "Conferma nuova password",
+    "enterCurrentPassword": "Inserisci password corrente",
+    "enterNewPassword": "Inserisci nuova password",
+    "confirmNewPasswordPlaceholder": "Inserisci nuovamente la password",
+    "passwordMismatch": "Le password non corrispondono",
+    "passwordTooShort": "La password deve essere di almeno 8 caratteri",
+    "passwordMinLength": "La password deve essere di almeno 8 caratteri",
+    "passwordChanged": "Password cambiata con successo",
+    "passwordChangeError": "Cambio password fallito",
+    "saveSuccess": "Salvato con successo",
+    "saveError": "Salvataggio fallito",
+    "loadError": "Caricamento fallito",
+    "seconds": "secondi",
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password"
   }
 }

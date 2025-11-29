@@ -16,6 +16,9 @@
     step?: string | number;
     pattern?: string;
     title?: string;
+    'aria-label'?: string;
+    'aria-describedby'?: string;
+    'aria-labelledby'?: string;
     oninput?: (e: Event) => void;
     onblur?: (e: FocusEvent) => void;
     onfocus?: (e: FocusEvent) => void;
@@ -44,6 +47,9 @@
     step,
     pattern,
     title,
+    'aria-label': ariaLabel,
+    'aria-describedby': ariaDescribedby,
+    'aria-labelledby': ariaLabelledby,
     oninput,
     onblur,
     onfocus,
@@ -72,7 +78,10 @@
     max,
     step,
     pattern,
-    title
+    title,
+    ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
+    ...(ariaDescribedby ? { 'aria-describedby': ariaDescribedby } : {}),
+    ...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : {})
   } as any)}
   bind:value
   class="input {className}"

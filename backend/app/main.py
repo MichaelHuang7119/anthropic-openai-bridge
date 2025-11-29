@@ -12,12 +12,15 @@ from .api.stats import router as stats_router
 from .api.auth import router as auth_router
 from .api.api_keys import router as api_keys_router
 from .api.conversations import router as conversations_router
+from .api.preferences import router as preferences_router
 from .routes.messages import create_messages_router
 from .routes.health import router as health_router
 from .lifecycle import startup_event, shutdown_event
 from .services.message_service import MessageService
 from .services.health_service import HealthService
 from .services.provider_service import ProviderService
+from .database.core import DatabaseCore
+from .database.health_history import HealthHistoryManager
 
 # Configure logging
 # Allow log level to be set via environment variable or default to INFO
@@ -86,9 +89,13 @@ if _telemetry_enabled:
 
 model_manager = ModelManager(config)
 
+# Initialize database
+db_core = DatabaseCore()
+
 # Initialize services
 message_service = MessageService(model_manager)
-health_service = HealthService(message_service)
+health_history_manager = HealthHistoryManager(db_core)
+health_service = HealthService(message_service, health_history_manager)
 provider_service = ProviderService()
 
 # Set service instances for API routes
@@ -105,6 +112,7 @@ app.include_router(api_health_router)
 app.include_router(config_router)
 app.include_router(stats_router)
 app.include_router(conversations_router)
+app.include_router(preferences_router)
 
 
 @app.on_event("startup")

@@ -43,7 +43,9 @@
     "nextPage": "الصفحة التالية"
   },
   "header": {
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "userCenter": "مركز المستخدم",
+    "settings": "الإعدادات"
   },
   "providerForm": {
     "selectProvider": "اختيار مزود الخدمة",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "تم النسخ إلى الحافظة",
       "copyFailed": "فشل النسخ، يرجى النسخ يدوياً"
     }
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "general": "عام",
+    "security": "الأمان",
+    "system": "النظام",
+    "generalSettings": "الإعدادات العامة",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "lightMode": "الوضع الفاتح",
+    "darkMode": "الوضع الداكن",
+    "themeHelp": "التبديل بين المظهر الفاتح والداكن",
+    "languageUpdated": "تم تحديث اللغة",
+    "languageUpdateError": "فشل في تحديث اللغة",
+    "tabList": "قائمة علامات تبويب الإعدادات",
+    "changePassword": "تغيير كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة مرور جديدة",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "enterCurrentPassword": "أدخل كلمة المرور الحالية",
+    "enterNewPassword": "أدخل كلمة المرور الجديدة",
+    "confirmNewPasswordPlaceholder": "أدخل كلمة المرور الجديدة مرة أخرى",
+    "passwordMismatch": "كلمات المرور غير متطابقة",
+    "passwordTooShort": "يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل",
+    "passwordMinLength": "يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل",
+    "passwordChanged": "تم تغيير كلمة المرور بنجاح",
+    "passwordChangeError": "فشل في تغيير كلمة المرور",
+    "saveSuccess": "تم الحفظ بنجاح",
+    "saveError": "فشل في الحفظ",
+    "loadError": "فشل في التحميل",
+    "seconds": "ثواني",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور"
   }
 }

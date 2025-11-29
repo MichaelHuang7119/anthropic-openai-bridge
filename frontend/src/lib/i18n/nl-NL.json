@@ -43,7 +43,9 @@
     "nextPage": "Volgende pagina"
   },
   "header": {
-    "logout": "Uitloggen"
+    "logout": "Uitloggen",
+    "userCenter": "Gebruikerscentrum",
+    "settings": "Instellingen"
   },
   "providerForm": {
     "selectProvider": "Provider selecteren",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Gekopieerd naar klembord",
       "copyFailed": "Kopiëren mislukt, kopieer alsjeblieft handmatig"
     }
+  },
+  "settings": {
+    "title": "Instellingen",
+    "general": "Algemeen",
+    "security": "Beveiliging",
+    "system": "Systeem",
+    "generalSettings": "Algemene instellingen",
+    "language": "Taal",
+    "theme": "Thema",
+    "lightMode": "Lichte modus",
+    "darkMode": "Donkere modus",
+    "themeHelp": "Schakel tussen licht en donker thema",
+    "languageUpdated": "Taal bijgewerkt",
+    "languageUpdateError": "Taal bijwerken mislukt",
+    "tabList": "Instellingen tabbladen",
+    "changePassword": "Wachtwoord wijzigen",
+    "currentPassword": "Huidig wachtwoord",
+    "newPassword": "Nieuw wachtwoord",
+    "confirmNewPassword": "Bevestig nieuw wachtwoord",
+    "enterCurrentPassword": "Voer huidig wachtwoord in",
+    "enterNewPassword": "Voer nieuw wachtwoord in",
+    "confirmNewPasswordPlaceholder": "Voer opnieuw nieuw wachtwoord in",
+    "passwordMismatch": "Wachtwoorden komen niet overeen",
+    "passwordTooShort": "Wachtwoord moet minimaal 8 tekens zijn",
+    "passwordMinLength": "Wachtwoord moet minimaal 8 tekens zijn",
+    "passwordChanged": "Wachtwoord succesvol gewijzigd",
+    "passwordChangeError": "Wachtwoord wijzigen mislukt",
+    "saveSuccess": "Succesvol opgeslagen",
+    "saveError": "Opslaan mislukt",
+    "loadError": "Laden mislukt",
+    "seconds": "seconden",
+    "showPassword": "Wachtwoord tonen",
+    "hidePassword": "Wachtwoord verbergen"
   }
 }

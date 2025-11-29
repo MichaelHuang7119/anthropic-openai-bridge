@@ -42,6 +42,18 @@ class RegisterResponse(BaseModel):
     is_admin: bool = False
 
 
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    current_password: str
+    new_password: str
+
+
+class ChangePasswordResponse(BaseModel):
+    """修改密码响应"""
+    success: bool
+    message: str
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """用户登录"""
@@ -137,3 +149,45 @@ async def get_current_user_info(
 ):
     """获取当前用户信息（需要管理员权限）"""
     return current_user
+
+
+@router.put("/change-password", response_model=ChangePasswordResponse)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: dict = Depends(require_admin())
+):
+    """修改密码"""
+    db = get_database()
+
+    # 验证当前密码
+    user = await db.get_user_by_email(current_user["email"].lower())
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # 验证当前密码是否正确
+    if not verify_password(request.current_password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect"
+        )
+
+    # 验证新密码强度
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters long"
+        )
+
+    # 哈希新密码
+    new_password_hash = hash_password(request.new_password)
+
+    # 更新密码
+    await db.update_user_password(user["id"], new_password_hash)
+
+    return ChangePasswordResponse(
+        success=True,
+        message="Password changed successfully"
+    )

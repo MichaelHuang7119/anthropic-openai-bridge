@@ -43,7 +43,9 @@
     "nextPage": "Next Page"
   },
   "header": {
-    "logout": "Logout"
+    "logout": "Logout",
+    "userCenter": "User Center",
+    "settings": "Settings"
   },
   "providerForm": {
     "selectProvider": "Select Provider",
@@ -221,7 +223,6 @@
     "createApiKey": "Create API Key",
     "creating": "Creating...",
     "creatingKey": "Create",
-    "cancel": "Cancel",
     "createKeyPrompt": "e.g. Alice",
     "createKeyHint": "Used to identify the user of this API Key",
     "createKeyTitle": "Create API Key",
@@ -232,7 +233,6 @@
     "expandedKeyHint": "Use left/right arrow keys or mouse drag to view the full Key",
     "loadingFullKey": "Loading...",
     "deleted": "Deleted successfully",
-    "disabled": "Disabled",
     "enabledAction": "Enabled",
     "operationFailed": "Operation failed",
     "copiedToClipboard": "Copied to clipboard",
@@ -443,7 +443,6 @@
     "searchModel": "Search model...",
     "date": "Date",
     "requestCount": "Request Count",
-    "totalTokens": "Total Tokens",
     "dateFrom": "From",
     "dateTo": "To",
     "all": "All",
@@ -533,5 +532,38 @@
       "copiedToClipboard": "Copied to clipboard",
       "copyFailed": "Copy failed, please copy manually"
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "security": "Security",
+    "system": "System",
+    "generalSettings": "General Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "themeHelp": "Switch between dark and light themes",
+    "languageUpdated": "Language updated",
+    "languageUpdateError": "Failed to update language",
+    "tabList": "Settings Tab List",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "enterCurrentPassword": "Enter current password",
+    "enterNewPassword": "Enter new password",
+    "confirmNewPasswordPlaceholder": "Enter new password again",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "passwordChanged": "Password changed successfully",
+    "passwordChangeError": "Failed to change password",
+    "saveSuccess": "Saved successfully",
+    "saveError": "Failed to save",
+    "loadError": "Failed to load",
+    "seconds": "seconds",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   }
 }

@@ -1,0 +1,17 @@
+export type Language =
+  | "zh-CN"
+  | "en-US"
+  | "ja-JP"
+  | "ko-KR"
+  | "fr-FR"
+  | "es-ES"
+  | "de-DE"
+  | "ru-RU"
+  | "pt-BR"
+  | "it-IT"
+  | "nl-NL"
+  | "ar-SA"
+  | "hi-IN"
+  | "th-TH"
+  | "vi-VN"
+  | "id-ID";

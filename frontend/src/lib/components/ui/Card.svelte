@@ -1,9 +1,22 @@
 <script lang="ts">
-  export let title: string = '';
-  export let subtitle: string = '';
+  interface Props {
+    title?: string;
+    subtitle?: string;
+    'aria-labelledby'?: string;
+    role?: string;
+    id?: string;
+  }
+
+  let {
+    title = '',
+    subtitle = '',
+    'aria-labelledby': ariaLabelledby,
+    role,
+    id
+  }: Props = $props();
 </script>
 
-<div class="card">
+<div class="card" {...(role ? { role } : {})} {...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : {})} {...(id ? { id } : {})}>
   {#if title || $$slots.title || $$slots.titleActions}
     <div class="card-header">
       <div class="title-section">

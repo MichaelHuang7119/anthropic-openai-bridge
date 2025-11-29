@@ -43,7 +43,9 @@
     "nextPage": "다음 페이지"
   },
   "header": {
-    "logout": "로그아웃"
+    "logout": "로그아웃",
+    "userCenter": "사용자 센터",
+    "settings": "설정"
   },
   "providerForm": {
     "selectProvider": "프로바이더 선택",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "클립보드에 복사됨",
       "copyFailed": "복사 실패. 수동으로 복사하세요"
     }
+  },
+  "settings": {
+    "title": "설정",
+    "general": "일반",
+    "security": "보안",
+    "system": "시스템",
+    "generalSettings": "일반 설정",
+    "language": "언어",
+    "theme": "테마",
+    "lightMode": "라이트 모드",
+    "darkMode": "다크 모드",
+    "themeHelp": "라이트와 다크 테마 간 전환",
+    "languageUpdated": "언어가 업데이트되었습니다",
+    "languageUpdateError": "언어 업데이트 실패",
+    "tabList": "설정 탭 목록",
+    "changePassword": "비밀번호 변경",
+    "currentPassword": "현재 비밀번호",
+    "newPassword": "새 비밀번호",
+    "confirmNewPassword": "새 비밀번호 확인",
+    "enterCurrentPassword": "현재 비밀번호 입력",
+    "enterNewPassword": "새 비밀번호 입력",
+    "confirmNewPasswordPlaceholder": "새 비밀번호 다시 입력",
+    "passwordMismatch": "비밀번호가 일치하지 않습니다",
+    "passwordTooShort": "비밀번호는 최소 8자이어야 합니다",
+    "passwordMinLength": "비밀번호는 최소 8자이어야 합니다",
+    "passwordChanged": "비밀번호가 성공적으로 변경되었습니다",
+    "passwordChangeError": "비밀번호 변경 실패",
+    "saveSuccess": "성공적으로 저장되었습니다",
+    "saveError": "저장 실패",
+    "loadError": "불러오기 실패",
+    "seconds": "초",
+    "showPassword": "비밀번호 표시",
+    "hidePassword": "비밀번호 숨기기"
   }
 }

@@ -91,3 +91,57 @@ class UsersManager:
         except Exception as e:
             logger.error(f"Failed to update user last login: {e}")
 
+    async def get_user_language(self, user_id: int) -> Optional[str]:
+        """Get user's language preference."""
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+
+            await cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
+            row = await cursor.fetchone()
+
+            if row and row['language']:
+                return row['language']
+
+            # 如果没有设置语言，返回默认
+            return "en-US"
+        except Exception as e:
+            logger.error(f"Failed to get user language: {e}")
+            return "en-US"
+
+    async def update_user_language(self, user_id: int, language: str):
+        """Update user's language preference."""
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+
+            await cursor.execute("""
+                UPDATE users
+                SET language = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (language, user_id))
+
+            await conn.commit()
+            logger.info(f"Updated language for user {user_id}: {language}")
+        except Exception as e:
+            logger.error(f"Failed to update user language: {e}")
+            raise
+
+    async def update_user_password(self, user_id: int, password_hash: str):
+        """Update user's password."""
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+
+            await cursor.execute("""
+                UPDATE users
+                SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (password_hash, user_id))
+
+            await conn.commit()
+            logger.info(f"Updated password for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to update user password: {e}")
+            raise
+

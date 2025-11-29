@@ -43,7 +43,9 @@
     "nextPage": "Próxima página"
   },
   "header": {
-    "logout": "Sair"
+    "logout": "Sair",
+    "userCenter": "Centro do usuário",
+    "settings": "Configurações"
   },
   "providerForm": {
     "selectProvider": "Selecionar fornecedor",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Copiado para a área de transferência",
       "copyFailed": "Falha ao copiar, por favor copie manualmente"
     }
+  },
+  "settings": {
+    "title": "Configurações",
+    "general": "Geral",
+    "security": "Segurança",
+    "system": "Sistema",
+    "generalSettings": "Configurações gerais",
+    "language": "Idioma",
+    "theme": "Tema",
+    "lightMode": "Modo claro",
+    "darkMode": "Modo escuro",
+    "themeHelp": "Alternar entre tema claro e escuro",
+    "languageUpdated": "Idioma atualizado",
+    "languageUpdateError": "Falha ao atualizar idioma",
+    "tabList": "Guia de configurações",
+    "changePassword": "Alterar senha",
+    "currentPassword": "Senha atual",
+    "newPassword": "Nova senha",
+    "confirmNewPassword": "Confirmar nova senha",
+    "enterCurrentPassword": "Digite a senha atual",
+    "enterNewPassword": "Digite a nova senha",
+    "confirmNewPasswordPlaceholder": "Digite a nova senha novamente",
+    "passwordMismatch": "Senhas não conferem",
+    "passwordTooShort": "Senha deve ter pelo menos 8 caracteres",
+    "passwordMinLength": "Senha deve ter pelo menos 8 caracteres",
+    "passwordChanged": "Senha alterada com sucesso",
+    "passwordChangeError": "Falha ao alterar senha",
+    "saveSuccess": "Salvo com sucesso",
+    "saveError": "Falha ao salvar",
+    "loadError": "Falha ao carregar",
+    "seconds": "segundos",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha"
   }
 }

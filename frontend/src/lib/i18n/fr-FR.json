@@ -43,7 +43,9 @@
     "nextPage": "Page suivante"
   },
   "header": {
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "userCenter": "Centre utilisateur",
+    "settings": "Paramètres"
   },
   "providerForm": {
     "selectProvider": "Sélectionner un fournisseur",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Copié dans le presse-papiers",
       "copyFailed": "Échec de la copie, veuillez copier manuellement"
     }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "general": "Général",
+    "security": "Sécurité",
+    "system": "Système",
+    "generalSettings": "Paramètres généraux",
+    "language": "Langue",
+    "theme": "Thème",
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre",
+    "themeHelp": "Basculer entre thème clair et sombre",
+    "languageUpdated": "Langue mise à jour",
+    "languageUpdateError": "Échec de la mise à jour de la langue",
+    "tabList": "Onglets des paramètres",
+    "changePassword": "Changer le mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmNewPassword": "Confirmer le nouveau mot de passe",
+    "enterCurrentPassword": "Entrer le mot de passe actuel",
+    "enterNewPassword": "Entrer le nouveau mot de passe",
+    "confirmNewPasswordPlaceholder": "Entrer à nouveau le nouveau mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordChanged": "Mot de passe modifié avec succès",
+    "passwordChangeError": "Échec du changement de mot de passe",
+    "saveSuccess": "Enregistré avec succès",
+    "saveError": "Échec de l'enregistrement",
+    "loadError": "Échec du chargement",
+    "seconds": "secondes",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe"
   }
 }

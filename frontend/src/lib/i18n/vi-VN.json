@@ -43,7 +43,9 @@
     "nextPage": "Trang tiếp theo"
   },
   "header": {
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "userCenter": "Trung tâm người dùng",
+    "settings": "Cài đặt"
   },
   "providerForm": {
     "selectProvider": "Chọn nhà cung cấp",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Đã sao chép vào clipboard",
       "copyFailed": "Sao chép thất bại, vui lòng sao chép thủ công"
     }
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "general": "Chung",
+    "security": "Bảo mật",
+    "system": "Hệ thống",
+    "generalSettings": "Cài đặt chung",
+    "language": "Ngôn ngữ",
+    "theme": "Giao diện",
+    "lightMode": "Chế độ sáng",
+    "darkMode": "Chế độ tối",
+    "themeHelp": "Chuyển đổi giữa giao diện sáng và tối",
+    "languageUpdated": "Đã cập nhật ngôn ngữ",
+    "languageUpdateError": "Cập nhật ngôn ngữ thất bại",
+    "tabList": "Danh sách tab cài đặt",
+    "changePassword": "Đổi mật khẩu",
+    "currentPassword": "Mật khẩu hiện tại",
+    "newPassword": "Mật khẩu mới",
+    "confirmNewPassword": "Xác nhận mật khẩu mới",
+    "enterCurrentPassword": "Nhập mật khẩu hiện tại",
+    "enterNewPassword": "Nhập mật khẩu mới",
+    "confirmNewPasswordPlaceholder": "Nhập lại mật khẩu mới",
+    "passwordMismatch": "Mật khẩu không khớp",
+    "passwordTooShort": "Mật khẩu phải có ít nhất 8 ký tự",
+    "passwordMinLength": "Mật khẩu phải có ít nhất 8 ký tự",
+    "passwordChanged": "Đổi mật khẩu thành công",
+    "passwordChangeError": "Đổi mật khẩu thất bại",
+    "saveSuccess": "Lưu thành công",
+    "saveError": "Lưu thất bại",
+    "loadError": "Tải thất bại",
+    "seconds": "giây",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu"
   }
 }

@@ -43,7 +43,9 @@
     "nextPage": "Halaman Selanjutnya"
   },
   "header": {
-    "logout": "Keluar"
+    "logout": "Keluar",
+    "userCenter": "Pusat Pengguna",
+    "settings": "Pengaturan"
   },
   "providerForm": {
     "selectProvider": "Pilih Penyedia",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Disalin ke clipboard",
       "copyFailed": "Gagal menyalin, silakan salin secara manual"
     }
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "general": "Umum",
+    "security": "Keamanan",
+    "system": "Sistem",
+    "generalSettings": "Pengaturan Umum",
+    "language": "Bahasa",
+    "theme": "Tema",
+    "lightMode": "Mode Terang",
+    "darkMode": "Mode Gelap",
+    "themeHelp": "Beralih antara tema terang dan gelap",
+    "languageUpdated": "Bahasa diperbarui",
+    "languageUpdateError": "Gagal memperbarui bahasa",
+    "tabList": "Daftar Tab Pengaturan",
+    "changePassword": "Ubah Kata Sandi",
+    "currentPassword": "Kata Sandi Saat Ini",
+    "newPassword": "Kata Sandi Baru",
+    "confirmNewPassword": "Konfirmasi Kata Sandi Baru",
+    "enterCurrentPassword": "Masukkan kata sandi saat ini",
+    "enterNewPassword": "Masukkan kata sandi baru",
+    "confirmNewPasswordPlaceholder": "Masukkan kata sandi baru lagi",
+    "passwordMismatch": "Kata sandi tidak cocok",
+    "passwordTooShort": "Kata sandi minimal 8 karakter",
+    "passwordMinLength": "Kata sandi minimal 8 karakter",
+    "passwordChanged": "Kata sandi berhasil diubah",
+    "passwordChangeError": "Gagal mengubah kata sandi",
+    "saveSuccess": "Berhasil disimpan",
+    "saveError": "Gagal menyimpan",
+    "loadError": "Gagal memuat",
+    "seconds": "detik",
+    "showPassword": "Tampilkan kata sandi",
+    "hidePassword": "Sembunyikan kata sandi"
   }
 }

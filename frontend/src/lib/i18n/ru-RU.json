@@ -43,7 +43,9 @@
     "nextPage": "Следующая страница"
   },
   "header": {
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "userCenter": "Пользовательский центр",
+    "settings": "Настройки"
   },
   "providerForm": {
     "selectProvider": "Выберите провайдера",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "Скопировано в буфер обмена",
       "copyFailed": "Не удалось скопировать, пожалуйста, скопируйте вручную"
     }
+  },
+  "settings": {
+    "title": "Настройки",
+    "general": "Основные",
+    "security": "Безопасность",
+    "system": "Система",
+    "generalSettings": "Основные настройки",
+    "language": "Язык",
+    "theme": "Тема",
+    "lightMode": "Светлый режим",
+    "darkMode": "Темный режим",
+    "themeHelp": "Переключение между светлой и темной темой",
+    "languageUpdated": "Язык обновлен",
+    "languageUpdateError": "Не удалось обновить язык",
+    "tabList": "Вкладки настроек",
+    "changePassword": "Изменить пароль",
+    "currentPassword": "Текущий пароль",
+    "newPassword": "Новый пароль",
+    "confirmNewPassword": "Подтвердить новый пароль",
+    "enterCurrentPassword": "Введите текущий пароль",
+    "enterNewPassword": "Введите новый пароль",
+    "confirmNewPasswordPlaceholder": "Повторите новый пароль",
+    "passwordMismatch": "Пароли не совпадают",
+    "passwordTooShort": "Пароль должен содержать не менее 8 символов",
+    "passwordMinLength": "Пароль должен содержать не менее 8 символов",
+    "passwordChanged": "Пароль успешно изменен",
+    "passwordChangeError": "Не удалось изменить пароль",
+    "saveSuccess": "Успешно сохранено",
+    "saveError": "Ошибка сохранения",
+    "loadError": "Ошибка загрузки",
+    "seconds": "секунд",
+    "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль"
   }
 }

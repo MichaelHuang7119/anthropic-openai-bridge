@@ -169,6 +169,7 @@ class DatabaseCore:
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 name TEXT,
+                language TEXT DEFAULT 'en-US',
                 is_admin BOOLEAN DEFAULT 1,
                 is_active BOOLEAN DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -181,6 +182,13 @@ class DatabaseCore:
             CREATE INDEX IF NOT EXISTS idx_users_email
             ON users(email)
         """)
+
+        # 检查并添加 language 字段（如果不存在）
+        await cursor.execute("PRAGMA table_info(users)")
+        columns = [row['name'] for row in await cursor.fetchall()]
+        if 'language' not in columns:
+            await cursor.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en-US'")
+            logger.info("Added language column to users table")
 
         # Create api_keys table for API key management
         await cursor.execute("""

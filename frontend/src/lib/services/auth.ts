@@ -179,6 +179,35 @@ class AuthService {
       return null;
     }
   }
+
+  /**
+   * 修改密码
+   */
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const response = await fetch("/api/auth/change-password", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "Password change failed" }));
+      throw new Error(
+        error.detail || error.message || "Password change failed",
+      );
+    }
+  }
 }
 
 export const authService = new AuthService();

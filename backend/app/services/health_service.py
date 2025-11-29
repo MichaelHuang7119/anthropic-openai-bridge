@@ -9,6 +9,7 @@ from ..core import MessagesRequest, Message, MessageRole
 from ..services.message_service import MessageService
 from ..infrastructure import get_circuit_breaker_registry
 from ..services.config_service import ConfigService
+from ..database.health_history import HealthHistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +17,17 @@ logger = logging.getLogger(__name__)
 class HealthService:
     """Service for checking provider health status."""
 
-    def __init__(self, message_service: MessageService):
+    def __init__(self, message_service: MessageService, health_history_manager: Optional[HealthHistoryManager] = None):
         """
         Initialize health service.
 
         Args:
             message_service: MessageService instance for testing providers.
+            health_history_manager: HealthHistoryManager instance for database operations.
         """
         self.message_service = message_service
         self.config_service = ConfigService()
+        self.health_history_manager = health_history_manager
 
     async def check_provider_health(
         self,
@@ -316,4 +319,118 @@ class HealthService:
             logger.error(f"Failed to get provider health status: {e}")
             from fastapi import HTTPException
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def save_health_status_to_db(self, health_data: Dict[str, Any]) -> None:
+        """
+        Save health check results to database.
+
+        Args:
+            health_data: Health status data from get_all_health_status()
+        """
+        if not self.health_history_manager:
+            logger.warning("HealthHistoryManager not available, skipping database save")
+            return
+
+        try:
+            providers = health_data.get("providers", [])
+            for provider in providers:
+                provider_name = provider.get("name")
+                healthy = provider.get("healthy", False)
+                response_time = provider.get("responseTime")
+                error = provider.get("error")
+
+                status = "healthy" if healthy else "unhealthy"
+                await self.health_history_manager.log_health_status(
+                    provider_name=provider_name,
+                    status=status,
+                    response_time_ms=response_time,
+                    error_message=error
+                )
+            logger.info("Health status saved to database")
+        except Exception as e:
+            logger.error(f"Failed to save health status to database: {e}")
+
+    async def get_latest_health_from_db(self) -> Optional[Dict[str, Any]]:
+        """
+        Get the latest health check results from database.
+
+        Returns:
+            Health status data in the same format as get_all_health_status() or None if not available.
+        """
+        if not self.health_history_manager:
+            return None
+
+        try:
+            # Get the latest health history for each provider
+            history = await self.health_history_manager.get_health_history(limit=1000)
+
+            if not history:
+                return None
+
+            # Group by provider and get the latest entry
+            latest_by_provider = {}
+            for entry in history:
+                provider_name = entry.get("provider_name")
+                if provider_name not in latest_by_provider:
+                    latest_by_provider[provider_name] = entry
+                else:
+                    # Keep the latest (checked_at is already sorted DESC in the query)
+                    pass
+
+            # Build provider health data
+            provider_health_list = []
+            config = self.config_service.load_config()
+            providers_config = {p.get("name"): p for p in config.get("providers", [])}
+
+            for provider_name, entry in latest_by_provider.items():
+                provider_config = providers_config.get(provider_name, {})
+                if not provider_config:
+                    continue
+
+                status = entry.get("status", "unhealthy")
+                healthy = status == "healthy"
+
+                provider_health_list.append({
+                    "name": provider_name,
+                    "api_format": provider_config.get("api_format", "openai"),
+                    "healthy": healthy,
+                    "enabled": provider_config.get("enabled", True),
+                    "priority": provider_config.get("priority", 1),
+                    "lastCheck": entry.get("checked_at"),
+                    "responseTime": entry.get("response_time_ms"),
+                    "error": entry.get("error_message"),
+                    "categories": {}
+                })
+
+            # Calculate overall status
+            enabled_providers = [h for h in provider_health_list if h.get("enabled", True)]
+            if not enabled_providers:
+                overall_status = "error"
+            else:
+                healthy_providers = [h for h in enabled_providers if h["healthy"] is True]
+                unhealthy_providers = [h for h in enabled_providers if h["healthy"] is False]
+
+                if len(healthy_providers) == len(enabled_providers) and len(unhealthy_providers) == 0:
+                    overall_status = "healthy"
+                elif len(healthy_providers) > 0 and len(unhealthy_providers) > 0:
+                    overall_status = "partial"
+                elif len(unhealthy_providers) == len(enabled_providers) and len(healthy_providers) == 0:
+                    overall_status = "unhealthy"
+                else:
+                    overall_status = "error"
+
+            # Get the most recent timestamp
+            latest_timestamp = max(
+                [entry.get("checked_at") for entry in latest_by_provider.values() if entry.get("checked_at")],
+                default=None
+            )
+
+            return {
+                "status": overall_status,
+                "timestamp": latest_timestamp or datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                "providers": provider_health_list
+            }
+        except Exception as e:
+            logger.error(f"Failed to get health data from database: {e}")
+            return None
 

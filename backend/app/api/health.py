@@ -28,7 +28,10 @@ async def get_all_health():
     """获取所有供应商健康状态，包括每个类别的健康状态"""
     try:
         health_service = get_health_service()
-        return await health_service.get_all_health_status()
+        health_data = await health_service.get_all_health_status()
+        # Save health status to database after getting the data
+        await health_service.save_health_status_to_db(health_data)
+        return health_data
     except Exception as e:
         from datetime import datetime, timezone
         return {
@@ -37,6 +40,33 @@ async def get_all_health():
             "error": str(e),
             "providers": []
         }
+
+
+@router.get("/latest")
+async def get_latest_health():
+    """从数据库获取最新的健康检查结果（不进行新的检查）"""
+    try:
+        health_service = get_health_service()
+        health_data = await health_service.get_latest_health_from_db()
+        if health_data:
+            return health_data
+        else:
+            from datetime import datetime, timezone
+            return {
+                "status": "not_checked",
+                "timestamp": datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                "message": "No health check data available. Please perform a health check first.",
+                "providers": []
+            }
+    except Exception as e:
+        from datetime import datetime, timezone
+        return {
+            "status": "error",
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec='seconds'),
+            "error": str(e),
+            "providers": []
+        }
+
 
 
 @router.get("/{name}")

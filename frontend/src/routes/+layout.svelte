@@ -17,8 +17,8 @@
     { href: '/', label: 'nav.home' },
     { href: '/chat', label: 'nav.chat' },
     { href: '/providers', label: 'nav.providers' },
-    { href: '/health', label: 'nav.health' },
     { href: '/config', label: 'nav.config' },
+    { href: '/health', label: 'nav.health' },
     { href: '/stats', label: 'nav.stats' },
     { href: '/api-keys', label: 'nav.apiKeys' }
   ];
@@ -32,9 +32,11 @@
   }
 
   // 初始化主题和语言，以及认证检查
-  onMount(() => {
+  onMount(async () => {
     theme.init();
-    language.init();
+
+    // 初始化语言设置（会尝试从后端获取，如果已登录的话）
+    await language.init();
 
     // 注册 Service Worker for PWA
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -46,7 +48,7 @@
           console.error('Service Worker registration failed:', error);
         });
     }
-    
+
     // 检查认证状态（排除登录页）
     if ($page.url.pathname !== '/login' && !authService.isAuthenticated()) {
       goto('/login');
@@ -137,18 +139,30 @@
   .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.375rem;
     border-radius: 0.25rem;
     transition: all 0.2s;
     border-bottom: 2px solid transparent;
+    font-size: 0.875rem;
     white-space: nowrap;
-    font-size: 0.95rem;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   @media (max-width: 1200px) {
     .nav-link {
-      padding: 0.5rem 0.5rem;
-      font-size: 0.9rem;
+      padding: 0.5rem 0.25rem;
+      font-size: 0.8125rem;
+      max-width: 95px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .nav-link {
+      padding: 0.5rem 0.1875rem;
+      font-size: 0.78125rem;
+      max-width: 85px;
     }
   }
 
@@ -166,15 +180,17 @@
 
   @media (max-width: 768px) {
     .nav-link {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
+      padding: 0.5rem 0.375rem;
+      font-size: 0.8125rem;
+      max-width: 100px;
     }
   }
 
   @media (max-width: 480px) {
     .nav-link {
-      padding: 0.5rem 0.5rem;
-      font-size: 0.8125rem;
+      padding: 0.5rem 0.25rem;
+      font-size: 0.78125rem;
+      max-width: 90px;
     }
   }
 </style>

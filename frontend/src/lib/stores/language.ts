@@ -1,5 +1,8 @@
 import { writable, derived } from "svelte/store";
-// import { browser } from "$app/environment";
+import { browser } from "$app/environment";
+import { preferencesService } from "$services/preferences";
+import type { Language } from "$types/language";
+import { authService } from "$services/auth";
 
 // 导入翻译数据
 import zhCn from "../i18n/zh-CN.json";
@@ -19,25 +22,9 @@ import thTh from "../i18n/th-TH.json";
 import viVn from "../i18n/vi-VN.json";
 import idId from "../i18n/id-ID.json";
 
-export type Language =
-  | "zh-CN"
-  | "en-US"
-  | "ja-JP"
-  | "ko-KR"
-  | "fr-FR"
-  | "es-ES"
-  | "de-DE"
-  | "ru-RU"
-  | "pt-BR"
-  | "it-IT"
-  | "nl-NL"
-  | "ar-SA"
-  | "hi-IN"
-  | "th-TH"
-  | "vi-VN"
-  | "id-ID";
-
 // 支持的语言配置
+export { type Language } from "$types/language";
+
 export const languages: Record<Language, string> = {
   "zh-CN": "中文",
   "en-US": "English",
@@ -58,7 +45,7 @@ export const languages: Record<Language, string> = {
 };
 
 // 默认语言
-const DEFAULT_LANGUAGE: Language = "zh-CN";
+const DEFAULT_LANGUAGE: Language = "en-US";
 
 // 翻译数据存储
 const translations: Record<Language, any> = {
@@ -134,42 +121,8 @@ const getInitialLanguage = (): Language => {
       return stored;
     }
 
-    // 备用方案：检测浏览器语言
-    const browserLang =
-      typeof navigator !== "undefined" ? navigator.language : "";
-    if (browserLang.startsWith("zh")) {
-      return "zh-CN";
-    } else if (browserLang.startsWith("en")) {
-      return "en-US";
-    } else if (browserLang.startsWith("ja")) {
-      return "ja-JP";
-    } else if (browserLang.startsWith("ko")) {
-      return "ko-KR";
-    } else if (browserLang.startsWith("fr")) {
-      return "fr-FR";
-    } else if (browserLang.startsWith("es")) {
-      return "es-ES";
-    } else if (browserLang.startsWith("de")) {
-      return "de-DE";
-    } else if (browserLang.startsWith("ru")) {
-      return "ru-RU";
-    } else if (browserLang.startsWith("pt")) {
-      return "pt-BR";
-    } else if (browserLang.startsWith("it")) {
-      return "it-IT";
-    } else if (browserLang.startsWith("nl")) {
-      return "nl-NL";
-    } else if (browserLang.startsWith("ar")) {
-      return "ar-SA";
-    } else if (browserLang.startsWith("hi")) {
-      return "hi-IN";
-    } else if (browserLang.startsWith("th")) {
-      return "th-TH";
-    } else if (browserLang.startsWith("vi")) {
-      return "vi-VN";
-    } else if (browserLang.startsWith("id")) {
-      return "id-ID";
-    }
+    // 不再自动检测浏览器语言
+    // 清除缓存后应使用默认语言，而不是根据浏览器语言自动切换
   }
 
   // 如果没有设置，返回默认语言
@@ -209,37 +162,53 @@ languageStore.set(initialLanguage);
 // 导出tStore以供组件直接使用
 export { tStore };
 
+// 应用语言到文档
+function applyLanguage(language: Language) {
+  if (typeof document !== "undefined") {
+    localStorage.setItem("language", language);
+    document.documentElement.setAttribute("data-language", language);
+    const langMap: Record<Language, string> = {
+      "zh-CN": "zh-CN",
+      "en-US": "en",
+      "ja-JP": "ja",
+      "ko-KR": "ko",
+      "fr-FR": "fr",
+      "es-ES": "es",
+      "de-DE": "de",
+      "ru-RU": "ru",
+      "pt-BR": "pt-BR",
+      "it-IT": "it",
+      "nl-NL": "nl",
+      "ar-SA": "ar",
+      "hi-IN": "hi",
+      "th-TH": "th",
+      "vi-VN": "vi",
+      "id-ID": "id",
+    };
+    document.documentElement.lang = langMap[language] || "en";
+  }
+}
+
 // 导出language对象
 export const language = {
   subscribe: languageStore.subscribe,
-  set: (language: Language) => {
-    if (typeof document !== "undefined") {
-      localStorage.setItem("language", language);
-      document.documentElement.setAttribute("data-language", language);
-      const langMap: Record<Language, string> = {
-        "zh-CN": "zh-CN",
-        "en-US": "en",
-        "ja-JP": "ja",
-        "ko-KR": "ko",
-        "fr-FR": "fr",
-        "es-ES": "es",
-        "de-DE": "de",
-        "ru-RU": "ru",
-        "pt-BR": "pt-BR",
-        "it-IT": "it",
-        "nl-NL": "nl",
-        "ar-SA": "ar",
-        "hi-IN": "hi",
-        "th-TH": "th",
-        "vi-VN": "vi",
-        "id-ID": "id",
-      };
-      document.documentElement.lang = langMap[language] || "en";
-    }
+  set: async (language: Language) => {
+    // 首先更新前端
+    applyLanguage(language);
     languageStore.set(language);
+
+    // 然后更新到后端（如果已登录）
+    if (browser && authService.isAuthenticated()) {
+      try {
+        await preferencesService.updateLanguage(language);
+      } catch (error) {
+        console.error("Failed to update language preference:", error);
+        // 即使后端更新失败，也保持前端的语言设置
+      }
+    }
   },
   // 循环切换语言（保持原有逻辑）
-  toggle: () => {
+  toggle: async () => {
     const languageOrder: Language[] = [
       "zh-CN",
       "en-US",
@@ -258,63 +227,46 @@ export const language = {
       "vi-VN",
       "id-ID",
     ];
-    languageStore.update((current) => {
-      const currentIndex = languageOrder.indexOf(current);
-      const nextIndex = (currentIndex + 1) % languageOrder.length;
-      const newLanguage = languageOrder[nextIndex];
-      if (typeof document !== "undefined") {
-        localStorage.setItem("language", newLanguage);
-        document.documentElement.setAttribute("data-language", newLanguage);
-        const langMap: Record<Language, string> = {
-          "zh-CN": "zh-CN",
-          "en-US": "en",
-          "ja-JP": "ja",
-          "ko-KR": "ko",
-          "fr-FR": "fr",
-          "es-ES": "es",
-          "de-DE": "de",
-          "ru-RU": "ru",
-          "pt-BR": "pt-BR",
-          "it-IT": "it",
-          "nl-NL": "nl",
-          "ar-SA": "ar",
-          "hi-IN": "hi",
-          "th-TH": "th",
-          "vi-VN": "vi",
-          "id-ID": "id",
-        };
-        document.documentElement.lang = langMap[newLanguage] || "en";
-      }
-      return newLanguage;
-    });
+    const currentLang = getCurrentLanguage();
+    const currentIndex = languageOrder.indexOf(currentLang);
+    const nextIndex = (currentIndex + 1) % languageOrder.length;
+    const newLanguage = languageOrder[nextIndex];
+
+    // 使用 set 方法，会自动处理前端和后端更新
+    await language.set(newLanguage);
   },
   // 初始化语言
-  init: () => {
-    const language = getInitialLanguage();
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-language", language);
-      const langMap: Record<Language, string> = {
-        "zh-CN": "zh-CN",
-        "en-US": "en",
-        "ja-JP": "ja",
-        "ko-KR": "ko",
-        "fr-FR": "fr",
-        "es-ES": "es",
-        "de-DE": "de",
-        "ru-RU": "ru",
-        "pt-BR": "pt-BR",
-        "it-IT": "it",
-        "nl-NL": "nl",
-        "ar-SA": "ar",
-        "hi-IN": "hi",
-        "th-TH": "th",
-        "vi-VN": "vi",
-        "id-ID": "id",
-      };
-      document.documentElement.lang = langMap[language] || "en";
+  init: async () => {
+    let language = getInitialLanguage();
+
+    // 如果已登录，尝试从后端获取语言设置
+    if (browser && authService.isAuthenticated()) {
+      try {
+        const response = await preferencesService.getLanguage();
+        if (response.language && languages[response.language as Language]) {
+          language = response.language as Language;
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load language preference from backend:",
+          error,
+        );
+        // 如果后端加载失败，使用本地存储的语言
+      }
     }
+
+    applyLanguage(language);
     languageStore.set(language);
   },
   // 获取翻译文本
   t: tStore,
 };
+
+// 获取当前语言
+function getCurrentLanguage(): Language {
+  let currentLang: Language = DEFAULT_LANGUAGE;
+  languageStore.subscribe((lang) => {
+    currentLang = lang;
+  })();
+  return currentLang;
+}

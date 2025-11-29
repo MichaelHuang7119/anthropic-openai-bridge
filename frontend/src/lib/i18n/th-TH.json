@@ -43,7 +43,9 @@
     "nextPage": "หน้าถัดไป"
   },
   "header": {
-    "logout": "ออกจากระบบ"
+    "logout": "ออกจากระบบ",
+    "userCenter": "ศูนย์ผู้ใช้",
+    "settings": "การตั้งค่า"
   },
   "providerForm": {
     "selectProvider": "เลือกผู้ให้บริการ",
@@ -530,5 +532,38 @@
       "copiedToClipboard": "คัดลอกไปยังคลิปบอร์ดแล้ว",
       "copyFailed": "คัดลอกไม่สำเร็จ กรุณาคัดลอกด้วยตนเอง"
     }
+  },
+  "settings": {
+    "title": "การตั้งค่า",
+    "general": "ทั่วไป",
+    "security": "ความปลอดภัย",
+    "system": "ระบบ",
+    "generalSettings": "การตั้งค่าทั่วไป",
+    "language": "ภาษา",
+    "theme": "ธีม",
+    "lightMode": "โหมดสว่าง",
+    "darkMode": "โหมดมืด",
+    "themeHelp": "สลับระหว่างธีมสว่างและมืด",
+    "languageUpdated": "อัปเดตภาษาแล้ว",
+    "languageUpdateError": "อัปเดตภาษาไม่สำเร็จ",
+    "tabList": "รายการแท็บการตั้งค่า",
+    "changePassword": "เปลี่ยนรหัสผ่าน",
+    "currentPassword": "รหัสผ่านปัจจุบัน",
+    "newPassword": "รหัสผ่านใหม่",
+    "confirmNewPassword": "ยืนยันรหัสผ่านใหม่",
+    "enterCurrentPassword": "ใส่รหัสผ่านปัจจุบัน",
+    "enterNewPassword": "ใส่รหัสผ่านใหม่",
+    "confirmNewPasswordPlaceholder": "ใส่รหัสผ่านใหม่อีกครั้ง",
+    "passwordMismatch": "รหัสผ่านไม่ตรงกัน",
+    "passwordTooShort": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+    "passwordMinLength": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+    "passwordChanged": "เปลี่ยนรหัสผ่านสำเร็จ",
+    "passwordChangeError": "เปลี่ยนรหัสผ่านไม่สำเร็จ",
+    "saveSuccess": "บันทึกสำเร็จ",
+    "saveError": "บันทึกไม่สำเร็จ",
+    "loadError": "โหลดไม่สำเร็จ",
+    "seconds": "วินาที",
+    "showPassword": "แสดงรหัสผ่าน",
+    "hidePassword": "ซ่อนรหัสผ่าน"
   }
 }

@@ -7,6 +7,10 @@ export const healthService = {
     return apiClient.get<HealthStatus>("/api/health", options);
   },
 
+  async getLatest(options?: RequestOptions): Promise<HealthStatus> {
+    return apiClient.get<HealthStatus>("/api/health/latest", options);
+  },
+
   async getProvider(name: string): Promise<ProviderHealth> {
     return apiClient.get<ProviderHealth>(
       `/api/health/${encodeURIComponent(name)}`,
