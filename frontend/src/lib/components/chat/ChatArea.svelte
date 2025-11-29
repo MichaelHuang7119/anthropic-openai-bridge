@@ -407,7 +407,7 @@
             role: "assistant",
             content: streamingMessage || "",
             thinking: streamingThinking || undefined,
-            model: selectedModel || conversation?.model || null,
+            model: (selectedModel?.model || selectedModelName) || conversation?.model || null,
             input_tokens: null,
             output_tokens: null,
             created_at: new Date().toISOString(),
