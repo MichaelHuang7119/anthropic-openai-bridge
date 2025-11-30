@@ -424,7 +424,7 @@ Using SQLite database to store all data:
 
 ## 📝 Latest Updates
 
-### v1.6.0 (2025-01-29) - Comprehensive internationalization and user experience improvements
+### v1.6.0 (2025-11-29) - Comprehensive internationalization and user experience improvements
 
 #### 🌐 Complete Internationalization Support
 

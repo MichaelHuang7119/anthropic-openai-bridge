@@ -271,7 +271,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## 📝 Changelog
 
-### v1.6.0 (2025-01-29) - Comprehensive internationalization and user experience improvements
+### v1.6.0 (2025-11-29) - Comprehensive internationalization and user experience improvements
 
 - **16 Language Support Added**: Chinese, English, 日本語, 한국어, Français, Español, Deutsch, Русский, Português, Italiano, Nederlands, العربية, हिन्दी, ไทย, Tiếng Việt, Bahasa Indonesia
 - **Smart Language Switching**: One-click language switching in top navigation bar, automatically remembers user preferences
