@@ -45,7 +45,7 @@ class EncryptionManager:
                 key_file.parent.mkdir(parents=True, exist_ok=True)
                 with open(key_file, 'wb') as f:
                     f.write(encryption_key)
-                os.chmod(key_file, 0o600)
+                os.chmod(key_file, 0o666)
                 return encryption_key
         else:
             # 生成新密钥
@@ -55,8 +55,8 @@ class EncryptionManager:
             # 保存密钥文件
             with open(key_file, 'wb') as f:
                 f.write(encryption_key)
-            # 设置文件权限（仅所有者可读写）
-            os.chmod(key_file, 0o600)
+            # 设置文件权限
+            os.chmod(key_file, 0o666)
             logger.warning(
                 f"Generated new encryption key at {key_file}. "
                 "For production, set ENCRYPTION_KEY environment variable."

@@ -99,6 +99,10 @@
 
   async function handleConversationSelected(event: CustomEvent) {
     const conversation = event.detail.conversation;
+    if (!conversation) {
+      currentConversation = null;
+      return;
+    }
     await selectConversation(conversation);
   }
 

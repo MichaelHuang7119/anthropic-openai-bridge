@@ -73,7 +73,7 @@ fi
 # 启动前端
 echo ""
 echo "📱 启动前端开发服务器 (端口 5173)..."
-cd "$(dirname "$0")/frontend"
+cd "../frontend"
 if [ ! -f "start.sh" ]; then
     echo "❌ 错误: 未找到前端启动脚本"
     exit 1

@@ -252,7 +252,6 @@
 
       if (currentConversationId === conversationId) {
         currentConversationId = null;
-        dispatch("conversationSelected", { conversation: null as any });
       }
     } catch (err) {
       console.error("Failed to delete conversation:", err);
