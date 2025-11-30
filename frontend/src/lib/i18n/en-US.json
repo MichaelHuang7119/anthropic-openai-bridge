@@ -160,6 +160,22 @@
     "welcomeTitle": "Welcome to AI Chat",
     "welcomeDescription": "Select a conversation on the left to start chatting, or create a new conversation"
   },
+  "welcome": {
+    "title": "Welcome to Anthropic OpenAI Bridge",
+    "projectDescription": "A powerful bridge service that connects Claude and other AI providers, enabling unified API access and intelligent fallback mechanisms for seamless AI integration.",
+    "feature1": "Unified API access to multiple AI providers (Claude, OpenAI, etc.)",
+    "feature2": "Intelligent provider fallback and circuit breaker protection",
+    "feature3": "Real-time health monitoring and performance statistics",
+    "feature4": "Multi-language support (16 languages) and dark/light themes",
+    "quickStartTitle": "Quick Start Guide",
+    "step1Title": "Configure Providers",
+    "step1Desc": "Go to Providers page to add your AI providers (Claude, OpenAI, etc.) with API keys",
+    "step2Title": "Create API Keys",
+    "step2Desc": "Generate API keys for your applications in the API Keys management page",
+    "step3Title": "Start Chatting",
+    "step3Desc": "Go to Chat page to start your AI conversation",
+    "getStarted": "Get Started"
+  },
   "login": {
     "title": "Login",
     "subtitle": "Admin Portal",

@@ -143,8 +143,12 @@ class AuthService {
    * 登出
    */
   logout(): void {
+    // 清除认证信息
     this.clearToken();
+
+    // 清除欢迎弹窗标记，这样下次登录时就会重新显示
     if (browser) {
+      localStorage.removeItem("welcome_shown");
       goto("/login");
     }
   }

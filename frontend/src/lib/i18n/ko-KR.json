@@ -568,5 +568,21 @@
     "searchLanguage": "언어 검색...",
     "noLanguagesFound": "일치하는 언어를 찾을 수 없습니다",
     "languages": "언어"
+  },
+  "welcome": {
+    "title": "Anthropic OpenAI Bridge 에 오신 것을 환영합니다",
+    "projectDescription": "Claude 및 기타 AI 제공자를 연결하는 강력한 브리지 서비스로, 통합 API 액세스와 지능형 폴백 메커니즘을 제공하여 원활한 AI 통합을 가능하게 합니다.",
+    "feature1": "여러 AI 제공자(Claude, OpenAI 등)에 대한 통합 API 액세스",
+    "feature2": "지능형 제공자 폴백 및 회로 차단기 보호",
+    "feature3": "실시간 건강 모니터링 및 성능 통계",
+    "feature4": "다국어 지원(16개 언어) 및 다크/라이트 테마",
+    "quickStartTitle": "빠른 시작 가이드",
+    "step1Title": "제공자 구성",
+    "step1Desc": "제공자 페이지로 이동하여 AI 제공자(Claude, OpenAI 등)와 API 키를 추가하세요",
+    "step2Title": "API 키 생성",
+    "step2Desc": "API 키 관리 페이지에서 애플리케이션용 API 키를 생성하세요",
+    "step3Title": "채팅 시작",
+    "step3Desc": "채팅 페이지로 이동하여 AI 대화를 시작하세요",
+    "getStarted": "시작하기"
   }
 }

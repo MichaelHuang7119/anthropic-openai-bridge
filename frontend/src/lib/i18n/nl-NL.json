@@ -568,5 +568,21 @@
     "searchLanguage": "Zoeken naar talen...",
     "noLanguagesFound": "Geen talen gevonden",
     "languages": "talen"
+  },
+  "welcome": {
+    "title": "Welkom bij Anthropic OpenAI Bridge",
+    "projectDescription": "Een krachtige bridgeservice die Claude en andere AI-providers verbindt, met uniforme API-toegang en intelligente fallback-mechanismen voor naadloze AI-integratie.",
+    "feature1": "Uniforme API-toegang tot meerdere AI-providers (Claude, OpenAI, enz.)",
+    "feature2": "Intelligente provider fallback en circuit breaker beveiliging",
+    "feature3": "Real-time gezondheidsmonitoring en prestatiestatistieken",
+    "feature4": "Meertalige ondersteuning (16 talen) en donkere/lichte thema's",
+    "quickStartTitle": "Snelstartgids",
+    "step1Title": "Providers configureren",
+    "step1Desc": "Ga naar de Providers pagina om uw AI-providers (Claude, OpenAI, etc.) toe te voegen met API-sleutels",
+    "step2Title": "API-sleutels maken",
+    "step2Desc": "Genereer API-sleutels voor uw applicaties op de API-sleutel beheerpagina",
+    "step3Title": "Chatten starten",
+    "step3Desc": "Ga naar de Chat pagina om uw AI-gesprek te starten",
+    "getStarted": "Aan de slag"
   }
 }

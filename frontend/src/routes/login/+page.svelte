@@ -47,9 +47,12 @@
       }
 
       toast.success(t('login.loginSuccess'));
-      // 使用 replace 而不是 push，避免返回登录页
-      // 添加短暂延迟确保状态已更新
-      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // 等待一小段时间确保 localStorage 写入完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 登录成功后跳转到首页，欢迎弹窗会在首页显示
+      console.log('[Login] Redirecting to home page');
       await goto('/');
     } catch (error) {
       const message = error instanceof Error ? error.message : t('login.checkCredentials');

@@ -568,5 +568,21 @@
     "searchLanguage": "言語を検索...",
     "noLanguagesFound": "一致する言語が見つかりません",
     "languages": "言語"
+  },
+  "welcome": {
+    "title": "Anthropic OpenAI Bridge へようこそ",
+    "projectDescription": "Claude と他の AI プロバイダーを接続する強力な橋渡しサービス。統一された API アクセスとインテリジェントなフォールバックメカニズムを提供し、シームレスな AI 統合を実現します。",
+    "feature1": "複数の AI プロバイダー（Claude、OpenAI など）への統一 API アクセス",
+    "feature2": "インテリジェントなプロバイダーフォールバックとサーキットブレーカー保護",
+    "feature3": "リアルタイム健康監視とパフォーマンス統計",
+    "feature4": "多言語サポート（16言語）とダーク/ライトテーマ",
+    "quickStartTitle": "クイックスタートガイド",
+    "step1Title": "プロバイダーの構成",
+    "step1Desc": "プロバイダーページに移動して、AI プロバイダー（Claude、OpenAI など）と API キーを追加します",
+    "step2Title": "API キーの作成",
+    "step2Desc": "API キーマネジメントページでアプリケーション用の API キーを生成します",
+    "step3Title": "チャットの開始",
+    "step3Desc": "チャットページに移動して AI 会話を開始します",
+    "getStarted": "始める"
   }
 }

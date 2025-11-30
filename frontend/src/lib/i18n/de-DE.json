@@ -568,5 +568,21 @@
     "searchLanguage": "Sprachen suchen...",
     "noLanguagesFound": "Keine Sprachen gefunden",
     "languages": "Sprachen"
+  },
+  "welcome": {
+    "title": "Willkommen bei Anthropic OpenAI Bridge",
+    "projectDescription": "Ein leistungsstarker Bridge-Service, der Claude und andere KI-Anbieter verbindet und einheitlichen API-Zugriff sowie intelligente Fallback-Mechanismen für nahtlose KI-Integration ermöglicht.",
+    "feature1": "Einheitlicher API-Zugang zu mehreren KI-Anbietern (Claude, OpenAI, etc.)",
+    "feature2": "Intelligenter Anbieter-Fallback und Schutzschalter-Schutz",
+    "feature3": "Echtzeit-Gesundheitsüberwachung und Leistungsstatistiken",
+    "feature4": "Mehrsprachige Unterstützung (16 Sprachen) und dunkle/helle Themen",
+    "quickStartTitle": "Schnellstart-Anleitung",
+    "step1Title": "Anbieter konfigurieren",
+    "step1Desc": "Gehen Sie zur Anbieter-Seite, um Ihre KI-Anbieter (Claude, OpenAI, etc.) mit API-Schlüsseln hinzuzufügen",
+    "step2Title": "API-Schlüssel erstellen",
+    "step2Desc": "Generieren Sie API-Schlüssel für Ihre Anwendungen auf der API-Schlüssel-Verwaltungsseite",
+    "step3Title": "Chatten beginnen",
+    "step3Desc": "Gehen Sie zur Chat-Seite, um Ihr KI-Gespräch zu beginnen",
+    "getStarted": "Loslegen"
   }
 }

@@ -568,5 +568,21 @@
     "searchLanguage": "Cari bahasa...",
     "noLanguagesFound": "Tidak ada bahasa yang ditemukan",
     "languages": "bahasa"
+  },
+  "welcome": {
+    "title": "Selamat datang di Anthropic OpenAI Bridge",
+    "projectDescription": "Layanan jembatan yang мощный yang menghubungkan Claude dan penyedia AI lainnya, memungkinkan akses API terpadu dan mekanisme fallback cerdas untuk integrasi AI yang mulus.",
+    "feature1": "Akses API terpadu ke beberapa penyedia AI (Claude, OpenAI, dll.)",
+    "feature2": "Fallback penyedia cerdas dan perlindungan pemutus sirkuit",
+    "feature3": "Pemantauan kesehatan waktu nyata dan statistik kinerja",
+    "feature4": "Dukungan multibahasa (16 bahasa) dan tema gelap/terang",
+    "quickStartTitle": "Panduan memulai cepat",
+    "step1Title": "Konfigurasi penyedia",
+    "step1Desc": "Buka halaman Penyedia untuk menambahkan penyedia AI (Claude, OpenAI, dll.) dengan kunci API",
+    "step2Title": "Buat kunci API",
+    "step2Desc": "Buat kunci API untuk aplikasi Anda di halaman manajemen kunci API",
+    "step3Title": "Mulai obrolan",
+    "step3Desc": "Buka halaman Chat untuk memulai percakapan AI Anda",
+    "getStarted": "Mulai"
   }
 }

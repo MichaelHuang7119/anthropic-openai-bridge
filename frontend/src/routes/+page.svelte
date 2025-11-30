@@ -5,6 +5,7 @@
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
+  import WelcomeModal from '$lib/components/WelcomeModal.svelte';
   import { providers, providerStats } from '$stores/providers';
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { providerService } from '$services/providers';
@@ -16,6 +17,37 @@
   let loading = $state(true);
   let currentUrl = $state('');
   let copySuccess = $state(false);
+  let showWelcome = $state(false);
+
+  // 检查是否需要显示欢迎弹窗 - 立即检查，不等待onMount
+  if (browser) {
+    const hasShownWelcome = localStorage.getItem('welcome_shown');
+    const token = localStorage.getItem('auth_token');
+
+    console.log('[Home] Initial check - hasShownWelcome:', hasShownWelcome, 'hasToken:', !!token);
+
+    if (!hasShownWelcome && token) {
+      console.log('[Home] Setting showWelcome to true (initial)');
+      showWelcome = true;
+    }
+  }
+
+  // 检查是否需要显示欢迎弹窗 - 在 effect 中再次检查
+  $effect(() => {
+    if (!browser) return;
+
+    const hasShownWelcome = localStorage.getItem('welcome_shown');
+    const token = localStorage.getItem('auth_token');
+
+    console.log('[Home] Effect check - hasShownWelcome:', hasShownWelcome, 'hasToken:', !!token, 'showWelcome:', showWelcome);
+
+    if (!hasShownWelcome && token && !showWelcome) {
+      console.log('[Home] Setting showWelcome to true (effect)');
+      showWelcome = true;
+    } else {
+      console.log('[Home] Not showing welcome modal - hasShownWelcome:', hasShownWelcome, 'token exists:', !!token);
+    }
+  });
 
   // 获取翻译函数和当前语言
   const t = $derived($tStore);
@@ -91,10 +123,10 @@
 
       // 加载供应商
       const providersData = await providerService.getAll({ signal: abortController.signal });
-      
+
       // 检查是否已被取消
       if (abortController.signal.aborted) return;
-      
+
       providers.set(providersData);
 
       // 不自动加载健康状态 - 仅在用户手动刷新时加载
@@ -196,7 +228,7 @@
 
 <div class="container">
 
-  {#if loading}
+{#if loading}
     <div class="loading">
       <p>{t('common.loading')}</p>
     </div>
@@ -415,6 +447,9 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     </div>
   {/if}
 </div>
+
+<!-- 欢迎弹窗 -->
+<WelcomeModal show={showWelcome} />
 
 <style>
   .loading {

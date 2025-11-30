@@ -5,6 +5,7 @@
     'aria-labelledby'?: string;
     role?: string;
     id?: string;
+    overflow?: 'hidden' | 'visible' | 'auto';
   }
 
   let {
@@ -12,11 +13,12 @@
     subtitle = '',
     'aria-labelledby': ariaLabelledby,
     role,
-    id
+    id,
+    overflow = 'hidden'
   }: Props = $props();
 </script>
 
-<div class="card" {...(role ? { role } : {})} {...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : {})} {...(id ? { id } : {})}>
+<div class="card" style="overflow: {overflow};" {...(role ? { role } : {})} {...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : {})} {...(id ? { id } : {})}>
   {#if title || $$slots.title || $$slots.titleActions}
     <div class="card-header">
       <div class="title-section">
@@ -52,7 +54,6 @@
     background: var(--card-bg, white);
     border: 1px solid var(--border-color, #e0e0e0);
     border-radius: 0.5rem;
-    overflow: hidden;
     box-shadow: var(--card-shadow, 0 2px 4px rgba(0, 0, 0, 0.1));
   }
 

@@ -568,5 +568,21 @@
     "searchLanguage": "Buscar idiomas...",
     "noLanguagesFound": "No se encontraron idiomas",
     "languages": "idiomas"
+  },
+  "welcome": {
+    "title": "Bienvenido a Anthropic OpenAI Bridge",
+    "projectDescription": "Un potente servicio puente que conecta Claude y otros proveedores de IA, permitiendo acceso API unificado y mecanismos de respaldo inteligentes para una integración de IA perfecta.",
+    "feature1": "Acceso API unificado a múltiples proveedores de IA (Claude, OpenAI, etc.)",
+    "feature2": "Respaldo inteligente de proveedor y protección de interruptor de circuito",
+    "feature3": "Monitoreo de salud en tiempo real y estadísticas de rendimiento",
+    "feature4": "Soporte multiidioma (16 idiomas) y temas oscuro/claro",
+    "quickStartTitle": "Guía de inicio rápido",
+    "step1Title": "Configurar proveedores",
+    "step1Desc": "Vaya a la página Proveedores para agregar sus proveedores de IA (Claude, OpenAI, etc.) con claves API",
+    "step2Title": "Crear claves API",
+    "step2Desc": "Genere claves API para sus aplicaciones en la página de gestión de claves API",
+    "step3Title": "Comenzar a chatear",
+    "step3Desc": "Vaya a la página Chat para comenzar su conversación de IA",
+    "getStarted": "Comenzar"
   }
 }

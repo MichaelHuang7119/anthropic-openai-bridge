@@ -162,6 +162,22 @@
     "welcomeTitle": "欢迎使用 AI 聊天",
     "welcomeDescription": "选择左侧的对话开始聊天，或创建新对话"
   },
+  "welcome": {
+    "title": "欢迎使用 Anthropic OpenAI Bridge",
+    "projectDescription": "一个强大的桥接服务，连接 Claude 和其他 AI 提供商，提供统一的 API 访问和智能回退机制，实现无缝的 AI 集成体验。",
+    "feature1": "统一 API 访问多个 AI 提供商（Claude、OpenAI 等）",
+    "feature2": "智能提供商回退和熔断器保护",
+    "feature3": "实时健康监控和性能统计",
+    "feature4": "多语言支持（16种语言）和深色/浅色主题",
+    "quickStartTitle": "快速开始指南",
+    "step1Title": "配置提供商",
+    "step1Desc": "前往提供商页面，添加您的 AI 提供商（Claude、OpenAI 等）并配置 API 密钥",
+    "step2Title": "创建 API 密钥",
+    "step2Desc": "在 API 密钥管理页面为您的应用程序生成 API 密钥",
+    "step3Title": "开始对话",
+    "step3Desc": "前往对话页面，开始您的 AI 对话体验",
+    "getStarted": "开始使用"
+  },
   "login": {
     "title": "登录",
     "subtitle": "管理界面登录",

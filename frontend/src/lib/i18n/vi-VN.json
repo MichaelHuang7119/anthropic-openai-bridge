@@ -568,5 +568,21 @@
     "searchLanguage": "Tìm ngôn ngữ...",
     "noLanguagesFound": "Không tìm thấy ngôn ngữ nào",
     "languages": "ngôn ngữ"
+  },
+  "welcome": {
+    "title": "Chào mừng đến với Anthropic OpenAI Bridge",
+    "projectDescription": "Một dịch vụ cầu nối mạnh mẽ kết nối Claude và các nhà cung cấp AI khác, cho phép truy cập API thống nhất và cơ chế fallback thông minh để tích hợp AI liền mạch.",
+    "feature1": "Truy cập API thống nhất cho nhiều nhà cung cấp AI (Claude, OpenAI, v.v.)",
+    "feature2": "Fallback nhà cung cấp thông minh và bảo vệ circuit breaker",
+    "feature3": "Giám sát sức khỏe thời gian thực và thống kê hiệu suất",
+    "feature4": "Hỗ trợ đa ngôn ngữ (16 ngôn ngữ) và chủ đề tối/sáng",
+    "quickStartTitle": "Hướng dẫn bắt đầu nhanh",
+    "step1Title": "Cấu hình nhà cung cấp",
+    "step1Desc": "Đi tới trang Nhà cung cấp để thêm các nhà cung cấp AI (Claude, OpenAI, v.v.) với khóa API",
+    "step2Title": "Tạo khóa API",
+    "step2Desc": "Tạo khóa API cho ứng dụng của bạn trong trang quản lý khóa API",
+    "step3Title": "Bắt đầu trò chuyện",
+    "step3Desc": "Đi tới trang Chat để bắt đầu cuộc trò chuyện AI của bạn",
+    "getStarted": "Bắt đầu"
   }
 }
