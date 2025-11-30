@@ -163,18 +163,15 @@
 
       // Create new conversation
       const title = t('chat.newConversation');
-      const conversation = await chatService.createConversation(
+      await chatService.createConversation(
         title,
         providerName,
         apiFormat,
         model,
       );
 
-      // Add to list
-      conversations = [conversation, ...conversations];
-
-      // Select the new conversation
-      await selectConversation(conversation);
+      // Reload conversations from backend to ensure consistency
+      await loadConversations();
 
       showToast(t('common.success'), "success");
     } catch (err) {

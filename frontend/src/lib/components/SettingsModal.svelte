@@ -22,6 +22,11 @@
   // 语言选择
   let selectedLanguage = $state<Language>($language);
 
+  // 语言选择器增强功能
+  let showLanguageDropdown = $state(false);
+  let languageSearchQuery = $state('');
+  let languageDropdownRef = $state<HTMLDivElement | null>(null);
+
   // 密码修改
   let currentPassword = $state('');
   let newPassword = $state('');
@@ -43,6 +48,72 @@
   $effect(() => {
     selectedLanguage = $language;
   });
+
+  // 过滤语言选项 - 使用当前系统语言显示语言名称
+  let filteredLanguages = $derived(
+    Object.entries(languages).filter(([code, _name]) => {
+      const displayName = language.getLanguageName(code as Language);
+      return (
+        displayName.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
+        code.toLowerCase().includes(languageSearchQuery.toLowerCase())
+      );
+    })
+  );
+
+  // 动态计算下拉框位置（智能方向定位）
+  let dropdownPosition = $state({
+    top: 0,
+    left: 0,
+    width: 0,
+    direction: 'down' as 'down' | 'up'
+  });
+
+  $effect(() => {
+    if (showLanguageDropdown && languageDropdownRef) {
+      const button = languageDropdownRef.querySelector('.language-button') as HTMLElement;
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        const buttonBottom = rect.bottom + window.scrollY;
+        const viewportHeight = window.innerHeight;
+
+        // 预估下拉框高度（搜索框40px + 语言列表280px + 页脚40px + 边框40px = ~400px）
+        const estimatedDropdownHeight = 400;
+
+        // 检测是否需要向上显示
+        const shouldShowUp = (viewportHeight - buttonBottom) < estimatedDropdownHeight;
+
+        let position;
+        if (shouldShowUp) {
+          // 显示在按钮上方
+          position = {
+            top: rect.top + window.scrollY - estimatedDropdownHeight - 8,
+            direction: 'up' as const
+          };
+        } else {
+          // 显示在按钮下方（默认行为）
+          position = {
+            top: buttonBottom + 8,
+            direction: 'down' as const
+          };
+        }
+
+        dropdownPosition = {
+          ...position,
+          left: rect.left + window.scrollX,
+          width: rect.width
+        };
+      }
+    }
+  });
+
+  // 点击外部关闭语言下拉框
+  function handleLanguageDropdownClickOutside(event: MouseEvent) {
+    if (showLanguageDropdown && languageDropdownRef &&
+        !languageDropdownRef.contains(event.target as Node)) {
+      showLanguageDropdown = false;
+      languageSearchQuery = '';
+    }
+  }
 
   // 处理键盘事件 (ESC关闭)
   function handleKeydown(event: KeyboardEvent) {
@@ -110,6 +181,16 @@
   function closeModal() {
     onClose();
   }
+
+  // 添加文档级点击监听
+  $effect(() => {
+    if (showLanguageDropdown) {
+      document.addEventListener('click', handleLanguageDropdownClickOutside);
+      return () => {
+        document.removeEventListener('click', handleLanguageDropdownClickOutside);
+      };
+    }
+  });
 </script>
 
 {#if show}
@@ -169,17 +250,119 @@
             <Card title={t('settings.generalSettings')} aria-labelledby="general-tab" role="tabpanel" id="general-tab-panel">
               <div class="setting-item">
                 <label for="language-select">{t('settings.language')}</label>
-                <select
-                  id="language-select"
-                  bind:value={selectedLanguage}
-                  onchange={(e) => handleLanguageChange((e.target as HTMLSelectElement).value as Language)}
-                  class="setting-select"
-                  aria-label={t('settings.language')}
-                >
-                  {#each Object.entries(languages) as [code, name]}
-                    <option value={code}>{name}</option>
-                  {/each}
-                </select>
+                <!-- 增强语言选择器 - 支持搜索和大量选项 -->
+                <div class="language-selector" bind:this={languageDropdownRef}>
+                  <button
+                    id="language-select"
+                    class="language-button"
+                    onclick={() => showLanguageDropdown = !showLanguageDropdown}
+                    aria-haspopup="listbox"
+                    aria-expanded={showLanguageDropdown}
+                    aria-label={t('settings.language')}
+                  >
+                    <span class="language-name">{language.getLanguageName(selectedLanguage)}</span>
+                    <span class="language-code">{selectedLanguage}</span>
+                    <svg
+                      class="dropdown-icon"
+                      class:rotated={showLanguageDropdown}
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16" height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+
+                  {#if showLanguageDropdown}
+                    <!-- 使用portal技术，让下拉框可以超出模态框 -->
+                    <div
+                      class="language-dropdown-portal-layer"
+                      class:direction-up={dropdownPosition.direction === 'up'}
+                      style="--dropdown-top: {dropdownPosition.top}px; --dropdown-left: {dropdownPosition.left}px; --dropdown-width: {dropdownPosition.width}px;"
+                    >
+                      <div class="language-dropdown" role="listbox" aria-label={t('settings.language')}>
+                        <!-- 方向指示器 -->
+                        <div class="dropdown-arrow {dropdownPosition.direction}"></div>
+
+                        <div class="language-search-container">
+                          <input
+                            type="text"
+                            class="language-search"
+                            bind:value={languageSearchQuery}
+                            placeholder={t('settings.searchLanguage')}
+                            aria-label={t('settings.searchLanguage')}
+                          />
+                          <svg
+                            class="search-icon"
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16" height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
+                        </div>
+
+                        <div class="language-list">
+                          {#if filteredLanguages.length === 0}
+                            <div class="no-results">
+                              {t('settings.noLanguagesFound')}
+                            </div>
+                          {:else}
+                            {#each filteredLanguages as [code, _name]}
+                              <button
+                                class="language-option"
+                                class:selected={selectedLanguage === code}
+                                onclick={() => {
+                                  selectedLanguage = code as Language;
+                                  handleLanguageChange(code as Language);
+                                  showLanguageDropdown = false;
+                                  languageSearchQuery = '';
+                                }}
+                                role="option"
+                                aria-selected={selectedLanguage === code}
+                              >
+                                <span class="language-name">{language.getLanguageName(code as Language)}</span>
+                                <span class="language-code">{code}</span>
+                                {#if selectedLanguage === code}
+                                  <svg
+                                    class="check-icon"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16" height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                  >
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                  </svg>
+                                {/if}
+                              </button>
+                            {/each}
+                          {/if}
+                        </div>
+
+                        <div class="language-footer">
+                          <span class="language-count">
+                            {filteredLanguages.length} / {Object.keys(languages).length} {t('settings.languages')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
               </div>
 
               <div class="setting-item">
@@ -438,8 +621,17 @@
     color: var(--text-primary, #1a1a1a);
   }
 
-  .setting-select {
+  /* 增强语言选择器样式 */
+  .language-selector {
+    position: relative;
     width: 100%;
+  }
+
+  .language-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     padding: 0.75rem;
     border: 1px solid var(--border-color, #d1d5db);
     border-radius: 0.375rem;
@@ -448,12 +640,357 @@
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
+    text-align: left;
   }
 
-  .setting-select:focus {
+  .language-button:hover {
+    border-color: var(--primary-color, #3b82f6);
+    background: var(--bg-secondary, #f9fafb);
+  }
+
+  .language-button:focus {
     outline: none;
     border-color: var(--primary-color, #3b82f6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
+  }
+
+  .language-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .language-code {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    font-family: "Courier New", monospace;
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 0.25rem;
+  }
+
+  .dropdown-icon {
+    transition: transform 0.2s;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .dropdown-icon.rotated {
+    transform: rotate(180deg);
+  }
+
+  /* 使用Portal技术，让下拉框超出模态框边界 */
+  .language-dropdown-portal-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9998;
+    pointer-events: none;
+  }
+
+  .language-dropdown-portal-layer .language-dropdown {
+    position: fixed;
+    pointer-events: auto;
+    /* 使用CSS变量动态计算位置 */
+    top: var(--dropdown-top, 0);
+    left: var(--dropdown-left, 0);
+    width: var(--dropdown-width);
+    background: var(--bg-primary, white);
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    animation: dropdownFade 0.15s ease-out;
+  }
+
+  /* 向下显示（默认） */
+  .language-dropdown-portal-layer:not(.direction-up) .language-dropdown {
+    margin-top: 0.5rem;
+  }
+
+  /* 向上显示 */
+  .language-dropdown-portal-layer.direction-up .language-dropdown {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Portal 下拉框内部所有元素的样式 - 使用 :global() 穿透作用域 */
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-search-container {
+    position: relative;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color, #d1d5db);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-search {
+    width: 100%;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1a1a1a);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-search:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    background: var(--bg-primary, white);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .search-icon {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary, #6b7280);
+    pointer-events: none;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 280px;
+    padding: 0.5rem 0;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-option:hover {
+    background: var(--bg-secondary, #f9fafb);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-option.selected {
+    background: rgba(var(--primary-color-rgb), 0.1);
+    color: var(--primary-color, #3b82f6);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-option.selected .language-code {
+    background: rgba(var(--primary-color-rgb), 0.15);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-name {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-code {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    font-family: "Courier New", monospace;
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 0.25rem;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .check-icon {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-footer {
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--border-color, #d1d5db);
+    background: var(--bg-tertiary, #f9fafb);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .language-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  :global(.language-dropdown-portal-layer .language-dropdown) .no-results {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.875rem;
+  }
+
+  /* 向下动画 */
+  @keyframes dropdownFadeDown {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 向上动画 */
+  @keyframes dropdownFadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 应用不同的动画方向 */
+  .language-dropdown-portal-layer:not(.direction-up) .language-dropdown {
+    animation: dropdownFadeDown 0.15s ease-out;
+  }
+
+  .language-dropdown-portal-layer.direction-up .language-dropdown {
+    animation: dropdownFadeUp 0.15s ease-out;
+  }
+
+  /* 方向指示器箭头 */
+  .dropdown-arrow {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    z-index: 1;
+  }
+
+  /* 向下箭头 - 在下拉框顶部 */
+  .language-dropdown-portal-layer:not(.direction-up) .dropdown-arrow.down {
+    top: -8px;
+    border-bottom: 8px solid var(--border-color, #d1d5db);
+  }
+
+  .language-dropdown-portal-layer:not(.direction-up) .dropdown-arrow.down::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--bg-primary, white);
+  }
+
+  /* 向上箭头 - 在下拉框底部 */
+  .language-dropdown-portal-layer.direction-up .dropdown-arrow.up {
+    bottom: -8px;
+    border-top: 8px solid var(--border-color, #d1d5db);
+  }
+
+  .language-dropdown-portal-layer.direction-up .dropdown-arrow.up::after {
+    content: '';
+    position: absolute;
+    bottom: 1px;
+    left: -8px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--bg-primary, white);
+  }
+
+  .language-search-container {
+    position: relative;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color, #d1d5db);
+  }
+
+  .language-search {
+    width: 100%;
+    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 0.375rem;
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #1a1a1a);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  .language-search:focus {
+    outline: none;
+    border-color: var(--primary-color, #3b82f6);
+    background: var(--bg-primary, white);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
+  }
+
+  .search-icon {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary, #6b7280);
+    pointer-events: none;
+  }
+
+  .language-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 280px;
+    padding: 0.5rem 0;
+  }
+
+  .language-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .language-option:hover {
+    background: var(--bg-secondary, #f9fafb);
+  }
+
+  .language-option.selected {
+    background: rgba(var(--primary-color-rgb), 0.1);
+    color: var(--primary-color, #3b82f6);
+  }
+
+  .language-option.selected .language-code {
+    background: rgba(var(--primary-color-rgb), 0.15);
+  }
+
+  .check-icon {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .language-footer {
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--border-color, #d1d5db);
+    background: var(--bg-tertiary, #f9fafb);
+  }
+
+  .language-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .no-results {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.875rem;
   }
 
   .form-group {

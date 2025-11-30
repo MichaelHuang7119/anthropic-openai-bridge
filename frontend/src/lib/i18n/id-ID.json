@@ -564,6 +564,9 @@
     "loadError": "Gagal memuat",
     "seconds": "detik",
     "showPassword": "Tampilkan kata sandi",
-    "hidePassword": "Sembunyikan kata sandi"
+    "hidePassword": "Sembunyikan kata sandi",
+    "searchLanguage": "Cari bahasa...",
+    "noLanguagesFound": "Tidak ada bahasa yang ditemukan",
+    "languages": "bahasa"
   }
 }

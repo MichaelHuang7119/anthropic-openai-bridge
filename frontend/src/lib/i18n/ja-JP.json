@@ -564,6 +564,9 @@
     "loadError": "読み込みに失敗しました",
     "seconds": "秒",
     "showPassword": "パスワードを表示",
-    "hidePassword": "パスワードを隠す"
+    "hidePassword": "パスワードを隠す",
+    "searchLanguage": "言語を検索...",
+    "noLanguagesFound": "一致する言語が見つかりません",
+    "languages": "言語"
   }
 }

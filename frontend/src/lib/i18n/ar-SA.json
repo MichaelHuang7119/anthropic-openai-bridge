@@ -564,6 +564,9 @@
     "loadError": "فشل في التحميل",
     "seconds": "ثواني",
     "showPassword": "إظهار كلمة المرور",
-    "hidePassword": "إخفاء كلمة المرور"
+    "hidePassword": "إخفاء كلمة المرور",
+    "searchLanguage": "البحث عن اللغات...",
+    "noLanguagesFound": "لم يتم العثور على لغات",
+    "languages": "لغات"
   }
 }

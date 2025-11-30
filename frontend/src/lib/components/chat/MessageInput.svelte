@@ -341,7 +341,7 @@
     color: white;
     opacity: 1;
     transform: scale(1);
-    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 2px 12px rgba(90, 156, 255, 0.4);
     font-weight: 600;
     border-radius: 0.5rem;
     margin: 4px 0;

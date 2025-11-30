@@ -1,7 +1,7 @@
 :root {
   /* 默认颜色主题 - 蓝色 */
-  --primary-color: #007bff;
-  --primary-hover: #0056b3;
+  --primary-color: #5a9cff;
+  --primary-hover: #3d7ed8;
   --secondary-color: #6c757d;
   --success-color: #28a745;
   --danger-color: #dc3545;
@@ -51,8 +51,8 @@
   --card-shadow: rgba(0, 0, 0, 0.5);
 
   /* GitHub-style accent colors - Blue theme */
-  --primary-color: #1f6feb;
-  --primary-hover: #1a5fd0;
+  --primary-color: #3a7bd5;
+  --primary-hover: #2e64a8;
   --success-color: #238636;
   --danger-color: #f85149;
   --warning-color: #d29922;
@@ -512,12 +512,12 @@ pre code {
 
 /* 蓝色主题 */
 [data-color-theme="blue"] {
-  --primary-color: #007bff;
-  --primary-hover: #0056b3;
-  --info-color: #007bff;
-  --link-color: #007bff;
-  --link-hover-color: #0056b3;
-  --input-border-focus: #007bff;
+  --primary-color: #5a9cff;
+  --primary-hover: #3d7ed8;
+  --info-color: #5a9cff;
+  --link-color: #5a9cff;
+  --link-hover-color: #3d7ed8;
+  --input-border-focus: #5a9cff;
 }
 
 /* 绿色主题 */

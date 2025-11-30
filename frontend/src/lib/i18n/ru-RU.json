@@ -564,6 +564,9 @@
     "loadError": "Ошибка загрузки",
     "seconds": "секунд",
     "showPassword": "Показать пароль",
-    "hidePassword": "Скрыть пароль"
+    "hidePassword": "Скрыть пароль",
+    "searchLanguage": "Поиск языков...",
+    "noLanguagesFound": "Языки не найдены",
+    "languages": "языки"
   }
 }

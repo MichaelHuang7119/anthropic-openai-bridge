@@ -564,6 +564,9 @@
     "loadError": "โหลดไม่สำเร็จ",
     "seconds": "วินาที",
     "showPassword": "แสดงรหัสผ่าน",
-    "hidePassword": "ซ่อนรหัสผ่าน"
+    "hidePassword": "ซ่อนรหัสผ่าน",
+    "searchLanguage": "ค้นหาภาษา...",
+    "noLanguagesFound": "ไม่พบภาษา",
+    "languages": "ภาษา"
   }
 }

@@ -564,6 +564,9 @@
     "loadError": "Laden fehlgeschlagen",
     "seconds": "Sekunden",
     "showPassword": "Passwort anzeigen",
-    "hidePassword": "Passwort verbergen"
+    "hidePassword": "Passwort verbergen",
+    "searchLanguage": "Sprachen suchen...",
+    "noLanguagesFound": "Keine Sprachen gefunden",
+    "languages": "Sprachen"
   }
 }

@@ -19,7 +19,7 @@ async def get_language_preference(user: dict = Depends(require_admin())):
     """获取用户语言偏好"""
     try:
         db = get_database()
-        language = await db.get_user_language(user['id'])
+        language = await db.get_user_language(user['user_id'])
 
         return {"language": language}
     except Exception as e:
@@ -34,7 +34,7 @@ async def update_language_preference(
     """更新用户语言偏好"""
     try:
         db = get_database()
-        await db.update_user_language(user['id'], preference.language)
+        await db.update_user_language(user['user_id'], preference.language)
 
         return {
             "success": True,

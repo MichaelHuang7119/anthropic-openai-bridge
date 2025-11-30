@@ -564,6 +564,9 @@
     "loadError": "लोड करने में विफल",
     "seconds": "सेकंड",
     "showPassword": "पासवर्ड दिखाएं",
-    "hidePassword": "पासवर्ड छुपाएं"
+    "hidePassword": "पासवर्ड छुपाएं",
+    "searchLanguage": "भाषाएँ खोजें...",
+    "noLanguagesFound": "कोई भाषा नहीं मिली",
+    "languages": "भाषाएं"
   }
 }

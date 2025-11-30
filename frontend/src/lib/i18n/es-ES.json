@@ -564,6 +564,9 @@
     "loadError": "Error al cargar",
     "seconds": "segundos",
     "showPassword": "Mostrar contraseña",
-    "hidePassword": "Ocultar contraseña"
+    "hidePassword": "Ocultar contraseña",
+    "searchLanguage": "Buscar idiomas...",
+    "noLanguagesFound": "No se encontraron idiomas",
+    "languages": "idiomas"
   }
 }

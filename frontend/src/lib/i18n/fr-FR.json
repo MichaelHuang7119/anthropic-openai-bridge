@@ -564,6 +564,9 @@
     "loadError": "Échec du chargement",
     "seconds": "secondes",
     "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe"
+    "hidePassword": "Masquer le mot de passe",
+    "searchLanguage": "Rechercher des langues...",
+    "noLanguagesFound": "Aucune langue trouvée",
+    "languages": "langues"
   }
 }

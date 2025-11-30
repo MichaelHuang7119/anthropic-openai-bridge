@@ -566,6 +566,9 @@
     "loadError": "加载失败",
     "seconds": "秒",
     "showPassword": "显示密码",
-    "hidePassword": "隐藏密码"
+    "hidePassword": "隐藏密码",
+    "searchLanguage": "搜索语言...",
+    "noLanguagesFound": "未找到匹配的语言",
+    "languages": "语言"
   }
 }

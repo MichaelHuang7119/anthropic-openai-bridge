@@ -351,8 +351,8 @@
   }
 
   .thinking-content :global(code) {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background: rgba(90, 156, 255, 0.15);
+    color: #5a9cff;
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
     font-family: "Courier New", monospace;
@@ -382,14 +382,14 @@
   }
 
   .message-bubble.user .content-text {
-    background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+    background: linear-gradient(135deg, var(--primary-color), #6ba5ff);
     color: white;
     border-color: transparent;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
   }
 
   .message-bubble.user .content-text:hover {
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba(90, 156, 255, 0.4);
   }
 
   .message-bubble.user .role-label {
@@ -409,8 +409,8 @@
   }
 
   .content-text :global(code) {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background: rgba(90, 156, 255, 0.15);
+    color: #5a9cff;
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
     font-family: "Courier New", monospace;

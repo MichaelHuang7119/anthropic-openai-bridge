@@ -564,6 +564,9 @@
     "loadError": "불러오기 실패",
     "seconds": "초",
     "showPassword": "비밀번호 표시",
-    "hidePassword": "비밀번호 숨기기"
+    "hidePassword": "비밀번호 숨기기",
+    "searchLanguage": "언어 검색...",
+    "noLanguagesFound": "일치하는 언어를 찾을 수 없습니다",
+    "languages": "언어"
   }
 }

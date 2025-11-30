@@ -57,7 +57,7 @@
   // Load messages when conversation changes
   $effect(() => {
     if (conversation) {
-      console.log("ChatArea: conversation changed:", conversation);
+      console.log("ChatArea: conversation changed:", $state.snapshot(conversation));
       loadMessages();
     } else {
       // console.log("ChatArea: no conversation");
@@ -592,7 +592,7 @@
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.75rem;
-    background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+    background: linear-gradient(135deg, var(--primary-color), #6ba5ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

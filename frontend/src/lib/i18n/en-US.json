@@ -564,6 +564,9 @@
     "loadError": "Failed to load",
     "seconds": "seconds",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "searchLanguage": "Search languages...",
+    "noLanguagesFound": "No languages found",
+    "languages": "languages"
   }
 }

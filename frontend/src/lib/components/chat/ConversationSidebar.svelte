@@ -248,7 +248,7 @@
     deletingId = conversationId;
     try {
       await chatService.deleteConversation(conversationId);
-      conversations = conversations.filter((c) => c.id !== conversationId);
+      await loadConversations();
 
       if (currentConversationId === conversationId) {
         currentConversationId = null;
@@ -850,8 +850,18 @@ function formatDate(dateString: string): string {
   }
 
   .menu-btn:hover {
-    background: rgba(66, 153, 225, 0.1);
+    background: rgba(255, 255, 255, 0.2);
     color: var(--primary-color);
+  }
+
+  /* 当对话项处于激活状态时，菜单按钮的样式 */
+  .conversation-item.active .menu-btn {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .conversation-item.active .menu-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
   }
 
   .dropdown-menu {

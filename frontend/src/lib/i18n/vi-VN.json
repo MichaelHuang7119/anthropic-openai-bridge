@@ -564,6 +564,9 @@
     "loadError": "Tải thất bại",
     "seconds": "giây",
     "showPassword": "Hiện mật khẩu",
-    "hidePassword": "Ẩn mật khẩu"
+    "hidePassword": "Ẩn mật khẩu",
+    "searchLanguage": "Tìm ngôn ngữ...",
+    "noLanguagesFound": "Không tìm thấy ngôn ngữ nào",
+    "languages": "ngôn ngữ"
   }
 }

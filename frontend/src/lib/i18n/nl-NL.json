@@ -564,6 +564,9 @@
     "loadError": "Laden mislukt",
     "seconds": "seconden",
     "showPassword": "Wachtwoord tonen",
-    "hidePassword": "Wachtwoord verbergen"
+    "hidePassword": "Wachtwoord verbergen",
+    "searchLanguage": "Zoeken naar talen...",
+    "noLanguagesFound": "Geen talen gevonden",
+    "languages": "talen"
   }
 }
