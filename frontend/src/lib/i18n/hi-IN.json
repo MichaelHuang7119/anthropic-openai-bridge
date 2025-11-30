@@ -23,7 +23,10 @@
     "collapseSidebar": "साइडबार संकुचित करें",
     "expandSidebar": "साइडबार विस्तृत करें",
     "yesterday": "कल",
-    "daysAgo": "{days} दिन पहले"
+    "daysAgo": "{days} दिन पहले",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "बैच मोड"
   },
   "common": {
     "confirm": "पुष्टि करें",
@@ -40,7 +43,10 @@
     "all": "सभी",
     "clear": "साफ़ करें",
     "previousPage": "पिछला पृष्ठ",
-    "nextPage": "अगला पृष्ठ"
+    "nextPage": "अगला पृष्ठ",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "लॉग आउट",

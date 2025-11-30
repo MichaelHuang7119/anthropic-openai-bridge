@@ -56,12 +56,38 @@
   let searchQuery = $state<string>("");
   let visibleCount = $state<number>(50); // Initial number of conversations to show
   let openMenuId = $state<number | null>(null); // Track which menu is open
+  let selectedConversations = $state<Set<number>>(new Set()); // Track selected conversations for batch delete
+  let showBatchActions = $state<boolean>(false); // Show/hide batch action buttons
+
+  // Batch mode state
+  let batchMode = $state<boolean>(false); // Enter/exit batch mode
+  let longPressTimer = $state<ReturnType<typeof setTimeout> | null>(null); // For mobile long press
+  let lastClickedId = $state<number | null>(null); // Track last clicked for Shift+click range selection
 
   // 获取翻译函数
   const t = $derived($tStore);
 
   // Get current language
   const currentLanguage = $derived($language);
+
+  // Add global keyboard event listener for ESC key
+  $effect(() => {
+    if (batchMode) {
+      const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && batchMode) {
+          clearAllSelections();
+          batchMode = false;
+        }
+      };
+
+      document.addEventListener('keydown', handleGlobalKeyDown);
+
+      // Cleanup on component destroy or when batchMode changes
+      return () => {
+        document.removeEventListener('keydown', handleGlobalKeyDown);
+      };
+    }
+  });
 
   onMount(async () => {
     try {
@@ -261,6 +287,136 @@
     }
   }
 
+  // Toggle batch mode
+  function toggleBatchMode() {
+    batchMode = !batchMode;
+    if (!batchMode) {
+      clearAllSelections();
+    }
+  }
+
+  // Toggle conversation selection for batch operations
+  function toggleConversationSelection(conversationId: number, event: Event) {
+    event.stopPropagation();
+    if (selectedConversations.has(conversationId)) {
+      selectedConversations.delete(conversationId);
+      selectedConversations = new Set(selectedConversations);
+    } else {
+      selectedConversations.add(conversationId);
+      selectedConversations = new Set(selectedConversations);
+    }
+    showBatchActions = selectedConversations.size > 0;
+  }
+
+  // Handle conversation selection with Shift+click support (desktop)
+  function handleConversationClick(conversation: Conversation, event: MouseEvent) {
+    // If in batch mode and Shift is pressed, use range selection
+    if (batchMode && event.shiftKey && lastClickedId !== null) {
+      const currentIndex = displayConversations.findIndex(c => c.id === conversation.id);
+      const lastIndex = displayConversations.findIndex(c => c.id === lastClickedId);
+
+      if (currentIndex !== -1 && lastIndex !== -1) {
+        const start = Math.min(currentIndex, lastIndex);
+        const end = Math.max(currentIndex, lastIndex);
+
+        // Select all conversations in the range
+        const rangeIds = displayConversations.slice(start, end + 1).map(c => c.id);
+        selectedConversations = new Set([...selectedConversations, ...rangeIds]);
+        showBatchActions = selectedConversations.size > 0;
+      }
+    } else {
+      // Normal click in batch mode
+      if (batchMode) {
+        toggleConversationSelection(conversation.id, event);
+      } else {
+        // Normal selection
+        selectConversation(conversation);
+      }
+    }
+
+    lastClickedId = conversation.id;
+  }
+
+  // Mobile long press handler
+  function handleTouchStart(conversation: Conversation, _event: TouchEvent) {
+    if (batchMode) return; // Don't trigger long press in batch mode
+
+    clearLongPressTimer();
+
+    longPressTimer = setTimeout(() => {
+      batchMode = true;
+      // Select the conversation that was long pressed
+      selectedConversations = new Set([conversation.id]);
+      showBatchActions = true;
+      longPressTimer = null;
+    }, 800); // 800ms long press duration
+  }
+
+  function handleTouchEnd(conversation: Conversation, _event: TouchEvent) {
+    clearLongPressTimer();
+
+    // If not in long press and not in batch mode, perform normal selection
+    if (!batchMode && longPressTimer === null) {
+      selectConversation(conversation);
+    } else if (batchMode) {
+      // In batch mode, also select this conversation on tap
+      toggleConversationSelection(conversation.id, _event);
+    }
+  }
+
+  function handleTouchMove() {
+    // Cancel long press if user moves finger
+    clearLongPressTimer();
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  // Clear all selections
+  function clearAllSelections() {
+    selectedConversations = new Set();
+    showBatchActions = false;
+  }
+
+  // Batch delete selected conversations
+  async function batchDeleteConversations() {
+    if (selectedConversations.size === 0) {
+      return;
+    }
+
+    if (!confirm(t('chat.confirmBatchDelete').replace('{count}', selectedConversations.size.toString()))) {
+      return;
+    }
+
+    const idsToDelete = Array.from(selectedConversations);
+    deletingId = idsToDelete[0]; // Set to first ID to show loading state
+
+    try {
+      // Delete conversations sequentially to avoid overwhelming the API
+      for (const id of idsToDelete) {
+        await chatService.deleteConversation(id);
+      }
+      await loadConversations();
+
+      // Clear current conversation if it was deleted
+      if (currentConversationId && selectedConversations.has(currentConversationId)) {
+        currentConversationId = null;
+      }
+
+      // Clear selections
+      clearAllSelections();
+    } catch (err) {
+      console.error("Failed to batch delete conversations:", err);
+      alert(t('common.error'));
+    } finally {
+      deletingId = null;
+    }
+  }
+
   function handleNewConversation() {
     if (!selectedProviderName || !selectedApiFormat || !selectedModelValue) {
       alert(t('common.error'));
@@ -356,10 +512,60 @@ function formatDate(dateString: string): string {
       placeholder={t('chat.search')}
       bind:value={searchQuery}
     />
+    <button
+      class="batch-mode-btn {batchMode ? 'active' : ''}"
+      onclick={toggleBatchMode}
+      title={batchMode ? t('common.cancel') : t('chat.batchMode')}
+    >
+      {#if batchMode}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="5" cy="5" r="1.5" fill="white"/>
+          <circle cx="8" cy="5" r="1.5" fill="white"/>
+          <circle cx="11" cy="5" r="1.5" fill="white"/>
+          <circle cx="5" cy="8" r="1.5" fill="white"/>
+          <circle cx="8" cy="8" r="1.5" fill="white"/>
+          <circle cx="11" cy="8" r="1.5" fill="white"/>
+          <circle cx="5" cy="11" r="1.5" fill="white"/>
+          <circle cx="8" cy="11" r="1.5" fill="white"/>
+          <circle cx="11" cy="11" r="1.5" fill="white"/>
+        </svg>
+      {:else}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="7" y="4" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="10" y="4" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="4" y="7" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="7" y="7" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="10" y="7" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="4" y="10" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="7" y="10" width="2" height="2" rx="0.5" fill="currentColor"/>
+          <rect x="10" y="10" width="2" height="2" rx="0.5" fill="currentColor"/>
+        </svg>
+      {/if}
+    </button>
     <button class="new-btn" onclick={handleNewConversation} title={t('chat.newConversation')}>
-      +
+      <span class="plus-icon">+</span>
     </button>
   </div>
+
+  <!-- Batch actions bar -->
+  {#if showBatchActions}
+    <div class="batch-actions-bar">
+      <span class="selected-count">{t('chat.selected').replace('{count}', selectedConversations.size.toString())}</span>
+      <div class="batch-actions">
+        <button class="batch-action-btn cancel" onclick={clearAllSelections}>
+          {t('common.cancel')}
+        </button>
+        <button
+          class="batch-action-btn delete"
+          onclick={batchDeleteConversations}
+          disabled={deletingId !== null}
+        >
+          {deletingId !== null ? t('common.deleting') : t('chat.delete')}
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <div class="conversations-list" onscroll={handleScroll}>
     {#if loading}
@@ -388,14 +594,27 @@ function formatDate(dateString: string): string {
         <div
           class="conversation-item {currentConversationId === conversation.id
             ? 'active'
-            : ''}"
+            : ''} {selectedConversations.has(conversation.id) ? 'selected' : ''} {batchMode ? 'batch-mode' : ''}"
           role="button"
           tabindex="0"
-          onclick={() => selectConversation(conversation)}
+          onclick={(e) => handleConversationClick(conversation, e as MouseEvent)}
           onkeydown={(e) =>
             (e.key === "Enter" || e.key === " ") &&
-            selectConversation(conversation)}
+            (!batchMode ? selectConversation(conversation) : toggleConversationSelection(conversation.id, e))}
+          ontouchstart={(e) => handleTouchStart(conversation, e)}
+          ontouchend={(e) => handleTouchEnd(conversation, e)}
+          ontouchmove={handleTouchMove}
         >
+          {#if batchMode}
+            <div class="checkbox-container">
+              <input
+                type="checkbox"
+                class="conversation-checkbox"
+                checked={selectedConversations.has(conversation.id)}
+                onclick={(e) => toggleConversationSelection(conversation.id, e)}
+              />
+            </div>
+          {/if}
           <div class="conversation-info">
             <div class="title-row">
               {#if editingId === conversation.id}
@@ -614,16 +833,26 @@ function formatDate(dateString: string): string {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+  }
+
+  .plus-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
     font-size: 1.5rem;
     font-weight: 400;
     line-height: 1;
-    flex-shrink: 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px);
   }
 
   .new-btn:hover {
-    background: white;
-    color: var(--primary-color) !important;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
     transform: scale(1.1);
   }
 
@@ -639,6 +868,128 @@ function formatDate(dateString: string): string {
   .new-btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+  }
+
+  .batch-mode-btn {
+    padding: 0.5rem;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 32px;
+    min-height: 32px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .batch-mode-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transform: scale(1.1);
+  }
+
+  .batch-mode-btn:active {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    transform: scale(0.98);
+  }
+
+  .batch-mode-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
+  .batch-mode-btn.active:hover {
+    background: var(--primary-hover);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
+  .batch-mode-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+  }
+
+  .batch-mode-btn svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    transition: all 0.2s ease;
+  }
+
+  /* Batch actions bar */
+  .batch-actions-bar {
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .selected-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .batch-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .batch-action-btn {
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .batch-action-btn.cancel {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .batch-action-btn.cancel:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .batch-action-btn.delete {
+    background: #ef4444;
+    color: white;
+  }
+
+  .batch-action-btn.delete:hover:not(:disabled) {
+    background: #dc2626;
+  }
+
+  .batch-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .conversations-list {
@@ -708,6 +1059,49 @@ function formatDate(dateString: string): string {
   .conversation-item.active .title,
   .conversation-item.active .meta {
     color: white;
+  }
+
+  .conversation-item.selected {
+    background: var(--bg-secondary);
+    border: 2px solid var(--primary-color);
+  }
+
+  .conversation-item.active.selected {
+    background: var(--primary-color);
+    border-color: white;
+  }
+
+  /* Batch mode styles */
+  .conversation-item.batch-mode {
+    cursor: default;
+  }
+
+  .conversation-item.batch-mode:hover {
+    background: var(--bg-secondary);
+    transform: none;
+  }
+
+  .conversation-item.batch-mode.active:hover {
+    background: var(--primary-color);
+    transform: none;
+  }
+
+  .checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .conversation-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+  }
+
+  .conversation-item.active .conversation-checkbox {
+    accent-color: white;
   }
 
   .conversation-info {

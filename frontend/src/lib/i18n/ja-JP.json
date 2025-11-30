@@ -23,7 +23,10 @@
     "collapseSidebar": "サイドバー縮小",
     "expandSidebar": "サイドバー展開",
     "yesterday": "昨日",
-    "daysAgo": "{days}日前"
+    "daysAgo": "{days}日前",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "バッチモード"
   },
   "common": {
     "confirm": "確認",
@@ -40,7 +43,10 @@
     "all": "すべて",
     "clear": "クリア",
     "previousPage": "前のページ",
-    "nextPage": "次のページ"
+    "nextPage": "次のページ",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "ログアウト",

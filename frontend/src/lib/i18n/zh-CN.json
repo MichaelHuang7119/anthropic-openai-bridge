@@ -19,11 +19,14 @@
     "rename": "重命名",
     "delete": "删除",
     "confirmDelete": "确定要删除这个对话吗？",
+    "confirmBatchDelete": "确定要删除选中的 {count} 个对话吗？",
+    "selected": "已选择 {count} 个",
     "untitled": "无标题",
     "collapseSidebar": "折叠侧边栏",
     "expandSidebar": "展开侧边栏",
     "yesterday": "昨天",
-    "daysAgo": "{days}天前"
+    "daysAgo": "{days}天前",
+    "batchMode": "批处理"
   },
   "common": {
     "confirm": "确定",
@@ -36,12 +39,15 @@
     "toggleLanguage": "切换语言",
     "loading": "加载中...",
     "saving": "保存中...",
+    "deleting": "删除中...",
     "error": "错误",
     "success": "成功",
     "all": "全部",
     "clear": "清除",
     "previousPage": "上一页",
     "nextPage": "下一页",
+    "searchProvider": "搜索供应商...",
+    "searchModel": "搜索模型...",
     "close": "关闭"
   },
   "header": {

@@ -23,7 +23,10 @@
     "collapseSidebar": "ย่อแถบด้านข้าง",
     "expandSidebar": "ขยายแถบด้านข้าง",
     "yesterday": "เมื่อวาน",
-    "daysAgo": "{days} วันที่แล้ว"
+    "daysAgo": "{days} วันที่แล้ว",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "โหมดแบทช์"
   },
   "common": {
     "confirm": "ยืนยัน",
@@ -40,7 +43,10 @@
     "all": "ทั้งหมด",
     "clear": "ล้าง",
     "previousPage": "หน้าก่อนหน้า",
-    "nextPage": "หน้าถัดไป"
+    "nextPage": "หน้าถัดไป",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "ออกจากระบบ",

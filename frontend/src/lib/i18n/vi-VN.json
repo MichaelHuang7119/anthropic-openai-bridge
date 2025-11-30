@@ -23,7 +23,10 @@
     "collapseSidebar": "Thu gọn thanh bên",
     "expandSidebar": "Mở rộng thanh bên",
     "yesterday": "Hôm qua",
-    "daysAgo": "{days} ngày trước"
+    "daysAgo": "{days} ngày trước",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "Chế độ hàng loạt"
   },
   "common": {
     "confirm": "Xác nhận",
@@ -40,7 +43,10 @@
     "all": "Tất cả",
     "clear": "Xóa",
     "previousPage": "Trang trước",
-    "nextPage": "Trang tiếp theo"
+    "nextPage": "Trang tiếp theo",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Đăng xuất",

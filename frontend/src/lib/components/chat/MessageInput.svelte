@@ -404,7 +404,6 @@
     padding: 0.75rem;
     background: var(--primary-color);
     color: white;
-    border: 2px solid var(--primary-color);
     border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
@@ -418,9 +417,9 @@
   }
 
   .send-button:hover:not(.disabled) {
-    background: white;
-    color: var(--primary-color);
-    border-color: var(--primary-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transform: rotate(90deg) scale(1.1);
   }
 
   .send-button:active:not(.disabled) {

@@ -23,7 +23,10 @@
     "collapseSidebar": "Zijbalk inklappen",
     "expandSidebar": "Zijbalk uitklappen",
     "yesterday": "Gisteren",
-    "daysAgo": "{days} dagen geleden"
+    "daysAgo": "{days} dagen geleden",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "Batchmodus"
   },
   "common": {
     "confirm": "Bevestigen",
@@ -40,7 +43,10 @@
     "all": "Alle",
     "clear": "Wissen",
     "previousPage": "Vorige pagina",
-    "nextPage": "Volgende pagina"
+    "nextPage": "Volgende pagina",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Uitloggen",

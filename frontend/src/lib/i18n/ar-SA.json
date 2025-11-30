@@ -23,7 +23,10 @@
     "collapseSidebar": "طي الشريط الجانبي",
     "expandSidebar": "توسيع الشريط الجانبي",
     "yesterday": "أمس",
-    "daysAgo": "منذ {days} يوماً"
+    "daysAgo": "منذ {days} يوماً",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "وضع دفعي"
   },
   "common": {
     "confirm": "تأكيد",
@@ -40,7 +43,10 @@
     "all": "الكل",
     "clear": "مسح",
     "previousPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "nextPage": "الصفحة التالية",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "تسجيل الخروج",

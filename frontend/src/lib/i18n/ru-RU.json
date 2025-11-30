@@ -23,7 +23,10 @@
     "collapseSidebar": "Свернуть боковую панель",
     "expandSidebar": "Развернуть боковую панель",
     "yesterday": "Вчера",
-    "daysAgo": "{days} дней назад"
+    "daysAgo": "{days} дней назад",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "Пакетный режим"
   },
   "common": {
     "confirm": "Подтвердить",
@@ -40,7 +43,10 @@
     "all": "Все",
     "clear": "Очистить",
     "previousPage": "Предыдущая страница",
-    "nextPage": "Следующая страница"
+    "nextPage": "Следующая страница",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Выйти",

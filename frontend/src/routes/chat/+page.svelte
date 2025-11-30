@@ -70,7 +70,7 @@
           api_format: p.api_format!,
           models: p.models,
         }));
-      console.log("Providers loaded:", providers);
+      console.log("Providers loaded:", $state.snapshot(providers));
     } catch (err) {
       console.error("Failed to load providers:", err);
       throw err;
@@ -111,7 +111,7 @@
       isLoading = true;
       console.log("Selecting conversation:", conversation.id);
       currentConversation = await chatService.getConversation(conversation.id);
-      console.log("Current conversation loaded:", currentConversation);
+      console.log("Current conversation loaded:", $state.snapshot(currentConversation));
 
       // Initialize model selection state from conversation config
       // This ensures the model selector shows the correct values when loading an existing conversation

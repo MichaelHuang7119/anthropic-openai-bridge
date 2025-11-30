@@ -19,11 +19,14 @@
     "rename": "Rename",
     "delete": "Delete",
     "confirmDelete": "Are you sure you want to delete this conversation?",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
     "untitled": "Untitled",
     "collapseSidebar": "Collapse Sidebar",
     "expandSidebar": "Expand Sidebar",
     "yesterday": "Yesterday",
-    "daysAgo": "{days} days ago"
+    "daysAgo": "{days} days ago",
+    "batchMode": "Batch Mode"
   },
   "common": {
     "confirm": "Confirm",
@@ -35,12 +38,15 @@
     "toggleTheme": "Toggle Theme",
     "toggleLanguage": "Toggle Language",
     "loading": "Loading...",
+    "deleting": "Deleting...",
     "error": "Error",
     "success": "Success",
     "all": "All",
     "clear": "Clear",
     "previousPage": "Previous Page",
-    "nextPage": "Next Page"
+    "nextPage": "Next Page",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Logout",

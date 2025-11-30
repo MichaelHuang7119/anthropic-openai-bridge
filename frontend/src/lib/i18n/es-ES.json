@@ -23,7 +23,10 @@
     "collapseSidebar": "Contraer barra lateral",
     "expandSidebar": "Expandir barra lateral",
     "yesterday": "Ayer",
-    "daysAgo": "hace {days} días"
+    "daysAgo": "hace {days} días",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "Modo por lotes"
   },
   "common": {
     "confirm": "Confirmar",
@@ -40,7 +43,10 @@
     "all": "Todos",
     "clear": "Limpiar",
     "previousPage": "Página anterior",
-    "nextPage": "Página siguiente"
+    "nextPage": "Página siguiente",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Cerrar sesión",

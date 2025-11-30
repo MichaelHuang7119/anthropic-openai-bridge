@@ -23,7 +23,10 @@
     "collapseSidebar": "Ciutkan Sidebar",
     "expandSidebar": "Bentangkan Sidebar",
     "yesterday": "Kemarin",
-    "daysAgo": "{days} hari yang lalu"
+    "daysAgo": "{days} hari yang lalu",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "Mode Batch"
   },
   "common": {
     "confirm": "Konfirmasi",
@@ -40,7 +43,10 @@
     "all": "Semua",
     "clear": "Hapus",
     "previousPage": "Halaman Sebelumnya",
-    "nextPage": "Halaman Selanjutnya"
+    "nextPage": "Halaman Selanjutnya",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "Keluar",

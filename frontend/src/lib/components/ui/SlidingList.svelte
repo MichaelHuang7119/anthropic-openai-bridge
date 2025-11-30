@@ -15,21 +15,42 @@
     value?: string;
     placeholder?: string;
     onChange?: (value: string) => void;
+    searchable?: boolean;
+    searchPlaceholder?: string;
   }
 
   let {
     options = [],
     value = $bindable(""),
     placeholder = "请选择",
-    onChange
+    onChange,
+    searchable = false,
+    searchPlaceholder = "搜索..."
   }: Props = $props();
 
   let isOpen = $state(false);
   let listElement: HTMLDivElement;
+  let searchQuery = $state("");
 
   // Find selected option
   let selectedOption = $derived(
     options.find(opt => opt.value === value)
+  );
+
+  // Filter options based on search query
+  let filteredOptions = $derived(
+    searchable && searchQuery.trim()
+      ? options.filter(opt => {
+          const query = searchQuery.toLowerCase();
+          // Search in label
+          if (opt.label.toLowerCase().includes(query)) return true;
+          // Search in description
+          if (opt.description && opt.description.toLowerCase().includes(query)) return true;
+          // Search in coloredPart (for provider name + api format mixed search)
+          if (opt.coloredPart && opt.coloredPart.text && opt.coloredPart.text.toLowerCase().includes(query)) return true;
+          return false;
+        })
+      : options
   );
 
   function handleToggle(event?: MouseEvent) {
@@ -42,6 +63,7 @@
   function handleSelect(optionValue: string, event?: MouseEvent) {
     value = optionValue;
     isOpen = false;
+    searchQuery = "";
     onChange?.(optionValue);
     // Prevent event bubbling to parent components
     if (event) {
@@ -52,7 +74,12 @@
   function handleClickOutside(event: MouseEvent) {
     if (isOpen && listElement && !listElement.contains(event.target as Node)) {
       isOpen = false;
+      searchQuery = "";
     }
+  }
+
+  function handleSearchChange(event: Event) {
+    searchQuery = (event.target as HTMLInputElement).value;
   }
 
   $effect(() => {
@@ -100,12 +127,26 @@
   <!-- Options List -->
   {#if isOpen}
     <div class="options-container">
+      <!-- Search box -->
+      {#if searchable}
+        <div class="search-container">
+          <input
+            type="text"
+            class="search-input"
+            placeholder={searchPlaceholder}
+            value={searchQuery}
+            oninput={handleSearchChange}
+            autocomplete="off"
+          />
+        </div>
+      {/if}
+
       <div
         class="options-list"
-        class:with-scroll={options.length > 5}
+        class:with-scroll={filteredOptions.length > 5}
         role="listbox"
       >
-        {#each options as option}
+        {#each filteredOptions as option}
           <button
             type="button"
             class="option"
@@ -233,6 +274,33 @@
     border-radius: 0.75rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
     padding: 0.5rem 0;
+  }
+
+  .search-container {
+    padding: 0.5rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  .search-input::placeholder {
+    color: var(--text-tertiary);
+    opacity: 0.7;
   }
 
   .options-list {

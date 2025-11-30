@@ -95,7 +95,10 @@
 
     const models =
       provider.models[selectedCategory as keyof ProviderConfig["models"]];
-    return models || [];
+    // Sort models alphabetically - create a copy to avoid mutating the original array
+    return [...(models || [])].sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
   }
 
   // Compute available models reactively
@@ -214,10 +217,10 @@
 
         // Set defaults if not already set or if validation failed
         if (!selectedProvider) {
-          selectedProvider = providers[0].name;
+          selectedProvider = sortedProviders[0].name;
         }
         if (!selectedApiFormat) {
-          selectedApiFormat = providers[0].api_format;
+          selectedApiFormat = sortedProviders[0].api_format;
         }
 
         // Find first available model if not set
@@ -352,6 +355,8 @@
               value={`${selectedProvider}||${selectedApiFormat}`}
               placeholder={t('modelSelector.selectProvider')}
               onChange={handleProviderChange}
+              searchable={true}
+              searchPlaceholder={t('common.searchProvider')}
             />
           </div>
 
@@ -372,6 +377,8 @@
               value={selectedModelName}
               placeholder={availableModels.length === 0 ? t('modelSelector.noModels') : t('modelSelector.selectModel')}
               onChange={handleModelChange}
+              searchable={true}
+              searchPlaceholder={t('common.searchModel')}
             />
           </div>
         </div>

@@ -23,7 +23,10 @@
     "collapseSidebar": "사이드바 축소",
     "expandSidebar": "사이드바 확장",
     "yesterday": "어제",
-    "daysAgo": "{days}일 전"
+    "daysAgo": "{days}일 전",
+    "confirmBatchDelete": "Are you sure you want to delete the selected {count} conversations?",
+    "selected": "{count} selected",
+    "batchMode": "배치 모드"
   },
   "common": {
     "confirm": "확인",
@@ -40,7 +43,10 @@
     "all": "전체",
     "clear": "지우기",
     "previousPage": "이전 페이지",
-    "nextPage": "다음 페이지"
+    "nextPage": "다음 페이지",
+    "deleting": "Deleting...",
+    "searchProvider": "Search providers...",
+    "searchModel": "Search models..."
   },
   "header": {
     "logout": "로그아웃",
