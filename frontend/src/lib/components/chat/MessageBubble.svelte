@@ -1,6 +1,6 @@
 <script lang="ts">
   import { marked } from "marked";
-  import { tStore } from "$stores/language";
+  import { tStore, language } from "$stores/language";
 
   interface Message {
     id: number;
@@ -34,49 +34,151 @@
   // State for thinking collapse/expand
   let thinkingExpanded = $state(false);
   let copied = $state(false);
+  let contentContainer: HTMLDivElement;
 
-  // 获取翻译函数
+  // 获取翻译函数和当前语言
   const t = $derived($tStore);
+  let currentLang = $state('en-US');
 
-  // Render markdown content (marked.parse returns sanitized HTML)
-  let renderedContent = $derived(
-    message.content ? marked.parse(message.content) : "",
-  );
-  let renderedThinking = $derived(
-    message.thinking ? marked.parse(message.thinking) : "",
-  );
+  // 订阅语言变化
+  $effect(() => {
+    const unsubscribe = language.subscribe((lang) => {
+      currentLang = lang;
+    });
+    return unsubscribe;
+  });
 
-  // Format timestamp
+  // Track which code blocks are copied
+  let copiedCodeBlocks = $state<Set<string>>(new Set());
+
+  // Rendered markdown content
+  let renderedContent = $state('');
+  let renderedThinking = $state('');
+
+  // Create custom renderer for code blocks with copy buttons
+  function createRenderer() {
+    const renderer = new marked.Renderer();
+
+    renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
+      const language = lang || 'text';
+      const id = `code-${Math.random().toString(36).substr(2, 9)}`;
+      const escapedCode = text;
+
+      return `
+        <div class="code-block-container">
+          <div class="code-block-header">
+            <span class="code-language">${language}</span>
+            <button class="copy-code-btn" data-code-id="${id}" data-code="${encodeURIComponent(escapedCode)}" title="${t('messageBubble.copy')}" onclick="handleCodeCopy(event)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="copy-text">${t('messageBubble.copy')}</span>
+              <span class="copied-text" style="display: none;">${t('messageBubble.copied')}</span>
+            </button>
+          </div>
+          <pre><code class="language-${language}" id="${id}">${escapedCode}</code></pre>
+        </div>
+      `;
+    };
+
+    return renderer;
+  }
+
+  // Render markdown content with custom renderer
+  $effect(() => {
+    // Expose handleCodeCopy to window for inline event handlers
+    (window as any).handleCodeCopy = handleCodeCopy;
+
+    const renderMarkdown = async () => {
+      if (message.content) {
+        const renderer = createRenderer();
+        renderedContent = await marked.parse(message.content, { renderer });
+      } else {
+        renderedContent = "";
+      }
+    };
+    renderMarkdown();
+  });
+
+  $effect(() => {
+    const renderThinking = async () => {
+      if (message.thinking) {
+        const renderer = createRenderer();
+        renderedThinking = await marked.parse(message.thinking, { renderer });
+      } else {
+        renderedThinking = "";
+      }
+    };
+    renderThinking();
+  });
+
+  // Store previous values
+  let previousContent = $state('');
+  let previousThinking = $state<string | undefined>('');
+
+  // Reset copied state when content changes
+  $effect(() => {
+    if (message.content !== previousContent) {
+      copiedCodeBlocks = new Set();
+      previousContent = message.content;
+    }
+    if ((message.thinking || '') !== (previousThinking || '')) {
+      copiedCodeBlocks = new Set();
+      previousThinking = message.thinking;
+    }
+  });
+
+  // Format timestamp to short time (HH:MM)
   function formatTime(timestamp?: string): string {
     if (!timestamp) return "";
     try {
-      // 尝试多种时间格式解析
-      let date: Date;
+      const date = parseDate(timestamp);
+      if (isNaN(date.getTime())) return "";
 
-      // 如果已经是 ISO 格式或包含 T，直接解析
-      if (timestamp.includes("T")) {
-        date = new Date(timestamp);
-      }
-      // 如果格式是 "YYYY-MM-DD HH:MM:SS"，转换为 ISO 格式
-      else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timestamp)) {
-        date = new Date(timestamp.replace(" ", "T") + "Z");
-      }
-      // 其他格式尝试直接解析
-      else {
-        date = new Date(timestamp);
-      }
-
-      // 检查日期是否有效
-      if (isNaN(date.getTime())) {
-        return "";
-      }
-
-      return date.toLocaleTimeString("zh-CN", {
+      return date.toLocaleTimeString(currentLang, {
         hour: "2-digit",
         minute: "2-digit",
       });
     } catch {
       return "";
+    }
+  }
+
+  // Format timestamp to full detailed time
+  function formatFullTime(timestamp?: string): string {
+    if (!timestamp) return "";
+    try {
+      const date = parseDate(timestamp);
+      if (isNaN(date.getTime())) return "";
+
+      return date.toLocaleString(currentLang, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return "";
+    }
+  }
+
+  // Helper function to parse date
+  function parseDate(timestamp: string): Date {
+    // 如果已经是 ISO 格式或包含 T，直接解析
+    if (timestamp.includes("T")) {
+      return new Date(timestamp);
+    }
+    // 如果格式是 "YYYY-MM-DD HH:MM:SS"，转换为 ISO 格式
+    else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timestamp)) {
+      return new Date(timestamp.replace(" ", "T") + "Z");
+    }
+    // 其他格式尝试直接解析
+    else {
+      return new Date(timestamp);
     }
   }
 
@@ -94,6 +196,48 @@
     navigator.clipboard.writeText(message.content);
     copied = true;
     setTimeout(() => copied = false, 2000);
+  }
+
+  function handleCodeCopy(event: MouseEvent) {
+    const button = event.target as HTMLElement;
+    const copyBtn = button.closest('.copy-code-btn') as HTMLButtonElement;
+    if (!copyBtn) return;
+
+    const codeData = copyBtn.getAttribute('data-code');
+    if (!codeData) return;
+
+    try {
+      const code = decodeURIComponent(codeData);
+      navigator.clipboard.writeText(code);
+
+      // Update button UI immediately
+      const originalText = copyBtn.querySelector('.copy-text') as HTMLElement;
+      const copiedText = copyBtn.querySelector('.copied-text') as HTMLElement;
+      if (originalText && copiedText) {
+        originalText.style.display = 'none';
+        copiedText.style.display = 'inline';
+        copyBtn.classList.add('copied');
+      }
+
+      // Mark this specific code block as copied
+      const codeId = copyBtn.getAttribute('data-code-id');
+      if (codeId) {
+        copiedCodeBlocks = new Set(copiedCodeBlocks).add(codeId);
+        setTimeout(() => {
+          copiedCodeBlocks = new Set(
+            Array.from(copiedCodeBlocks).filter(id => id !== codeId)
+          );
+          // Reset button UI
+          if (originalText && copiedText) {
+            originalText.style.display = 'inline';
+            copiedText.style.display = 'none';
+            copyBtn.classList.remove('copied');
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
   }
 </script>
 
@@ -128,7 +272,7 @@
       </span>
     {/if}
     {#if message.created_at}
-      <span class="timestamp">
+      <span class="timestamp" title={formatFullTime(message.created_at)}>
         {formatTime(message.created_at)}
       </span>
     {/if}
@@ -167,7 +311,7 @@
   {/if}
 
   <div class="message-content">
-    <div class="content-text">
+    <div class="content-text" bind:this={contentContainer}>
       {#if isStreaming}
         <div class="typing-animation">{message.content}</div>
         <span class="cursor"></span>
@@ -208,15 +352,12 @@
     max-width: 100%;
   }
 
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .message-bubble.user {
+    align-items: flex-end;
+  }
+
+  .message-bubble.assistant {
+    align-items: flex-start;
   }
 
   .message-header {
@@ -229,10 +370,22 @@
     max-width: 100%;
   }
 
+  .message-bubble.user .message-header {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+  }
+
   .role-label {
     font-weight: 600;
-    color: var(--primary-color);
     font-size: 0.85rem;
+  }
+
+  .message-bubble.user .role-label {
+    color: var(--primary-color);
+  }
+
+  .message-bubble.assistant .role-label {
+    color: var(--success-color, #28a745);
   }
 
   .model-info {
@@ -272,6 +425,122 @@
     color: var(--text-tertiary);
     font-size: 0.7rem;
     margin-left: auto;
+  }
+
+  .message-bubble.user .timestamp {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .code-block-container {
+    position: relative;
+    margin: 0.75rem 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .code-block-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .code-language {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: auto;
+    flex-shrink: 0;
+  }
+
+  .copy-code-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 0.375rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+    opacity: 0.95;
+    font-weight: 500;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .copy-code-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 1;
+  }
+
+  .copy-code-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+  }
+
+  .copy-text,
+  .copied-text {
+    font-size: 0.75rem;
+  }
+
+  .copy-code-btn.copied {
+    background: var(--success-color, #10b981);
+    color: white;
+    border-color: var(--success-color, #10b981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    font-weight: 600;
+  }
+
+  .copy-code-btn.copied:hover {
+    background: var(--success-color, #0ea371);
+    border-color: var(--success-color, #0ea371);
+  }
+
+  :global([data-theme="dark"]) .copy-code-btn {
+    background: rgba(79, 70, 229, 0.2);
+    border: 1px solid rgba(79, 70, 229, 0.4);
+    color: #a5b4fc;
+  }
+
+  :global([data-theme="dark"]) .copy-code-btn.copied {
+    background: #059669;
+    border-color: #059669;
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4);
+  }
+
+  :global([data-theme="dark"]) .copy-code-btn.copied:hover {
+    background: #047857;
+    border-color: #047857;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .thinking-section {
@@ -367,10 +636,17 @@
     display: flex;
     gap: 0.75rem;
     position: relative;
+      }
+
+  .message-bubble.user .message-content {
+    justify-content: flex-end;
+  }
+
+  .message-bubble.assistant .message-content {
+    justify-content: flex-start;
   }
 
   .content-text {
-    flex: 1;
     padding: 1.25rem;
     border-radius: 1rem;
     background: var(--bg-secondary);
@@ -384,10 +660,12 @@
     overflow-wrap: anywhere;
     /* Prevent horizontal overflow */
     max-width: 100%;
+    /* Ensure content is properly contained */
+    box-sizing: border-box;
   }
 
-  .content-text:hover {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  .message-bubble.assistant .content-text {
+    flex: 1;
   }
 
   .message-bubble.user .content-text {
@@ -395,14 +673,23 @@
     color: white;
     border-color: transparent;
     box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
+    flex: 1;
+    max-width: 85%;
+    margin-left: auto;
+    text-align: left;
   }
 
   .message-bubble.user .content-text:hover {
     box-shadow: 0 4px 12px rgba(90, 156, 255, 0.4);
   }
 
-  .message-bubble.user .role-label {
-    color: var(--primary-color);
+  .message-bubble.assistant .content-text {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+  }
+
+  .message-bubble.assistant .content-text:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
   .message-bubble.user .content-text :global(*) {
@@ -435,12 +722,17 @@
     border-radius: 0.5rem;
     padding: 1rem;
     overflow-x: auto;
-    margin: 0.75rem 0;
+    margin: 0;
     /* Ensure pre tags also respect container boundaries */
     max-width: 100%;
+    /* Remove top padding since header covers that area */
+    padding-top: 3rem;
   }
 
   .content-text :global(pre code) {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
     background: none;
     color: inherit;
     padding: 0;
@@ -467,6 +759,47 @@
     margin: 0.25rem 0;
     max-width: 100%;
     overflow-wrap: break-word;
+  }
+
+  .content-text :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+    overflow-x: auto;
+    display: block;
+    max-width: 100%;
+  }
+
+  .content-text :global(table thead) {
+    background: var(--bg-tertiary);
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  .content-text :global(table th) {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .content-text :global(table td) {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .content-text :global(table tbody tr) {
+    transition: background-color 0.2s;
+  }
+
+  .content-text :global(table tbody tr:hover) {
+    background: var(--bg-tertiary);
+  }
+
+  .content-text :global(table tbody tr:last-child td) {
+    border-bottom: none;
   }
 
   .typing-animation {
@@ -497,6 +830,12 @@
   .message-actions {
     opacity: 0;
     transition: opacity 0.3s;
+    align-self: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .message-bubble.assistant .message-actions {
+    align-self: flex-start;
   }
 
   .message-bubble:hover .message-actions {
@@ -548,8 +887,25 @@
 
     .message-actions {
       opacity: 1;
-      align-self: flex-end;
-      margin-top: 0.5rem;
+    }
+
+    .content-text :global(table) {
+      font-size: 0.8125rem;
+    }
+
+    .content-text :global(table th),
+    .content-text :global(table td) {
+      padding: 0.5rem 0.625rem;
+    }
+
+    .copy-code-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.6875rem;
+      opacity: 1; /* 在移动端始终显示复制按钮 */
+    }
+
+    .content-text :global(pre) {
+      padding: 1rem;
     }
   }
 </style>
