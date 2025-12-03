@@ -226,6 +226,7 @@
     margin-bottom: 0.625rem;
     font-size: 0.8rem;
     flex-wrap: wrap;
+    max-width: 100%;
   }
 
   .role-label {
@@ -348,6 +349,9 @@
 
   .thinking-content :global(p) {
     margin: 0.5rem 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
   .thinking-content :global(code) {
@@ -375,6 +379,11 @@
     line-height: 1.7;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: all 0.2s;
+    /* Ensure text wraps properly within container */
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    /* Prevent horizontal overflow */
+    max-width: 100%;
   }
 
   .content-text:hover {
@@ -406,6 +415,9 @@
     margin-top: 1rem;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
+    /* Prevent headings from overflowing */
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 
   .content-text :global(code) {
@@ -424,6 +436,8 @@
     padding: 1rem;
     overflow-x: auto;
     margin: 0.75rem 0;
+    /* Ensure pre tags also respect container boundaries */
+    max-width: 100%;
   }
 
   .content-text :global(pre code) {
@@ -438,16 +452,21 @@
     margin: 0.75rem 0;
     color: var(--text-secondary);
     font-style: italic;
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 
   .content-text :global(ul),
   .content-text :global(ol) {
     margin: 0.75rem 0;
     padding-left: 1.5rem;
+    max-width: 100%;
   }
 
   .content-text :global(li) {
     margin: 0.25rem 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 
   .typing-animation {
