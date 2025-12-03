@@ -106,19 +106,6 @@ class MessageService:
                         user_question = msg.content if isinstance(msg.content, str) else str(msg.content)[:200]
                         break
 
-            # Log initial request info (provider will be determined later if not specified)
-            provider_info = f"{BLUE}{provider_name}{RESET}" if provider_name else f"{BLUE}auto-select{RESET}"
-            format_info = f"{MAGENTA}{api_format}{RESET}" if api_format else f"{MAGENTA}auto-detect{RESET}"
-
-            logger.info(
-                f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
-                f"  {GREEN}Model{RESET}: {YELLOW}{req.model}{RESET}\n"
-                f"  {GREEN}Provider{RESET}: {provider_info}\n"
-                f"  {GREEN}API Format{RESET}: {format_info}\n"
-                f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
-                f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}"
-            )
-
             # If provider_name is specified, use it directly (user's choice) - no validation
             if provider_name:
                 requested_model = req.model
@@ -160,15 +147,20 @@ class MessageService:
                     )
 
                 actual_model = requested_model
-                logger.info(
-                    f"Using specified provider '{provider_name}' (format: {provider_config.api_format}) "
-                    f"for model: {actual_model} (user's choice)"
-                )
-
-                logger.info(f"Using provider: {provider_config.name}, model: {actual_model}")
 
                 # Determine API format from provider config or use the one from headers
                 provider_api_format = api_format or getattr(provider_config, 'api_format', 'openai').lower()
+
+                # Log actual provider and model being used
+                logger.info(
+                    f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
+                    f"  {GREEN}Model{RESET}: {YELLOW}{actual_model}{RESET}\n"
+                    f"  {GREEN}Provider{RESET}: {BLUE}{provider_config.name}{RESET}\n"
+                    f"  {GREEN}API Format{RESET}: {MAGENTA}{provider_api_format}{RESET}\n"
+                    f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
+                    f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}\n"
+                    f"  {GREEN}Mode{RESET}: User-specified provider"
+                )
 
                 if provider_api_format == 'anthropic':
                     # Direct forwarding for Anthropic format providers
@@ -247,6 +239,17 @@ class MessageService:
                             exclude_providers=current_exclude_providers,
                             exclude_models=current_exclude_models,
                             preferred_provider=getattr(req, 'provider', None)
+                        )
+
+                        # Log actual provider and model being used (for auto-selection)
+                        logger.info(
+                            f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
+                            f"  {GREEN}Model{RESET}: {YELLOW}{actual_model}{RESET}\n"
+                            f"  {GREEN}Provider{RESET}: {BLUE}{provider_config.name}{RESET}\n"
+                            f"  {GREEN}API Format{RESET}: {MAGENTA}{getattr(provider_config, 'api_format', 'openai')}{RESET}\n"
+                            f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
+                            f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}\n"
+                            f"  {GREEN}Mode{RESET}: Auto-selected provider"
                         )
                     except ValueError as ve:
                         # No provider/model found - this means all providers/models in this category are exhausted
@@ -699,15 +702,6 @@ class MessageService:
         async def generate():
             total_output_tokens = 0
             try:
-                # Log request details for debugging
-                logger.info(
-                    f"[Request {request_id}] Starting streaming request:\n"
-                    f"  Provider: {provider_config.name}\n"
-                    f"  Model: {actual_model}\n"
-                    f"  Max Tokens: {openai_request.get('max_tokens')}\n"
-                    f"  Message Count: {len(openai_request.get('messages', []))}"
-                )
-
                 # Build params, excluding tool_choice if it was filtered
                 api_params = {
                     "model": actual_model,
