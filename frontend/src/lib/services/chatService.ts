@@ -71,6 +71,11 @@ class ChatService {
         },
       );
 
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
+
       if (!response.ok) {
         const error = await response
           .json()
@@ -104,6 +109,11 @@ class ChatService {
           },
         },
       );
+
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
 
       if (!response.ok) {
         const error = await response
@@ -148,6 +158,11 @@ class ChatService {
         }),
       });
 
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
+
       if (!response.ok) {
         const error = await response
           .json()
@@ -187,6 +202,11 @@ class ChatService {
         },
       );
 
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
+
       if (!response.ok) {
         const error = await response
           .json()
@@ -220,6 +240,11 @@ class ChatService {
           },
         },
       );
+
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
 
       if (!response.ok) {
         const error = await response
@@ -286,6 +311,11 @@ class ChatService {
         },
       );
 
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
+
       if (!response.ok) {
         let errorMessage = "Failed to add message";
         try {
@@ -333,6 +363,11 @@ class ChatService {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      // Check for 401 Unauthorized
+      if (await authService.checkUnauthorized(response)) {
+        throw new Error("Authentication failed - redirected to login");
+      }
 
       if (!response.ok) {
         const error = await response

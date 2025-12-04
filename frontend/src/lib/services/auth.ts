@@ -82,6 +82,44 @@ class AuthService {
   }
 
   /**
+   * 处理认证失败（401 错误）
+   * 清除 token 并重定向到登录页
+   */
+  async handleAuthFailure(message?: string): Promise<void> {
+    console.warn(
+      "[Auth] Authentication failed:",
+      message || "Token expired or invalid",
+    );
+
+    // 清除认证信息
+    this.clearToken();
+
+    // 通知用户
+    if (browser) {
+      const { toast } = await import("$stores/toast");
+      toast.error("Session expired. Please login again.");
+
+      // 重定向到登录页
+      goto("/login");
+    }
+  }
+
+  /**
+   * 检查响应是否为 401 错误并处理
+   * 返回 true 如果已处理 401 错误，false 否则
+   */
+  async checkUnauthorized(response: Response): Promise<boolean> {
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage =
+        errorData.detail || errorData.message || "Unauthorized";
+      await this.handleAuthFailure(errorMessage);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * 获取认证头
    */
   getAuthHeaders(): Record<string, string> {
