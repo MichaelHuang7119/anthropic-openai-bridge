@@ -4,6 +4,102 @@ import json as json_module
 from typing import AsyncIterator, Dict, Any
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+def _process_reasoning_from_content(
+    delta_content: str,
+    reasoning_flag: bool,
+    REASONING_START_TAG="<think>",
+    REASONING_STOP_TAG="</think>"
+):
+    """Process reasoning tags in content using state machine approach.
+
+    Args:
+        delta_content: The content from this delta
+        reasoning_flag: True if we're currently inside a thinking block
+        REASONING_START_TAG: Start tag for thinking content
+        REASONING_STOP_TAG: End tag for thinking content
+
+    Returns:
+        Tuple of (content, reasoning_content, updated_reasoning_flag)
+    """
+    logger.debug(f"DEBUG: delta content: {delta_content}")
+
+    reasoning_content = ""
+    content = ""
+
+    # 检查是否包含推理标签
+    reasoning_start_tag_index = delta_content.find(REASONING_START_TAG)
+    reasoning_stop_tag_index = delta_content.find(REASONING_STOP_TAG)
+
+    # 如果已经在推理模式中，或者发现了开始标签
+    if reasoning_flag or reasoning_start_tag_index != -1:
+        new_reasoning_flag = True
+
+        # 同时包含开始和结束标签（完整的一次推理块）
+        if reasoning_start_tag_index != -1 and reasoning_stop_tag_index != -1:
+            # 如果开始标签在结束标签之前
+            if reasoning_start_tag_index < reasoning_stop_tag_index:
+                # 提取开始标签后的推理内容
+                if reasoning_start_tag_index == 0:
+                    reasoning_content += delta_content[len(REASONING_START_TAG):reasoning_stop_tag_index]
+                else:
+                    # 既有开始又有结束，但开始不在最前面
+                    content += delta_content[:reasoning_start_tag_index]
+                    reasoning_content += delta_content[reasoning_start_tag_index + len(REASONING_START_TAG):reasoning_stop_tag_index]
+
+                # 提取结束标签后的内容（推理块结束）
+                remaining = delta_content[reasoning_stop_tag_index + len(REASONING_STOP_TAG):]
+                if remaining:
+                    content += remaining
+                new_reasoning_flag = False  # 推理块结束
+            else:
+                # 结束标签在开始标签之前（不常见，可能是有问题的输入）
+                content += delta_content[:reasoning_stop_tag_index]
+                new_reasoning_flag = False
+                remaining = delta_content[reasoning_stop_tag_index + len(REASONING_STOP_TAG):]
+                if remaining:
+                    content += remaining
+        # 只找到开始标签（新推理块开始）
+        elif reasoning_start_tag_index != -1:
+            if reasoning_start_tag_index == 0:
+                # 开始标签在最前面，提取标签后的内容
+                reasoning_content += delta_content[len(REASONING_START_TAG):]
+            else:
+                # 开始标签不在最前面，提取前面的正常内容和后面的推理内容
+                content += delta_content[:reasoning_start_tag_index]
+                reasoning_content += delta_content[reasoning_start_tag_index + len(REASONING_START_TAG):]
+        # 只找到结束标签（推理块结束）
+        elif reasoning_stop_tag_index != -1:
+            # 提取结束标签前的推理内容
+            reasoning_part = delta_content[:reasoning_stop_tag_index]
+            # 去除末尾的换行
+            if reasoning_part.endswith('\n'):
+                reasoning_part = reasoning_part[:-1]
+            if reasoning_part:
+                reasoning_content += reasoning_part
+
+            # 提取结束标签后的内容
+            remaining = delta_content[reasoning_stop_tag_index + len(REASONING_STOP_TAG):]
+            if remaining:
+                content += remaining
+            new_reasoning_flag = False  # 推理块结束
+        else:
+            # 没找到标签，整段都是推理内容
+            reasoning_content += delta_content
+    else:
+        # 没有在推理模式中，也没有找到开始标签，整段都是普通内容
+        content = delta_content
+        new_reasoning_flag = False
+
+    # 如果没有提取到任何内容，返回 None
+    reasoning_content = reasoning_content if reasoning_content else None
+
+    return content, reasoning_content, new_reasoning_flag
+
+
 async def convert_openai_stream_to_anthropic_async(
     openai_stream: AsyncIterator,
     model: str,
@@ -16,9 +112,6 @@ async def convert_openai_stream_to_anthropic_async(
         model: Model name
         initial_input_tokens: Initial input token count (calculated from request messages)
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     # Validate that we have a valid stream
     if openai_stream is None:
         logger.error(f"openai_stream is None for model {model}")
@@ -39,12 +132,15 @@ async def convert_openai_stream_to_anthropic_async(
     # Initialize usage_data with actual input_tokens (per claude-code-proxy pattern)
     # This allows clients to see input token count immediately
     usage_data = {"input_tokens": initial_input_tokens, "output_tokens": 0}
-    last_sent_usage = {"input_tokens": initial_input_tokens, "output_tokens": 0}  # Track last sent usage for real-time updates
     
     # Extended thinking support
     thinking_content_blocks = {}  # Maps content block index -> thinking data
     current_thinking_block = None  # Track current thinking block index
     thinking_signature = None  # Store signature for thinking block
+    # State tracking for reasoning tag processing
+    reasoning_flag = False  # Track if we're inside a thinking block
+    REASONING_START_TAG = "<think>"
+    REASONING_STOP_TAG = "</think>"
     
     # Send initial SSE events IMMEDIATELY (per claude-code-proxy pattern for better responsiveness)
     # This allows the client to know the request has started processing right away
@@ -61,7 +157,6 @@ async def convert_openai_stream_to_anthropic_async(
             "usage": usage_data
         }
     }
-    message_started = True
     
     # Don't start text block immediately - wait for actual content
     # Thinking block will be started first if thinking content is available
@@ -83,13 +178,11 @@ async def convert_openai_stream_to_anthropic_async(
         last_chunk = chunk
         
         # Log chunk info at DEBUG level for troubleshooting
-        import logging
-        chunk_logger = logging.getLogger(__name__)
-        if chunk_logger.isEnabledFor(logging.DEBUG):
+        if logger.isEnabledFor(logging.DEBUG):
             chunk_type = type(chunk).__name__
             has_choices_attr = hasattr(chunk, 'choices')
             is_dict = isinstance(chunk, dict)
-            chunk_logger.debug(
+            logger.debug(
                 f"Received chunk #{chunk_count}: type={chunk_type}, "
                 f"has_choices={has_choices_attr}, is_dict={is_dict}"
             )
@@ -269,8 +362,8 @@ async def convert_openai_stream_to_anthropic_async(
                     continue
             
             # Log at DEBUG level why we're skipping this chunk
-            if chunk_logger.isEnabledFor(logging.DEBUG):
-                chunk_logger.debug(
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
                     f"Skipping chunk #{chunk_count}: no choices found. "
                     f"Chunk keys: {list(chunk.keys()) if isinstance(chunk, dict) else 'N/A'}"
                 )
@@ -354,7 +447,25 @@ async def convert_openai_stream_to_anthropic_async(
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(f"Found thinking content in delta: {str(thinking_content)[:50]}...")
                     break
-        
+
+        # Check for reasoning_details format (array of text fragments)
+        if not thinking_content:
+            reasoning_details = get_delta_attr('reasoning_details')
+            if reasoning_details:
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Found reasoning_details: {reasoning_details}")
+                if isinstance(reasoning_details, list):
+                    reasoning_parts = []
+                    for detail in reasoning_details:
+                        if isinstance(detail, dict) and detail.get('text'):
+                            reasoning_parts.append(detail.get('text'))
+                        elif hasattr(detail, 'text') and detail.text:
+                            reasoning_parts.append(str(detail.text))
+                    if reasoning_parts:
+                        thinking_content = ''.join(reasoning_parts)
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug(f"Extracted thinking from reasoning_details: {str(thinking_content)[:50]}...")
+
         # Finally check choice attributes (some API formats)
         if not thinking_content:
             for attr in ['thinking', 'reasoning', 'reasoning_content', 'thought']:
@@ -363,6 +474,12 @@ async def convert_openai_stream_to_anthropic_async(
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(f"Found thinking content in choice: {str(thinking_content)[:50]}...")
                     break
+
+        # If no thinking_content found yet, check if content contains reasoning tags using unified state machine
+        if not thinking_content and content:
+            content, thinking_content, reasoning_flag = _process_reasoning_from_content(
+                content, reasoning_flag, REASONING_START_TAG, REASONING_STOP_TAG
+            )
             
         # Process thinking content if available
         if thinking_content:
@@ -579,8 +696,6 @@ async def convert_openai_stream_to_anthropic_async(
     # If we didn't see a finish_reason, the stream ended naturally
     # This is normal for some APIs that don't send finish_reason or [DONE] markers
     if not finish_reason_seen:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.debug(
             f"OpenAI stream ended naturally without finish_reason. "
             f"Model: {model}, Using default stop_reason: {final_stop_reason}"
@@ -589,8 +704,6 @@ async def convert_openai_stream_to_anthropic_async(
     # Log warning if we didn't receive any content chunks (only usage updates)
     # This might indicate the API returned an empty response
     if not has_content_chunks:
-        import logging
-        logger = logging.getLogger(__name__)
         # Log more details for debugging
         logger.warning(
             f"OpenAI stream conversion completed without any content chunks. "

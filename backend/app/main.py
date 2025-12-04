@@ -37,6 +37,13 @@ logging.basicConfig(level=log_level_map.get(log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 logger.info(f"Logging level set to: {log_level}")
 
+
+watchdog_log_level = log_level_map.get(os.getenv('WATCHDOG_LOG_LEVEL', 'WARNING').upper(), logging.WARNING)
+logging.getLogger("watchdog").setLevel(watchdog_log_level)
+logging.getLogger("watchdog.observers").setLevel(watchdog_log_level)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(watchdog_log_level)
+logging.getLogger("watchfiles").setLevel(watchdog_log_level)
+
 # Initialize OpenTelemetry if enabled
 _telemetry_enabled = os.getenv("ENABLE_TELEMETRY", "true").lower() in ("true", "1", "yes")
 if _telemetry_enabled:
