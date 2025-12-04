@@ -77,10 +77,19 @@
       console.error("Failed to load messages:", err);
     } finally {
       isLoading = false;
-      // Scroll to bottom after loading
+      // Reset scroll state
       userScrolledUp = false;
+      isAtBottom = true;
+
+      // Scroll to bottom after loading with multiple attempts
       await tick();
+      // Immediate scroll
       scrollToBottom();
+
+      // Additional scroll after a short delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50);
     }
   }
 
@@ -112,20 +121,45 @@
   // Auto-scroll to bottom only if user hasn't scrolled up
   $effect(() => {
     if (messages.length > 0 || streamingMessage || streamingThinking) {
-      tick().then(() => {
+      // For streaming messages, use requestAnimationFrame for smoother scrolling
+      // For regular messages, use a small delay to ensure DOM is ready
+      const scrollAction = () => {
         // Only auto-scroll if user is at bottom or hasn't manually scrolled up
         if (!userScrolledUp && isAtBottom) {
           scrollToBottom();
         }
-      });
+      };
+
+      // Use requestAnimationFrame for streaming messages, setTimeout for others
+      if (streamingMessage || streamingThinking) {
+        requestAnimationFrame(scrollAction);
+      } else {
+        setTimeout(scrollAction, 0);
+      }
     }
   });
 
   function scrollToBottom() {
     if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      userScrolledUp = false;
-      isAtBottom = true;
+      // Get current scroll position before scrolling
+      const wasAtBottom = isAtBottom;
+      const maxScrollTop = messagesContainer.scrollHeight - messagesContainer.clientHeight;
+
+      // Always scroll to the bottom
+      messagesContainer.scrollTop = maxScrollTop;
+
+      // Use requestAnimationFrame for smoother scrolling, especially for streaming
+      requestAnimationFrame(() => {
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      });
+
+      // Update state only if we were already at bottom or this is a user action
+      if (wasAtBottom || userScrolledUp === false) {
+        userScrolledUp = false;
+        isAtBottom = true;
+      }
     }
   }
 
@@ -183,6 +217,10 @@
       };
       messages = [...messages, userMsg];
 
+      // Scroll to user message immediately
+      await tick();
+      scrollToBottom();
+
       // Add to database
       console.log("ChatArea: Adding message to database:", {
         conversationId: conversation.id,
@@ -221,9 +259,17 @@
         (chunk, thinking) => {
           if (chunk) {
             streamingMessage += chunk;
+            // Scroll immediately when new chunk arrives for smooth streaming experience
+            if (!userScrolledUp && isAtBottom) {
+              scrollToBottom();
+            }
           }
           if (thinking !== undefined) {
             streamingThinking = thinking;
+            // Scroll immediately when thinking content updates
+            if (!userScrolledUp && isAtBottom) {
+              scrollToBottom();
+            }
           }
         },
         async (usage) => {

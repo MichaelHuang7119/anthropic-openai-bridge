@@ -55,6 +55,13 @@
   let renderedContent = $state('');
   let renderedThinking = $state('');
 
+  // Escape HTML to prevent inline HTML rendering
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   // Create custom renderer for code blocks with copy buttons
   function createRenderer() {
     const renderer = new marked.Renderer();
@@ -93,7 +100,14 @@
     const renderMarkdown = async () => {
       if (message.content) {
         const renderer = createRenderer();
-        renderedContent = await marked.parse(message.content, { renderer });
+        // Escape HTML to prevent inline HTML rendering
+        // This prevents CSS styles and HTML structures from being rendered as actual DOM elements
+        const safeContent = escapeHtml(message.content);
+        renderedContent = await marked.parse(safeContent, {
+          renderer,
+          breaks: false,
+          gfm: true
+        });
       } else {
         renderedContent = "";
       }
@@ -105,7 +119,13 @@
     const renderThinking = async () => {
       if (message.thinking) {
         const renderer = createRenderer();
-        renderedThinking = await marked.parse(message.thinking, { renderer });
+        // Escape HTML to prevent inline HTML rendering for thinking content as well
+        const safeThinking = escapeHtml(message.thinking);
+        renderedThinking = await marked.parse(safeThinking, {
+          renderer,
+          breaks: false,
+          gfm: true
+        });
       } else {
         renderedThinking = "";
       }

@@ -44,6 +44,18 @@
   // 获取翻译函数
   const t = $derived($tStore);
 
+  // Force scroll to bottom when conversation changes
+  $effect(() => {
+    if (currentConversation) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        if (chatArea && typeof chatArea.scrollToBottom === 'function') {
+          chatArea.scrollToBottom();
+        }
+      }, 100);
+    }
+  });
+
   function toggleSidebar() {
     sidebarCollapsed = !sidebarCollapsed;
   }
