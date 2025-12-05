@@ -47,9 +47,18 @@
   let streamingMessage: string | null = $state(null);
   let streamingThinking: string | null = $state(null);
   let error: string | null = $state(null);
+  let errorDetails: any = $state(null); // Store detailed error information
+  let showErrorDetails = $state(false); // Toggle to show/hide error details
   let messagesContainer: HTMLDivElement;
   let userScrolledUp = $state(false); // Track if user manually scrolled up
   let isAtBottom = $state(true); // Track if user is at bottom
+
+  // Extend Error interface to support additional properties
+  interface ExtendedError extends Error {
+    status?: number;
+    statusText?: string;
+    details?: any;
+  }
 
   // 获取翻译函数
   const t = $derived($tStore);
@@ -70,10 +79,17 @@
 
     try {
       isLoading = true;
+      error = null;
+      errorDetails = null;
+
       const detail = await chatService.getConversation(conversation.id);
       messages = detail.messages || [];
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
+      errorDetails = {
+        message: err instanceof Error ? err.message : t('common.error'),
+        timestamp: new Date().toISOString()
+      };
       console.error("Failed to load messages:", err);
     } finally {
       isLoading = false;
@@ -366,11 +382,25 @@
           }
         },
         (err) => {
-          error = err.message;
+          // Type assert to ExtendedError to access additional properties
+          const extendedErr = err as ExtendedError;
+
+          // Store detailed error information
+          error = extendedErr.message;
+          errorDetails = {
+            message: extendedErr.message,
+            status: extendedErr.status,
+            statusText: extendedErr.statusText,
+            details: extendedErr.details,
+            timestamp: new Date().toISOString()
+          };
+
+          console.error("Chat message error:", err);
+
           streamingMessage = null;
           streamingThinking = null;
           isLoading = false;
-          dispatch("error", { message: err.message });
+          dispatch("error", { message: extendedErr.message });
         },
       );
     } catch (err) {
@@ -426,9 +456,119 @@
         <p>{t('common.loading')}</p>
       </div>
     {:else if error}
-      <div class="error">
-        <p>{error}</p>
-        <button onclick={loadMessages}>{t('common.error')}</button>
+      <div class="error-container">
+        <div class="error-icon">⚠</div>
+        <div class="error-content">
+          <h3>{t('common.error')}</h3>
+          <p class="error-message">{error}</p>
+
+          <!-- Show error details in development or when available -->
+          {#if errorDetails}
+            <button
+              class="toggle-details-btn"
+              onclick={() => showErrorDetails = !showErrorDetails}
+            >
+              {showErrorDetails ? 'Hide' : 'Show'} Details
+            </button>
+
+            {#if showErrorDetails}
+              <div class="error-details">
+                {#if errorDetails.status}
+                  <div class="error-detail-item">
+                    <strong>Status:</strong>
+                    <span>{errorDetails.status} {errorDetails.statusText}</span>
+                  </div>
+                {/if}
+
+                <!-- New structured error fields from backend -->
+                {#if errorDetails.type}
+                  <div class="error-detail-item">
+                    <strong>Error Type:</strong>
+                    <span>{errorDetails.type}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.provider}
+                  <div class="error-detail-item">
+                    <strong>Provider:</strong>
+                    <span>{errorDetails.provider}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.model}
+                  <div class="error-detail-item">
+                    <strong>Model:</strong>
+                    <span>{errorDetails.model}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.request_id}
+                  <div class="error-detail-item">
+                    <strong>Request ID:</strong>
+                    <span>{errorDetails.request_id}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.provider_status_code}
+                  <div class="error-detail-item">
+                    <strong>Provider Status:</strong>
+                    <span>{errorDetails.provider_status_code}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.provider_url}
+                  <div class="error-detail-item">
+                    <strong>Provider URL:</strong>
+                    <span class="error-url">{errorDetails.provider_url}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.status_code}
+                  <div class="error-detail-item">
+                    <strong>Backend Status:</strong>
+                    <span>{errorDetails.status_code}</span>
+                  </div>
+                {/if}
+
+                <!-- Network error category (ssl_error, dns_error, timeout_error, etc.) -->
+                {#if errorDetails.category}
+                  <div class="error-detail-item">
+                    <strong>Error Category:</strong>
+                    <span class="error-category {errorDetails.category}">{errorDetails.category}</span>
+                  </div>
+                {/if}
+
+                <!-- User-friendly hint for network errors -->
+                {#if errorDetails.hint}
+                  <div class="error-detail-item">
+                    <strong>Hint:</strong>
+                    <span class="error-hint">{errorDetails.hint}</span>
+                  </div>
+                {/if}
+
+                {#if errorDetails.details}
+                  <div class="error-detail-item">
+                    <strong>Full Details:</strong>
+                    <pre>{JSON.stringify(errorDetails.details, null, 2)}</pre>
+                  </div>
+                {/if}
+
+                {#if errorDetails.timestamp}
+                  <div class="error-detail-item">
+                    <strong>Time:</strong>
+                    <span>{new Date(errorDetails.timestamp).toLocaleString()}</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
+        </div>
+
+        <div class="error-actions">
+          <button class="retry-btn" onclick={loadMessages}>
+            {t('messageBubble.retry')}
+          </button>
+        </div>
       </div>
     {:else if messages.length === 0}
       <div class="empty">
@@ -621,8 +761,7 @@
   /* Empty states */
   .welcome,
   .loading,
-  .empty,
-  .error {
+  .empty {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -676,26 +815,175 @@
     }
   }
 
-  .error {
+  /* Enhanced error display */
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 1rem;
+    margin: 2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
     color: #ef4444;
   }
 
-  .error button {
+  .error-content {
+    width: 100%;
+  }
+
+  .error-content h3 {
+    color: #ef4444;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .error-message {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    word-break: break-word;
+  }
+
+  .toggle-details-btn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s;
+  }
+
+  .toggle-details-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .error-details {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
     margin-top: 1rem;
-    padding: 0.625rem 1.25rem;
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .error-detail-item {
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .error-detail-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .error-detail-item strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  .error-detail-item span,
+  .error-detail-item pre {
+    color: var(--text-secondary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.8125rem;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .error-url {
+    color: var(--primary-color);
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .error-url:hover {
+    text-decoration: underline;
+    color: var(--primary-hover);
+  }
+
+  .error-category {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+  }
+
+  .error-category.ssl_error,
+  .error-category.tls_error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .error-category.dns_error,
+  .error-category.hostname_error {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+  }
+
+  .error-category.timeout_error {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .error-category.connection_error {
+    background: rgba(156, 163, 175, 0.1);
+    color: #6b7280;
+  }
+
+  .error-hint {
+    color: var(--primary-color);
+    font-style: italic;
+    padding: 0.25rem;
+    background: rgba(79, 70, 229, 0.05);
+    border-radius: 0.25rem;
+    border-left: 3px solid var(--primary-color);
+    display: block;
+    margin-top: 0.25rem;
+  }
+
+  .error-actions {
+    margin-top: 1.5rem;
+  }
+
+  .error-actions .retry-btn {
+    padding: 0.625rem 1.5rem;
     background: var(--primary-color);
     color: white;
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
     font-size: 0.95rem;
+    font-weight: 500;
     transition: all 0.2s;
   }
 
-  .error button:hover {
+  .error-actions .retry-btn:hover {
     background: var(--primary-hover);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
   }
+
+  /* Legacy error styles (deprecated - kept for compatibility) */
 
   .scroll-to-bottom {
     position: absolute;

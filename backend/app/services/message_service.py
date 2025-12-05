@@ -599,8 +599,28 @@ class MessageService:
                         cost_estimate=cost_estimate
                     )
 
-            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    
+            # Build detailed error response for frontend
+            import json
+            error_details = {
+                "message": error_message,
+                "type": type(e).__name__,
+                "status_code": status_code,
+                "request_id": request_id,
+                "provider": provider_config.name if "provider_config" in locals() else "unknown",
+                "model": actual_model if "actual_model" in locals() else req.model,
+            }
+
+            # For HTTP errors (like 403 from provider), try to extract more info
+            if hasattr(e, "response") and hasattr(e.response, "status_code"):
+                error_details["provider_status_code"] = e.response.status_code
+                error_details["provider_url"] = (
+                    str(e.request.url) if hasattr(e, "request") and hasattr(e.request, "url") else None
+                )
+
+            # Return detailed error as JSON string
+            error_response = json.dumps(error_details)
+            raise HTTPException(status_code=500, detail=error_response)
+
     def _filter_unsupported_params(self, provider_config, openai_request: dict):
         """Filter out potentially unsupported parameters for specific providers."""
         unsupported_params = []
@@ -1013,6 +1033,30 @@ class MessageService:
                 yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
             except APIConnectionError as e:
                 logger.error(f"Connection error from provider {provider_config.name}: {e}")
+
+                # Extract detailed error information for better debugging
+                error_message = str(e)
+                error_type = type(e).__name__
+
+                # Try to get more details from the exception
+                error_details = {
+                    "type": error_type,
+                    "message": error_message,
+                }
+
+                # Check if it's an SSL/TLS error
+                if "SSL" in error_message or "TLS" in error_message or "certificate" in error_message.lower():
+                    error_details["category"] = "ssl_error"
+                    error_details["hint"] = "SSL certificate verification failed. This may be due to an invalid or self-signed certificate."
+                elif "hostname" in error_message.lower() or "dns" in error_message.lower():
+                    error_details["category"] = "dns_error"
+                    error_details["hint"] = "DNS resolution failed or hostname mismatch. Check the provider URL."
+                elif "timeout" in error_message.lower():
+                    error_details["category"] = "timeout_error"
+                    error_details["hint"] = "Connection timed out. The server may be slow to respond."
+                else:
+                    error_details["category"] = "connection_error"
+
                 # Log failed request and update token usage
                 db = get_database()
                 await db.log_request(
@@ -1021,7 +1065,7 @@ class MessageService:
                     model=actual_model,
                     request_params=openai_request,
                     status_code=503,
-                    error_message=str(e),
+                    error_message=error_message,
                     input_tokens=initial_input_tokens,
                     output_tokens=total_output_tokens,
                     response_time_ms=(time.time() - start_time) * 1000
@@ -1043,8 +1087,9 @@ class MessageService:
                     "type": "error",
                     "error": {
                         "type": "connection_error",
-                        "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
-                        "provider": provider_config.name
+                        "message": f"Connection error to provider '{provider_config.name}': {error_message}",
+                        "provider": provider_config.name,
+                        "details": error_details
                     }
                 }
                 yield f"event: error\ndata: {json.dumps(error_response)}\n\n"

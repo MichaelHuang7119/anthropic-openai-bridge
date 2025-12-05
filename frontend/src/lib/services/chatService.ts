@@ -463,10 +463,98 @@ class ChatService {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: { message: "Failed to send message" } }));
-        throw new Error(error.error?.message || "Failed to send message");
+        let errorInfo: any = null;
+        let errorMessage = "Failed to send message";
+
+        try {
+          errorInfo = await response.json();
+
+          // Check if the detail field is a JSON string (structured error response)
+          if (typeof errorInfo.detail === "string") {
+            try {
+              // Try to parse the detail as JSON (new structured error format)
+              const parsedDetail = JSON.parse(errorInfo.detail);
+
+              // Extract all available fields
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const {
+                message,
+                type,
+                status_code: _status_code,
+                request_id: _request_id,
+                provider: _provider,
+                model: _model,
+                provider_status_code,
+                provider_url: _provider_url,
+              } = parsedDetail;
+
+              // Build comprehensive error message
+              if (message) {
+                errorMessage = message;
+
+                // Add provider status code if available (e.g., "403 Forbidden")
+                if (provider_status_code) {
+                  errorMessage += ` [Provider Status: ${provider_status_code}]`;
+                }
+
+                // Add error type for debugging
+                if (type) {
+                  errorMessage += ` (${type})`;
+                }
+              }
+
+              // Store all parsed details for frontend display
+              errorInfo = {
+                ...errorInfo,
+                ...parsedDetail,
+                // Override detail with parsed JSON
+                detail: parsedDetail,
+              };
+            } catch (jsonParseError) {
+              // If JSON parsing fails, treat as plain string
+              console.error(
+                "Failed to parse error detail as JSON:",
+                jsonParseError,
+              );
+              errorMessage = errorInfo.detail;
+            }
+          } else {
+            // Fallback to original extraction logic for non-JSON errors
+            const backendMessage =
+              errorInfo.error?.message || errorInfo.message || errorInfo.detail;
+            const errorType = errorInfo.error?.type || errorInfo.type;
+            const errorCode = errorInfo.error?.code || errorInfo.code;
+
+            if (backendMessage) {
+              errorMessage = backendMessage;
+              if (errorType || errorCode) {
+                errorMessage += ` (${errorType || errorCode})`;
+              }
+            }
+          }
+
+          // Log detailed error for debugging
+          console.error("Backend error response:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorInfo,
+          });
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+
+        // Create detailed error object
+        const error = new Error(errorMessage) as Error & {
+          status?: number;
+          statusText?: string;
+          details?: any;
+        };
+        error.status = response.status;
+        error.statusText = response.statusText;
+        error.details = errorInfo;
+
+        throw error;
       }
 
       if (!response.body) {
@@ -567,6 +655,40 @@ class ChatService {
             } else if (parsed.type === "ping") {
               // Ignore ping events
               continue;
+            } else if (parsed.type === "error") {
+              // Handle streaming errors from backend
+              const errorInfo = parsed.error;
+
+              // Build comprehensive error message
+              let errorMessage =
+                errorInfo?.message || "Unknown error from provider";
+
+              // Add provider name if available
+              if (errorInfo?.provider) {
+                errorMessage = `${errorInfo.provider}: ${errorMessage}`;
+              }
+
+              // Add error type if available
+              if (errorInfo?.type) {
+                errorMessage += ` (${errorInfo.type})`;
+              }
+
+              // Log detailed error for debugging
+              console.error("Streaming error from backend:", errorInfo);
+
+              // Create detailed error object
+              const error = new Error(errorMessage) as Error & {
+                status?: number;
+                statusText?: string;
+                details?: any;
+              };
+              error.status = 503; // Service Unavailable
+              error.statusText = "Provider Error";
+              error.details = errorInfo;
+
+              // Call onError callback to handle the error
+              onError(error);
+              return;
             }
           } catch (e) {
             console.error("Failed to parse SSE data:", eventData, e);
