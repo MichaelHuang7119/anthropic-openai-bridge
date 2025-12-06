@@ -121,7 +121,10 @@
     "hideThinking": "सोच छुपाएं",
     "inputTokens": "इनपुट",
     "outputTokens": "आउटपुट",
-    "totalTokens": "कुल"
+    "totalTokens": "कुल",
+    "edit": "संपादित करें",
+    "save": "सहेजें",
+    "cancel": "रद्द करें"
   },
   "modelSelector": {
     "provider": "प्रदाता",

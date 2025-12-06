@@ -121,7 +121,10 @@
     "hideThinking": "Hide thinking",
     "inputTokens": "In",
     "outputTokens": "Out",
-    "totalTokens": "Total"
+    "totalTokens": "Total",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "modelSelector": {
     "provider": "Provider",

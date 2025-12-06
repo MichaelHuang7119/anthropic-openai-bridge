@@ -121,7 +121,10 @@
     "hideThinking": "Sembunyikan Pemikiran",
     "inputTokens": "Input",
     "outputTokens": "Output",
-    "totalTokens": "Total"
+    "totalTokens": "Total",
+    "edit": "Edit",
+    "save": "Simpan",
+    "cancel": "Batal"
   },
   "modelSelector": {
     "provider": "Penyedia",

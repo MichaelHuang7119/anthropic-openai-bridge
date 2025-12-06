@@ -121,7 +121,10 @@
     "hideThinking": "Скрыть размышления",
     "inputTokens": "Входные",
     "outputTokens": "Выходные",
-    "totalTokens": "Всего"
+    "totalTokens": "Всего",
+    "edit": "Редактировать",
+    "save": "Сохранить",
+    "cancel": "Отмена"
   },
   "modelSelector": {
     "provider": "Провайдер",

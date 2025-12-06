@@ -121,7 +121,10 @@
     "hideThinking": "Denken verbergen",
     "inputTokens": "Invoer",
     "outputTokens": "Uitvoer",
-    "totalTokens": "Totaal"
+    "totalTokens": "Totaal",
+    "edit": "Bewerken",
+    "save": "Opslaan",
+    "cancel": "Annuleren"
   },
   "modelSelector": {
     "provider": "Provider",

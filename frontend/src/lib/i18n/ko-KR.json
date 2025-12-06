@@ -121,7 +121,10 @@
     "hideThinking": "생각 숨기기",
     "inputTokens": "입력",
     "outputTokens": "출력",
-    "totalTokens": "전체"
+    "totalTokens": "전체",
+    "edit": "편집",
+    "save": "저장",
+    "cancel": "취소"
   },
   "modelSelector": {
     "provider": "프로바이더",

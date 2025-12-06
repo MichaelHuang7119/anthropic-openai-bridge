@@ -123,7 +123,10 @@
     "hideThinking": "收起思考过程",
     "inputTokens": "输入",
     "outputTokens": "输出",
-    "totalTokens": "总计"
+    "totalTokens": "总计",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消"
   },
   "modelSelector": {
     "provider": "供应商",

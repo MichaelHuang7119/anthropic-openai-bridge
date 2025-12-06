@@ -121,7 +121,10 @@
     "hideThinking": "ซ่อนการคิด",
     "inputTokens": "อินพุต",
     "outputTokens": "เอาต์พุต",
-    "totalTokens": "ทั้งหมด"
+    "totalTokens": "ทั้งหมด",
+    "edit": "แก้ไข",
+    "save": "บันทึก",
+    "cancel": "ยกเลิก"
   },
   "modelSelector": {
     "provider": "ผู้ให้บริการ",

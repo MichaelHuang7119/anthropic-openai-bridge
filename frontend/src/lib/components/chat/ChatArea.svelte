@@ -414,6 +414,48 @@
   function handleRetry(event: { message: any }) {
     handleSendMessage({ message: event.message.content });
   }
+
+  async function handleEditMessage(event: { message: any; newContent: string }) {
+    if (!conversation) return;
+
+    const { message, newContent } = event;
+
+    try {
+      // Update the message in the local state
+      messages = messages.map((msg) =>
+        msg.id === message.id ? { ...msg, content: newContent } : msg
+      );
+
+      // Update conversation state
+      if (conversation) {
+        const updatedConversation = {
+          ...conversation,
+          messages: messages,
+        };
+        conversation = updatedConversation;
+        dispatch("conversationUpdate", { conversation: updatedConversation });
+      }
+
+      // Retry the message (send it again with the new content)
+      // Remove the old assistant message if it exists
+      const messageIndex = messages.findIndex((msg) => msg.id === message.id);
+      if (messageIndex !== -1 && messageIndex < messages.length - 1) {
+        // Check if next message is an assistant message that was a response to this message
+        const nextMessage = messages[messageIndex + 1];
+        if (nextMessage && nextMessage.role === "assistant") {
+          // Remove the assistant message that followed this user message
+          messages = messages.filter((msg) => msg.id !== nextMessage.id);
+        }
+      }
+
+      // Now resend with new content
+      await handleSendMessage({ message: newContent });
+    } catch (err) {
+      error = err instanceof Error ? err.message : t('common.error');
+      console.error("Failed to edit message:", err);
+      dispatch("error", { message: error });
+    }
+  }
 </script>
 
 <div class="chat-area">
@@ -583,6 +625,7 @@
           providerName={message.provider_name ?? selectedProvider ?? (conversation?.provider_name ?? null)}
           apiFormat={message.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
           onretry={handleRetry}
+          onedit={handleEditMessage}
         />
       {/each}
 

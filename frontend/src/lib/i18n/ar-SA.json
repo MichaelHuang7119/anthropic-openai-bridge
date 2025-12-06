@@ -121,7 +121,10 @@
     "hideThinking": "إخفاء التفكير",
     "inputTokens": "الإدخال",
     "outputTokens": "الإخراج",
-    "totalTokens": "المجموع"
+    "totalTokens": "المجموع",
+    "edit": "تعديل",
+    "save": "حفظ",
+    "cancel": "إلغاء"
   },
   "modelSelector": {
     "provider": "مزود الخدمة",

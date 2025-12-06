@@ -121,7 +121,10 @@
     "hideThinking": "Nascondi riflessione",
     "inputTokens": "Ingresso",
     "outputTokens": "Uscita",
-    "totalTokens": "Totale"
+    "totalTokens": "Totale",
+    "edit": "Modifica",
+    "save": "Salva",
+    "cancel": "Annulla"
   },
   "modelSelector": {
     "provider": "Provider",

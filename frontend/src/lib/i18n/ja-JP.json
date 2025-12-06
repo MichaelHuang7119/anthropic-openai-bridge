@@ -121,7 +121,10 @@
     "hideThinking": "思考を非表示",
     "inputTokens": "入力",
     "outputTokens": "出力",
-    "totalTokens": "合計"
+    "totalTokens": "合計",
+    "edit": "編集",
+    "save": "保存",
+    "cancel": "キャンセル"
   },
   "modelSelector": {
     "provider": "プロバイダー",

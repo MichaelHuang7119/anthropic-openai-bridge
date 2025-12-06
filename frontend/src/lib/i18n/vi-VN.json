@@ -121,7 +121,10 @@
     "hideThinking": "Ẩn suy nghĩ",
     "inputTokens": "Đầu vào",
     "outputTokens": "Đầu ra",
-    "totalTokens": "Tổng"
+    "totalTokens": "Tổng",
+    "edit": "Chỉnh sửa",
+    "save": "Lưu",
+    "cancel": "Hủy"
   },
   "modelSelector": {
     "provider": "Nhà cung cấp",

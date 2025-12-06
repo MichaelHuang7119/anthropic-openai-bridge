@@ -21,6 +21,7 @@
     providerName = null,
     apiFormat = null,
     onretry,
+    onedit,
   }: {
     message: Message;
     isStreaming?: boolean;
@@ -29,12 +30,18 @@
     providerName?: string | null;
     apiFormat?: string | null;
     onretry?: (event: { message: Message }) => void;
+    onedit?: (event: { message: Message; newContent: string }) => void;
   } = $props();
 
   // State for thinking collapse/expand
   let thinkingExpanded = $state(false);
   let copied = $state(false);
   let contentContainer: HTMLDivElement;
+
+  // State for editing
+  let isEditing = $state(false);
+  let editContent = $state('');
+  let editTextarea: HTMLTextAreaElement | undefined = $state();
 
   // 获取翻译函数和当前语言
   const t = $derived($tStore);
@@ -212,6 +219,23 @@
     onretry?.({ message });
   }
 
+  function handleEdit() {
+    isEditing = true;
+    editContent = message.content;
+  }
+
+  function handleSendEdit() {
+    if (editContent.trim() && editContent !== message.content) {
+      onedit?.({ message, newContent: editContent });
+      isEditing = false;
+    }
+  }
+
+  function handleCancelEdit() {
+    isEditing = false;
+    editContent = message.content;
+  }
+
   function handleCopy() {
     navigator.clipboard.writeText(message.content);
     copied = true;
@@ -332,7 +356,34 @@
 
   <div class="message-content">
     <div class="content-text" bind:this={contentContainer}>
-      {#if isStreaming}
+      {#if isEditing}
+        <div class="edit-mode">
+          <textarea
+            bind:this={editTextarea}
+            bind:value={editContent}
+            class="edit-textarea"
+            rows="3"
+            placeholder={t('messageInput.placeholder')}
+            on:keydown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendEdit();
+              }
+              if (e.key === 'Escape') {
+                handleCancelEdit();
+              }
+            }}
+          ></textarea>
+          <div class="edit-actions">
+            <button class="edit-send-btn" onclick={handleSendEdit}>
+              {t('messageInput.send')}
+            </button>
+            <button class="edit-cancel-btn" onclick={handleCancelEdit}>
+              {t('messageBubble.cancel')}
+            </button>
+          </div>
+        </div>
+      {:else if isStreaming}
         <div class="typing-animation">{message.content}</div>
         <span class="cursor"></span>
       {:else}
@@ -344,8 +395,16 @@
 
     {#if message.role === "user"}
       <div class="message-actions">
-        <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
-        </button>
+        {#if isEditing}
+          <button class="edit-btn sending" disabled>
+            {t('messageInput.send')}
+          </button>
+        {:else}
+          <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
+          </button>
+          <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
+          </button>
+        {/if}
       </div>
     {/if}
   </div>
@@ -699,16 +758,18 @@
 
   .message-bubble.user .content-text {
     background: var(--bg-primary);
-    border: 1px solid var(--primary-color);
+    border: 1px solid var(--border-color);
     color: var(--text-primary);
-    box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     flex: 1;
     max-width: 85%;
     margin-left: auto;
     text-align: left;
+    transition: all 0.2s ease;
   }
 
   .message-bubble.user .content-text:hover {
+    border: 1px solid var(--primary-color);
     box-shadow: 0 4px 12px rgba(90, 156, 255, 0.4);
   }
 
@@ -867,7 +928,8 @@
   }
 
   .retry-btn,
-  .copy-btn {
+  .copy-btn,
+  .edit-btn {
     padding: 0.25rem;
     background: none;
     border: none;
@@ -878,7 +940,8 @@
   }
 
   .retry-btn:hover,
-  .copy-btn:hover {
+  .copy-btn:hover,
+  .edit-btn:hover {
     color: var(--primary-color);
   }
 
@@ -893,6 +956,88 @@
 
   .copy-btn.copied::before {
     content: t('messageBubble.copied');
+  }
+
+  .edit-btn::before {
+    content: "✎";
+    font-size: 0.9rem;
+  }
+
+  .edit-btn.sending {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .edit-btn.sending::before {
+    content: "✓";
+    font-size: 1rem;
+  }
+
+  /* Edit mode styles */
+  .edit-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .edit-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.2s;
+  }
+
+  .edit-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(90, 156, 255, 0.1);
+  }
+
+  .edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .edit-send-btn,
+  .edit-cancel-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+
+  .edit-send-btn {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  .edit-send-btn:hover {
+    background: var(--primary-color-dark, #3b82f6);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
+  }
+
+  .edit-cancel-btn {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+  }
+
+  .edit-cancel-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   @media (max-width: 768px) {
@@ -936,6 +1081,16 @@
 
     .content-text :global(pre) {
       padding: 1rem;
+    }
+
+    .edit-actions {
+      gap: 0.375rem;
+    }
+
+    .edit-send-btn,
+    .edit-cancel-btn {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
     }
   }
 </style>
