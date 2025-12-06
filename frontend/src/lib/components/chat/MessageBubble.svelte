@@ -73,9 +73,9 @@
 
       return `
         <div class="code-block-container">
-          <div class="code-block-header">
-            <span class="code-language">${language}</span>
-            <button class="copy-code-btn" data-code-id="${id}" data-code="${encodeURIComponent(escapedCode)}" title="${t('messageBubble.copy')}" onclick="handleCodeCopy(event)">
+          <div class="code-block-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+            <span class="code-language" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-right: auto; flex-shrink: 0;">${language}</span>
+            <button class="copy-code-btn" data-code-id="${id}" data-code="${encodeURIComponent(escapedCode)}" title="${t('messageBubble.copy')}" onclick="handleCodeCopy(event)" style="display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; background: rgba(79, 70, 229, 0.1); border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 0.375rem; color: var(--primary-color); cursor: pointer; font-size: 0.75rem; transition: all 0.2s ease; line-height: 1; opacity: 0.95; font-weight: 500; flex-shrink: 0;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -465,25 +465,31 @@
 
   .code-block-header {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 4rem;  /* 增加左右内边距，为两端元素留出空间 */
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
   }
 
   .code-language {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-right: auto;
-    flex-shrink: 0;
+    background: var(--bg-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
   }
 
   .copy-code-btn {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -498,8 +504,6 @@
     line-height: 1;
     opacity: 0.95;
     font-weight: 500;
-    margin-left: auto;
-    flex-shrink: 0;
   }
 
   .copy-code-btn:hover {
@@ -688,10 +692,15 @@
     flex: 1;
   }
 
+  .message-bubble.assistant .content-text {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+  }
+
   .message-bubble.user .content-text {
-    background: linear-gradient(135deg, var(--primary-color), #6ba5ff);
-    color: white;
-    border-color: transparent;
+    background: var(--bg-primary);
+    border: 1px solid var(--primary-color);
+    color: var(--text-primary);
     box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
     flex: 1;
     max-width: 85%;
@@ -703,17 +712,12 @@
     box-shadow: 0 4px 12px rgba(90, 156, 255, 0.4);
   }
 
-  .message-bubble.assistant .content-text {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-  }
-
   .message-bubble.assistant .content-text:hover {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
   .message-bubble.user .content-text :global(*) {
-    color: white !important;
+    color: inherit;
   }
 
   .content-text :global(h1),
@@ -918,7 +922,13 @@
       padding: 0.5rem 0.625rem;
     }
 
+    .code-language {
+      left: 0.75rem;
+      font-size: 0.7rem;
+    }
+
     .copy-code-btn {
+      right: 0.75rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.6875rem;
       opacity: 1; /* 在移动端始终显示复制按钮 */

@@ -820,9 +820,9 @@ function formatDate(dateString: string): string {
 
   .new-btn {
     padding: 0.5rem;
-    background: var(--primary-color);
-    color: white;
-    border: none;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -851,14 +851,15 @@ function formatDate(dateString: string): string {
   }
 
   .new-btn:hover {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
     transform: scale(1.1);
   }
 
   .new-btn:active {
-    background: var(--bg-secondary);
-    color: var(--primary-color) !important;
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
     transform: scale(0.98);
     box-shadow:
       0 1px 2px rgba(0, 0, 0, 0.1),
@@ -1052,13 +1053,14 @@ function formatDate(dateString: string): string {
   }
 
   .conversation-item.active {
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
   }
 
   .conversation-item.active .title,
   .conversation-item.active .meta {
-    color: white;
+    color: var(--text-primary);
   }
 
   .conversation-item.selected {
@@ -1197,7 +1199,7 @@ function formatDate(dateString: string): string {
   }
 
   .active .time {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-tertiary);
   }
 
   .meta {
@@ -1214,7 +1216,7 @@ function formatDate(dateString: string): string {
   }
 
   .active .model {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-secondary);
   }
 
   .menu-container {
@@ -1250,12 +1252,12 @@ function formatDate(dateString: string): string {
 
   /* 当对话项处于激活状态时，菜单按钮的样式 */
   .conversation-item.active .menu-btn {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-tertiary);
   }
 
   .conversation-item.active .menu-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .dropdown-menu {

@@ -991,8 +991,9 @@
     left: 50%;
     width: 36px;
     height: 36px;
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 50%;
     cursor: pointer;
     font-size: 1.25rem;
@@ -1007,7 +1008,7 @@
   }
 
   .scroll-to-bottom:hover {
-    background: white;
+    background: var(--bg-tertiary);
     color: var(--primary-color);
     border-color: var(--primary-color);
     transform: translateY(-2px) scale(1.05);
@@ -1016,7 +1017,7 @@
 
   .scroll-to-bottom:active {
     transform: translateY(0) scale(0.98);
-    background: white;
+    background: var(--bg-tertiary);
     color: var(--primary-color);
   }
 

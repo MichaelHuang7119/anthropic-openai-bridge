@@ -337,14 +337,15 @@
   }
 
   .prompt-button.centered {
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
     opacity: 1;
     transform: scale(1);
-    box-shadow: 0 2px 12px rgba(90, 156, 255, 0.4);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     font-weight: 600;
     border-radius: 0.5rem;
     margin: 4px 0;
+    border: 1px solid var(--border-color);
   }
 
   .prompt-button:disabled {
@@ -402,8 +403,9 @@
 
   .send-button {
     padding: 0.75rem;
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
@@ -417,8 +419,9 @@
   }
 
   .send-button:hover:not(.disabled) {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
     transform: rotate(90deg) scale(1.1);
   }
 
