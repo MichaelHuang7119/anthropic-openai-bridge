@@ -28,7 +28,7 @@ class CacheKey:
     @staticmethod
     def generate_key(model: str, messages: list, max_tokens: Optional[int],
                      temperature: Optional[float], tools: Optional[list],
-                     stream: bool, provider: str) -> str:
+                     stream: bool, provider: str, session_id: Optional[str] = None) -> str:
         """
         Generate a unique cache key from request parameters.
 
@@ -40,6 +40,7 @@ class CacheKey:
             tools: Tools list
             stream: Whether streaming
             provider: Provider name
+            session_id: Session ID for request isolation (optional)
 
         Returns:
             Cache key string
@@ -53,6 +54,7 @@ class CacheKey:
             "tools": tools,
             "stream": stream,
             "provider": provider,
+            "session_id": session_id,
         }
 
         # Convert to JSON and hash

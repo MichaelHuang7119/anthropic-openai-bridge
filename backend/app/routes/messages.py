@@ -23,23 +23,27 @@ def create_messages_router(model_manager: ModelManager) -> APIRouter:
         request: Union[MessagesRequest, dict],
         api_user: dict = Depends(require_api_key()),
         x_provider_name: Optional[str] = Header(None, alias="X-Provider-Name"),
-        x_api_format: Optional[str] = Header(None, alias="X-API-Format")
+        x_api_format: Optional[str] = Header(None, alias="X-API-Format"),
+        x_session_id: Optional[str] = Header(None, alias="X-Session-Id")
     ):
         """Handle Anthropic /v1/messages endpoint."""
-        logger.info(f"Received request with provider: {x_provider_name}, api_format: {x_api_format}")
+        logger.info(f"Received request with provider: {x_provider_name}, api_format: {x_api_format}, session_id: {x_session_id}")
         return await message_service.handle_messages(
             request,
             api_user,
             provider_name=x_provider_name,
-            api_format=x_api_format
+            api_format=x_api_format,
+            session_id=x_session_id
         )
     
     @router.post("/v1/messages/count_tokens")
     async def count_tokens(
         request: Union[CountTokensRequest, dict],
-        api_user: dict = Depends(require_api_key())
+        api_user: dict = Depends(require_api_key()),
+        x_session_id: Optional[str] = Header(None, alias="X-Session-Id")
     ):
         """Handle Anthropic /v1/messages/count_tokens endpoint."""
+        logger.info(f"Received count_tokens request with session_id: {x_session_id}")
         try:
             # Parse request
             if isinstance(request, dict):

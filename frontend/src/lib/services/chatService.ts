@@ -1,4 +1,5 @@
 import { authService } from "./auth";
+import { getOrCreateSessionId } from "$lib/utils/session";
 
 export interface ModelChoice {
   providerName: string;
@@ -446,6 +447,10 @@ class ChatService {
         ...authService.getAuthHeaders(),
       };
 
+      // Add session ID for concurrent session isolation
+      const sessionId = getOrCreateSessionId();
+      headers["X-Session-Id"] = sessionId;
+
       if (conversation.provider_name) {
         headers["X-Provider-Name"] = conversation.provider_name;
       }
@@ -455,6 +460,7 @@ class ChatService {
 
       console.log("chatService: Request headers:", headers);
       console.log("chatService: Request body:", requestBody);
+      console.log("chatService: Session ID:", sessionId);
 
       const response = await fetch("/v1/messages", {
         method: "POST",

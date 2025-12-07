@@ -5,12 +5,13 @@
   import {
     chatService,
     type Conversation,
-    type ConversationDetail,
     type ModelChoice,
   } from "$services/chatService";
   import { providerService } from "$services/providers";
   import { toast } from "$stores/toast";
   import { tStore } from "$stores/language";
+  import { getSessionStore } from "$stores/chatSession";
+  import { getOrCreateSessionId } from "$lib/utils/session";
 
   interface ProviderConfig {
     name: string;
@@ -22,8 +23,18 @@
     };
   }
 
-  let conversations = $state<Conversation[]>([]);
-  let currentConversation = $state<ConversationDetail | null>(null);
+  // 获取当前会话ID并创建会话store
+  const sessionId = getOrCreateSessionId();
+  const sessionStore = getSessionStore(sessionId);
+  const sessionState = $derived($sessionStore);
+
+  // 从会话状态中提取数据
+  let conversations = $derived(sessionState.conversations);
+  let currentConversation = $derived(sessionState.currentConversation);
+  let isLoading = $derived(sessionState.isLoading);
+  let _error = $derived(sessionState.error);
+
+  // Provider配置是全局的，不属于会话状态
   let providers = $state<ProviderConfig[]>([]);
 
   // Model selection state (shared between components)
@@ -33,9 +44,6 @@
   let selectedModelName = $state<string>("");
   let selectedCategory = $state<string>("middle");
   let _selectedModelChoice: ModelChoice | null = null;
-
-  let isLoading = $state<boolean>(false);
-  let error = $state<string | null>(null);
 
   let sidebar: ConversationSidebar;
   let chatArea: ChatArea;
@@ -63,13 +71,14 @@
 
   onMount(async () => {
     try {
-      isLoading = true;
+      sessionStore.update(state => ({ ...state, isLoading: true, error: null }));
       await Promise.all([loadConversations(), loadProviders()]);
     } catch (err) {
-      error = err instanceof Error ? err.message : t('common.error');
+      const errorMessage = err instanceof Error ? err.message : t('common.error');
+      sessionStore.update(state => ({ ...state, error: errorMessage }));
       showToast(t('common.error'), "error");
     } finally {
-      isLoading = false;
+      sessionStore.update(state => ({ ...state, isLoading: false }));
     }
   });
 
@@ -107,11 +116,12 @@
   }
 
   async function loadConversations() {
-    conversations = await chatService.getConversations();
+    const conversationsData = await chatService.getConversations();
+    sessionStore.update(state => ({ ...state, conversations: conversationsData }));
 
     // Load last conversation if exists
-    if (conversations.length > 0) {
-      const lastConversation = conversations[0];
+    if (conversationsData.length > 0) {
+      const lastConversation = conversationsData[0];
       await selectConversation(lastConversation);
     }
   }
@@ -129,7 +139,7 @@
   async function handleConversationSelected(event: CustomEvent) {
     const conversation = event.detail.conversation;
     if (!conversation) {
-      currentConversation = null;
+      sessionStore.update(state => ({ ...state, currentConversation: null }));
       return;
     }
     await selectConversation(conversation);
@@ -137,10 +147,11 @@
 
   async function selectConversation(conversation: Conversation) {
     try {
-      isLoading = true;
+      sessionStore.update(state => ({ ...state, isLoading: true, error: null }));
       console.log("Selecting conversation:", conversation.id);
-      currentConversation = await chatService.getConversation(conversation.id);
-      console.log("Current conversation loaded:", $state.snapshot(currentConversation));
+      const conversationData = await chatService.getConversation(conversation.id);
+      console.log("Current conversation loaded:", $state.snapshot(conversationData));
+      sessionStore.update(state => ({ ...state, currentConversation: conversationData, isLoading: false }));
 
       // Initialize model selection state from conversation config
       // This ensures the model selector shows the correct values when loading an existing conversation
@@ -149,8 +160,8 @@
       const uniqueModels = new Map<string, ModelChoice>();
 
       // Extract models from all messages in the conversation
-      if (currentConversation.messages) {
-        currentConversation.messages.forEach((message) => {
+      if (conversationData.messages) {
+        conversationData.messages.forEach((message) => {
           if (message.role === "assistant" && message.provider_name && message.api_format && message.model) {
             const key = `${message.provider_name}-${message.api_format}-${message.model}`;
             if (!uniqueModels.has(key)) {
@@ -187,15 +198,15 @@
         }
       } else {
         // Fall back to conversation-level model info
-        if (currentConversation.last_model) {
+        if (conversationData.last_model) {
           // Use last message info if available
-          if (currentConversation.last_provider_name) {
-            selectedProviderName = currentConversation.last_provider_name;
+          if (conversationData.last_provider_name) {
+            selectedProviderName = conversationData.last_provider_name;
           }
-          if (currentConversation.last_api_format) {
-            selectedApiFormat = currentConversation.last_api_format;
+          if (conversationData.last_api_format) {
+            selectedApiFormat = conversationData.last_api_format;
           }
-          selectedModelName = currentConversation.last_model;
+          selectedModelName = conversationData.last_model;
           selectedModels = [{
             providerName: selectedProviderName,
             apiFormat: selectedApiFormat,
@@ -203,14 +214,14 @@
           }];
         } else {
           // Fall back to conversation initial info
-          if (currentConversation.provider_name) {
-            selectedProviderName = currentConversation.provider_name;
+          if (conversationData.provider_name) {
+            selectedProviderName = conversationData.provider_name;
           }
-          if (currentConversation.api_format) {
-            selectedApiFormat = currentConversation.api_format;
+          if (conversationData.api_format) {
+            selectedApiFormat = conversationData.api_format;
           }
-          if (currentConversation.model) {
-            selectedModelName = currentConversation.model;
+          if (conversationData.model) {
+            selectedModelName = conversationData.model;
             selectedModels = [{
               providerName: selectedProviderName,
               apiFormat: selectedApiFormat,
@@ -227,12 +238,10 @@
         selectedModelName,
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : t('common.error');
+      const errorMessage = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to select conversation:", err);
       showToast(t('common.error'), "error");
-      currentConversation = null;
-    } finally {
-      isLoading = false;
+      sessionStore.update(state => ({ ...state, currentConversation: null, error: errorMessage, isLoading: false }));
     }
   }
 
@@ -240,8 +249,7 @@
     const { providerName, apiFormat, model } = event.detail;
 
     try {
-      isLoading = true;
-      error = null;
+      sessionStore.update(state => ({ ...state, isLoading: true, error: null }));
 
       console.log("Creating new conversation with:", { providerName, apiFormat, model });
 
@@ -266,12 +274,12 @@
       }
 
       showToast(t('common.success'), "success");
+      sessionStore.update(state => ({ ...state, isLoading: false }));
     } catch (err) {
-      error = err instanceof Error ? err.message : t('common.error');
+      const errorMessage = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to create conversation:", err);
       showToast(t('common.error'), "error");
-    } finally {
-      isLoading = false;
+      sessionStore.update(state => ({ ...state, error: errorMessage, isLoading: false }));
     }
   }
 
@@ -279,16 +287,21 @@
     const updatedConversation = event.detail.conversation;
 
     // Update in list
-    conversations = conversations.map((c) =>
+    const updatedConversations = sessionState.conversations.map((c) =>
       c.id === updatedConversation.id ? { ...c, ...updatedConversation } : c,
     );
 
-    currentConversation = updatedConversation;
+    sessionStore.update(state => ({
+      ...state,
+      conversations: updatedConversations,
+      currentConversation: updatedConversation
+    }));
   }
 
   function handleError(event: CustomEvent) {
-    error = event.detail.message;
-    showToast(error || t('common.error'), "error");
+    const errorMessage = event.detail.message;
+    sessionStore.update(state => ({ ...state, error: errorMessage }));
+    showToast(errorMessage || t('common.error'), "error");
   }
 
   function showToast(

@@ -66,7 +66,8 @@ class MessageService:
         exclude_providers: Optional[List[str]] = None,
         exclude_models: Optional[Dict[str, List[str]]] = None,
         provider_name: Optional[str] = None,
-        api_format: Optional[str] = None
+        api_format: Optional[str] = None,
+        session_id: Optional[str] = None
     ):
         """Internal function to handle messages request with optional exclude parameters.
 
@@ -79,6 +80,7 @@ class MessageService:
             exclude_models: Dict of provider names to lists of model names to exclude
             provider_name: Specific provider name to use (from conversation)
             api_format: API format to use (from conversation)
+            session_id: Session ID for concurrent request isolation
         """
         request_id = str(uuid.uuid4())
         start_time = time.time()
@@ -89,6 +91,10 @@ class MessageService:
         # Observability: log sampling
         should_log = self._should_log_sample()
         error_message = None
+
+        # Log session information for tracking concurrent requests
+        if session_id:
+            logger.info(f"Session {session_id} - Request {request_id} started")
 
         try:
             # Parse request
@@ -152,6 +158,7 @@ class MessageService:
                 provider_api_format = api_format or getattr(provider_config, 'api_format', 'openai').lower()
 
                 # Log actual provider and model being used
+                session_info = f", Session: {session_id}" if session_id else ""
                 logger.info(
                     f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
                     f"  {GREEN}Model{RESET}: {YELLOW}{actual_model}{RESET}\n"
@@ -159,7 +166,7 @@ class MessageService:
                     f"  {GREEN}API Format{RESET}: {MAGENTA}{provider_api_format}{RESET}\n"
                     f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
                     f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}\n"
-                    f"  {GREEN}Mode{RESET}: User-specified provider"
+                    f"  {GREEN}Mode{RESET}: User-specified provider{session_info}"
                 )
 
                 if provider_api_format == 'anthropic':
@@ -188,7 +195,8 @@ class MessageService:
                             temperature=openai_request.get("temperature"),
                             tools=openai_request.get("tools"),
                             stream=req.stream,
-                            provider=provider_config.name
+                            provider=provider_config.name,
+                            session_id=session_id
                         )
 
                         cache_manager = get_cache_manager()
@@ -242,6 +250,7 @@ class MessageService:
                         )
 
                         # Log actual provider and model being used (for auto-selection)
+                        session_info = f", Session: {session_id}" if session_id else ""
                         logger.info(
                             f"{CYAN}[Request {request_id}]{RESET} Processing message request:\n"
                             f"  {GREEN}Model{RESET}: {YELLOW}{actual_model}{RESET}\n"
@@ -249,7 +258,7 @@ class MessageService:
                             f"  {GREEN}API Format{RESET}: {MAGENTA}{getattr(provider_config, 'api_format', 'openai')}{RESET}\n"
                             f"  {GREEN}Stream{RESET}: {WHITE}{req.stream}{RESET}\n"
                             f"  {GREEN}User Question{RESET}: {YELLOW}{user_question[:200]}{RESET}{'...' if len(user_question) > 200 else ''}\n"
-                            f"  {GREEN}Mode{RESET}: Auto-selected provider"
+                            f"  {GREEN}Mode{RESET}: Auto-selected provider{session_info}"
                         )
                     except ValueError as ve:
                         # No provider/model found - this means all providers/models in this category are exhausted
@@ -314,7 +323,8 @@ class MessageService:
                                 temperature=openai_request_for_cache.get("temperature"),
                                 tools=openai_request_for_cache.get("tools"),
                                 stream=req.stream,
-                                provider=provider_config.name
+                                provider=provider_config.name,
+                                session_id=session_id
                             )
 
                             # Try to get from cache
