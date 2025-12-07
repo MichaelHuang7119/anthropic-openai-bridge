@@ -364,7 +364,7 @@
             class="edit-textarea"
             rows="3"
             placeholder={t('messageInput.placeholder')}
-            on:keydown={(e) => {
+            onkeydown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendEdit();

@@ -445,8 +445,14 @@ async def convert_openai_stream_to_anthropic_async(
                 thinking_content = get_delta_attr(attr)
                 if thinking_content:
                     if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(f"Found thinking content in delta: {str(thinking_content)[:50]}...")
+                        logger.debug(f"Found thinking content in delta attr '{attr}': {str(thinking_content)[:50]}...")
                     break
+            if not thinking_content and logger.isEnabledFor(logging.DEBUG):
+                # Log delta keys for debugging
+                if isinstance(delta, dict):
+                    logger.debug(f"No thinking content in delta, delta keys: {list(delta.keys())}")
+                else:
+                    logger.debug(f"No thinking content in delta, delta type: {type(delta).__name__}")
 
         # Check for reasoning_details format (array of text fragments)
         if not thinking_content:
@@ -484,7 +490,8 @@ async def convert_openai_stream_to_anthropic_async(
         # Process thinking content if available
         if thinking_content:
             has_content_chunks = True
-            
+            logger.debug(f"Processing thinking content: {str(thinking_content)[:50]}... (text_block_index={text_block_index}, current_thinking_block={current_thinking_block})")
+
             # Initialize thinking block if not already started
             if current_thinking_block is None:
                 current_thinking_block = text_block_index + 1
@@ -492,7 +499,8 @@ async def convert_openai_stream_to_anthropic_async(
                     "thinking": "",
                     "signature": None
                 }
-                
+                logger.debug(f"Initialized thinking block at index {current_thinking_block}")
+
                 # Send content_block_start for thinking
                 yield {
                     "type": "content_block_start",
@@ -502,13 +510,15 @@ async def convert_openai_stream_to_anthropic_async(
                         "thinking": ""
                     }
                 }
-            
+                logger.debug(f"Sent content_block_start for thinking block {current_thinking_block}")
+
             # Accumulate thinking content
             if isinstance(thinking_content, str):
                 thinking_content_blocks[current_thinking_block]["thinking"] += thinking_content
-                
+                logger.debug(f"Accumulated thinking content, total length: {len(thinking_content_blocks[current_thinking_block]['thinking'])}")
+
                 # Send thinking_delta event
-                yield {
+                event = {
                     "type": "content_block_delta",
                     "index": current_thinking_block,
                     "delta": {
@@ -516,11 +526,14 @@ async def convert_openai_stream_to_anthropic_async(
                         "thinking": thinking_content
                     }
                 }
+                yield event
+                logger.debug(f"Sent thinking_delta event for chunk '{thinking_content[:30]}...'")
         
         # Handle regular text content
-        if content:
+        if content is not None and content != "":
             has_content_chunks = True
-            
+            logger.debug(f"Processing text content: '{content[:50]}...'")
+
             # Start text block if not already started
             if not text_block_started:
                 # If we have a thinking block, text block comes after it
