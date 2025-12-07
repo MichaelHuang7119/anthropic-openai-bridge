@@ -106,7 +106,7 @@ async def convert_openai_stream_to_anthropic_async(
     initial_input_tokens: int = 0
 ) -> AsyncIterator[Dict[str, Any]]:
     """Convert OpenAI async streaming response to Anthropic format.
-    
+
     Args:
         openai_stream: Async iterator of OpenAI streaming chunks
         model: Model name
@@ -116,10 +116,11 @@ async def convert_openai_stream_to_anthropic_async(
     if openai_stream is None:
         logger.error(f"openai_stream is None for model {model}")
         raise ValueError("openai_stream cannot be None")
-    
+
     # Log stream type for debugging
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(f"Starting stream conversion for model {model}, stream type: {type(openai_stream).__name__}")
+
     message_id = f"msg_{uuid.uuid4().hex[:24]}"
     text_block_index = 0
     tool_block_counter = 0
@@ -132,7 +133,7 @@ async def convert_openai_stream_to_anthropic_async(
     # Initialize usage_data with actual input_tokens (per claude-code-proxy pattern)
     # This allows clients to see input token count immediately
     usage_data = {"input_tokens": initial_input_tokens, "output_tokens": 0}
-    
+
     # Extended thinking support
     thinking_content_blocks = {}  # Maps content block index -> thinking data
     current_thinking_block = None  # Track current thinking block index
@@ -141,7 +142,7 @@ async def convert_openai_stream_to_anthropic_async(
     reasoning_flag = False  # Track if we're inside a thinking block
     REASONING_START_TAG = "<think>"
     REASONING_STOP_TAG = "</think>"
-    
+
     # Send initial SSE events IMMEDIATELY (per claude-code-proxy pattern for better responsiveness)
     # This allows the client to know the request has started processing right away
     yield {
@@ -157,22 +158,22 @@ async def convert_openai_stream_to_anthropic_async(
             "usage": usage_data
         }
     }
-    
+
     # Don't start text block immediately - wait for actual content
     # Thinking block will be started first if thinking content is available
-    
+
     # Send ping event immediately after initial events (per claude-code-proxy pattern)
     # This helps keep the connection alive and provides faster initial response
     yield {
         "type": "ping"
     }
-    
+
     # Track if we've received any content chunks (not just usage updates)
     has_content_chunks = False
     chunk_count = 0  # Track total chunks received
     chunks_with_choices = 0  # Track chunks that have choices
     chunks_without_choices = 0  # Track chunks without choices
-    
+
     async for chunk in openai_stream:
         chunk_count += 1
         last_chunk = chunk

@@ -1679,6 +1679,25 @@ class MessageService:
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
                     chunk_count += 1
+
+                    # 处理思维链内容：检查 content 和 reasoning_details 字段
+                    if isinstance(chunk, dict) and "content" in chunk:
+                        content = chunk["content"]
+                        if isinstance(content, list):
+                            for content_block in content:
+                                if isinstance(content_block, dict):
+                                    # 检查 content_block 中的思维链内容
+                                    if content_block.get("type") == "thinking":
+                                        # 处理 thinking 块中的思维链
+                                        thinking_text = content_block.get("thinking", "")
+                                        if thinking_text:
+                                            logger.debug(f"Found thinking content in Anthropic stream: {str(thinking_text)[:50]}...")
+                                    elif "reasoning_details" in content_block:
+                                        # 处理 reasoning_details 字段中的思维链
+                                        reasoning_details = content_block.get("reasoning_details", [])
+                                        if reasoning_details:
+                                            logger.debug(f"Found reasoning_details in Anthropic stream: {reasoning_details}")
+
                     # Optimize: Use faster JSON serialization
                     json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
                     event_type = chunk.get("type", "")
