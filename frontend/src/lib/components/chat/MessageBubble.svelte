@@ -357,10 +357,7 @@
         <span class="toggle-icon {thinkingExpanded ? 'expanded' : ''}">▶</span>
         <span class="thinking-label">{t('messageBubble.thinking')}</span>
         <span class="thinking-preview">
-          {thinkingExpanded
-            ? ""
-            : message.thinking.slice(0, 50) +
-              (message.thinking.length > 50 ? "..." : "")}
+          {thinkingExpanded ? "" : message.thinking}
         </span>
       </button>
 

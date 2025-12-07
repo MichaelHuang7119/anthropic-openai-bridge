@@ -145,8 +145,7 @@
         model: selectedModelName,
       };
 
-      // Check if model already exists (allow duplicates as per requirement)
-      // Just add the model
+      // Allow duplicates to support testing same model with different parameters
       selectedModels = [...selectedModels, modelChoice];
       dispatch("modelsSelected", selectedModels);
       console.log("Model added:", modelChoice, "Total models:", selectedModels.length);

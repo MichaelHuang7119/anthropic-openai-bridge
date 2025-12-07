@@ -47,6 +47,8 @@
     const groups = [];
     let i = 0;
 
+    console.log("ChatArea: getMessageGroups called with", messages.length, "messages");
+
     while (i < messages.length) {
       const group = {
         userMessage: null as Message | null,
@@ -71,14 +73,17 @@
       }
     }
 
+    console.log("ChatArea: Total groups created:", groups.length);
     return groups;
   }
 
   let messages: Message[] = $state([]);
   let isLoading = $state(false);
-  let streamingMessages: Record<string, string> = $state({});
-  let streamingThinkings: Record<string, string> = $state({});
-  let streamingCompleted: Record<string, boolean> = $state({});
+  let streamingMessages: Record<number, string> = $state({});
+  let streamingThinkings: Record<number, string> = $state({});
+  let streamingCompleted: Record<number, boolean> = $state({});
+  let currentStreamingModels: ModelChoice[] = $state([]);
+  let streamingFinished: Record<number, boolean> = $state({});
 
   // Manage AbortControllers per conversation for strict isolation
   const conversationAbortControllers = new Map<number, AbortController>();
@@ -100,43 +105,230 @@
   const t = $derived($tStore);
 
   // Load messages when conversation changes
+  // Use a flag to prevent multiple concurrent loads
+  let lastLoadedConversationId = $state<number | null>(null);
+
   $effect(() => {
     if (conversation) {
-      console.log("ChatArea: conversation changed:", $state.snapshot(conversation));
-      loadMessages();
+      const conversationId = conversation.id;
+
+      console.log("ChatArea: conversation changed:", {
+        id: conversationId,
+        lastLoadedId: lastLoadedConversationId,
+        messageCountInConversation: conversation.messages?.length || 0,
+        conversationMessages: conversation.messages,
+        isSameAsLastLoaded: lastLoadedConversationId === conversationId
+      });
+
+      // Only load if this is a different conversation or first load
+      if (lastLoadedConversationId !== conversationId) {
+        console.log("ChatArea: Loading messages for new conversation:", conversationId);
+        lastLoadedConversationId = conversationId;
+        loadMessages();
+      } else {
+        console.log("ChatArea: Skipping load - same conversation:", conversationId);
+      }
     } else {
       // console.log("ChatArea: no conversation");
       messages = [];
+      lastLoadedConversationId = null;
     }
   });
 
-  async function loadMessages() {
+  async function loadMessages(force = false) {
     if (!conversation) return;
+
+    console.log("ChatArea: loadMessages called:", {
+      conversationId: conversation.id,
+      force: force,
+      currentMessagesCount: messages.length,
+      conversationHasMessages: !!conversation.messages,
+      conversationMessagesCount: conversation.messages?.length || 0
+    });
 
     try {
       isLoading = true;
       error = null;
       errorDetails = null;
 
+      // Always load fresh messages from the backend to prevent duplicates
       const detail = await chatService.getConversation(conversation.id);
-      messages = detail.messages || [];
+      const loadedMessages = detail.messages || [];
 
-      // Update model selector based on the last assistant message
-      if (messages.length > 0) {
-        // Find the last assistant message
-        const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+      const uniqueIds = new Set(loadedMessages.map(m => m.id));
+      console.log("ChatArea: Backend returned messages:", {
+        backendMessageCount: loadedMessages.length,
+        uniqueMessageIds: Array.from(uniqueIds),
+        hasDuplicates: uniqueIds.size !== loadedMessages.length,
+        backendMessages: loadedMessages
+      });
 
-        if (lastAssistantMessage) {
-          // Update model selector to show the model from the last assistant message
-          selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
-          selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
-          selectedModelName = lastAssistantMessage.model || selectedModelName;
+      // Check if we have any streaming messages in progress
+      const hasStreamingMessages = Object.keys(streamingMessages).length > 0;
 
-          console.log("ChatArea: Updated model selector from last message:", {
-            providerName: selectedProviderName,
-            apiFormat: selectedApiFormat,
-            model: selectedModelName
-          });
+      // Only skip loading if we're in the middle of streaming
+      // Never skip loading based on cached conversation state to avoid duplicates
+      if (!hasStreamingMessages || force) {
+        // Always use the messages from the backend, not cached state
+        // This is critical to prevent duplicate messages when refreshing the page
+        // Additional safeguard: remove potential duplicates by message ID and content
+        const uniqueMessages = [];
+        const seenMessageIds = new Set();
+
+        for (const message of loadedMessages) {
+          // Skip if we've already seen this message ID
+          if (seenMessageIds.has(message.id)) {
+            console.log("ChatArea: Skipping duplicate message:", message.id);
+            continue;
+          }
+          seenMessageIds.add(message.id);
+          uniqueMessages.push(message);
+        }
+
+        messages = uniqueMessages;
+
+        console.log("ChatArea: Set messages array:", {
+          uniqueMessageCount: messages.length,
+          messages: messages
+        });
+
+        // Update model selector based on the last user question and its assistant responses
+        if (messages.length > 0) {
+          // Find the last user message to determine which models were actually used
+          const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
+
+          if (lastUserMessageIndex !== -1) {
+            const actualIndex = messages.length - 1 - lastUserMessageIndex;
+            const lastUserMessage = messages[actualIndex];
+
+            // Find all assistant messages that came after this last user message
+            const lastUserMessageDate = new Date(lastUserMessage.created_at || 0).getTime();
+            const assistantMessagesForLastQuestion = messages.filter(msg => {
+              if (msg.role !== "assistant") return false;
+              const msgDate = new Date(msg.created_at || 0).getTime();
+              return msgDate >= lastUserMessageDate;
+            });
+
+            // Extract models from these assistant messages
+            const modelsList: ModelChoice[] = [];
+            assistantMessagesForLastQuestion.forEach(msg => {
+              if (msg.provider_name && msg.api_format && msg.model) {
+                modelsList.push({
+                  providerName: msg.provider_name,
+                  apiFormat: msg.api_format,
+                  model: msg.model,
+                });
+              }
+            });
+
+            if (modelsList.length > 0) {
+              selectedModels = modelsList;
+
+              // Update single model selection for backward compatibility
+              const firstModel = modelsList[0];
+              selectedProviderName = firstModel.providerName;
+              selectedApiFormat = firstModel.apiFormat;
+              selectedModelName = firstModel.model;
+
+              console.log("ChatArea: Updated model selector from last question:", {
+                selectedModels,
+                selectedProviderName,
+                selectedApiFormat,
+                selectedModelName,
+                totalModels: modelsList.length
+              });
+            } else {
+              // Fallback: use last assistant message
+              const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+
+              if (lastAssistantMessage) {
+                selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
+                selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
+                selectedModelName = lastAssistantMessage.model || selectedModelName;
+                selectedModels = [{
+                  providerName: selectedProviderName,
+                  apiFormat: selectedApiFormat,
+                  model: selectedModelName,
+                }];
+
+                console.log("ChatArea: Updated model selector from last message (fallback):", {
+                  selectedProviderName,
+                  selectedApiFormat,
+                  selectedModelName
+                });
+              }
+            }
+          } else {
+            // Fallback: use last assistant message
+            const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+
+            if (lastAssistantMessage) {
+              selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
+              selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
+              selectedModelName = lastAssistantMessage.model || selectedModelName;
+              selectedModels = [{
+                providerName: selectedProviderName,
+                apiFormat: selectedApiFormat,
+                model: selectedModelName,
+              }];
+
+              console.log("ChatArea: Updated model selector from last message (fallback):", {
+                selectedProviderName,
+                selectedApiFormat,
+                selectedModelName
+              });
+            }
+          }
+        }
+      } else {
+        // Streaming in progress - only update model selector, don't replace messages
+        console.log("ChatArea: Skipping load due to active streaming");
+
+        // Update model selector from loaded messages if available
+        if (loadedMessages.length > 0) {
+          // Find the last user message to determine which models were actually used
+          const lastUserMessageIndex = [...loadedMessages].reverse().findIndex(m => m.role === "user");
+
+          if (lastUserMessageIndex !== -1) {
+            const actualIndex = loadedMessages.length - 1 - lastUserMessageIndex;
+            const lastUserMessage = loadedMessages[actualIndex];
+
+            // Find all assistant messages that came after this last user message
+            const lastUserMessageDate = new Date(lastUserMessage.created_at || 0).getTime();
+            const assistantMessagesForLastQuestion = loadedMessages.filter(msg => {
+              if (msg.role !== "assistant") return false;
+              const msgDate = new Date(msg.created_at || 0).getTime();
+              return msgDate >= lastUserMessageDate;
+            });
+
+            // Extract models from these assistant messages
+            const modelsList: ModelChoice[] = [];
+            assistantMessagesForLastQuestion.forEach(msg => {
+              if (msg.provider_name && msg.api_format && msg.model) {
+                modelsList.push({
+                  providerName: msg.provider_name,
+                  apiFormat: msg.api_format,
+                  model: msg.model,
+                });
+              }
+            });
+
+            if (modelsList.length > 0) {
+              selectedModels = modelsList;
+
+              const firstModel = modelsList[0];
+              selectedProviderName = firstModel.providerName;
+              selectedApiFormat = firstModel.apiFormat;
+              selectedModelName = firstModel.model;
+
+              console.log("ChatArea: Updated model selector during streaming:", {
+                selectedModels,
+                selectedProviderName,
+                selectedApiFormat,
+                selectedModelName
+              });
+            }
+          }
         }
       }
     } catch (err) {
@@ -148,19 +340,21 @@
       console.error("Failed to load messages:", err);
     } finally {
       isLoading = false;
-      // Reset scroll state
-      userScrolledUp = false;
-      isAtBottom = true;
+      // Reset scroll state only if not streaming
+      if (!Object.keys(streamingMessages).length) {
+        userScrolledUp = false;
+        isAtBottom = true;
 
-      // Scroll to bottom after loading with multiple attempts
-      await tick();
-      // Immediate scroll
-      scrollToBottom();
-
-      // Additional scroll after a short delay to ensure DOM is fully rendered
-      setTimeout(() => {
+        // Scroll to bottom after loading with multiple attempts
+        await tick();
+        // Immediate scroll
         scrollToBottom();
-      }, 50);
+
+        // Additional scroll after a short delay to ensure DOM is fully rendered
+        setTimeout(() => {
+          scrollToBottom();
+        }, 50);
+      }
     }
   }
 
@@ -269,6 +463,15 @@
             }]
           : []);
 
+    console.log("ChatArea: Sending message details:", {
+      selectedModelsLength: selectedModels.length,
+      selectedModels: selectedModels,
+      selectedModelName: selectedModelName,
+      conversationModel: conversation.model,
+      modelsToUse: modelsToUse,
+      modelsToUseLength: modelsToUse.length
+    });
+
     if (modelsToUse.length === 0) {
       error = t('common.error');
       return;
@@ -284,7 +487,7 @@
     console.log("ChatArea: Sending message to models:", modelsToUse);
 
     try {
-      // Add user message to UI
+      // Add user message to UI immediately for better UX
       const userMsg: Message = {
         id: Date.now(),
         role: "user",
@@ -302,7 +505,7 @@
       await tick();
       scrollToBottom();
 
-      // Add to database
+      // Save user message to database
       console.log("ChatArea: Adding message to database:", {
         conversationId: conversation.id,
         role: "user",
@@ -321,22 +524,23 @@
       );
 
       // Initialize streaming state for all models
+      // Use instance index as the key to support duplicate model selections
       streamingMessages = {};
       streamingThinkings = {};
       streamingCompleted = {};
-      modelsToUse.forEach(model => {
-        const modelKey = `${model.providerName}-${model.apiFormat}-${model.model}`;
-        streamingMessages[modelKey] = "";
-        streamingThinkings[modelKey] = "";
-        streamingCompleted[modelKey] = false;
+      streamingFinished = {};
+      currentStreamingModels = [...modelsToUse]; // Store current models for template access
+      modelsToUse.forEach((model, index) => {
+        streamingMessages[index] = "";
+        streamingThinkings[index] = "";
+        streamingCompleted[index] = false;
+        streamingFinished[index] = false;
       });
       isLoading = true;
 
       // Send to all selected models
-      const promises = modelsToUse.map(async (model) => {
-        const modelKey = `${model.providerName}-${model.apiFormat}-${model.model}`;
-
-        const result = await chatService.sendChatMessage(
+      const promises = modelsToUse.map(async (model, index) => {
+        const _result = await chatService.sendChatMessage(
           {
             ...conversation!,
             provider_name: model.providerName,
@@ -349,7 +553,7 @@
             if (chunk) {
               streamingMessages = {
                 ...streamingMessages,
-                [modelKey]: (streamingMessages[modelKey] || "") + chunk
+                [index]: (streamingMessages[index] || "") + chunk
               };
               // Scroll immediately when new chunk arrives for smooth streaming experience
               if (!userScrolledUp && isAtBottom) {
@@ -359,7 +563,7 @@
             if (thinking !== undefined) {
               streamingThinkings = {
                 ...streamingThinkings,
-                [modelKey]: thinking
+                [index]: thinking
               };
               // Scroll immediately when thinking content updates
               if (!userScrolledUp && isAtBottom) {
@@ -369,33 +573,37 @@
           },
           async (usage) => {
             // On complete for this model
-            const assistantMessage = streamingMessages[modelKey] || "";
-            const thinkingContent = streamingThinkings[modelKey];
+            const assistantMessage = streamingMessages[index] || "";
+            const thinkingContent = streamingThinkings[index];
 
             if (assistantMessage) {
-              // Add to database (with thinking content and usage)
-              try {
-                await chatService.addMessage(
-                  conversation!.id,
-                  "assistant",
-                  assistantMessage,
-                  model.model,
-                  thinkingContent || undefined,
-                  usage?.input_tokens,
-                  usage?.output_tokens,
-                  model.providerName || undefined,
-                  model.apiFormat || undefined,
-                );
-              } catch (err) {
+              // Save to database only - don't add to messages array
+              // Streaming messages are kept visible directly
+              // Async save to database (don't await to keep UI responsive)
+              chatService.addMessage(
+                conversation!.id,
+                "assistant",
+                assistantMessage,
+                model.model,
+                thinkingContent || undefined,
+                usage?.input_tokens,
+                usage?.output_tokens,
+                model.providerName || undefined,
+                model.apiFormat || undefined,
+              ).catch(err => {
                 console.error("Failed to save assistant message:", err);
-              }
-              // Don't add to messages array - let loadMessages handle it
+                // Note: Message still visible in UI even if save failed
+              });
             }
 
-            // Mark this stream as completed
+            // Mark this stream as completed and finished
             streamingCompleted = {
               ...streamingCompleted,
-              [modelKey]: true
+              [index]: true
+            };
+            streamingFinished = {
+              ...streamingFinished,
+              [index]: true
             };
 
             // Check if all models are done
@@ -408,41 +616,15 @@
             }
 
             if (allCompleted) {
-              // All streams completed - merge streaming messages into messages array and cleanup
+              // All streams completed - keep streaming messages visible permanently
               isLoading = false;
 
-              // Convert streaming messages to Message objects and add to messages array
-              const completedMessages: Message[] = [];
-              for (const [modelKey, content] of Object.entries(streamingMessages)) {
-                if (content) {
-                  const [providerName, apiFormat, model] = modelKey.split('-');
-                  const assistantMessage: Message = {
-                    id: Date.now() + Math.random(), // Unique ID for streaming messages
-                    role: "assistant",
-                    content: content,
-                    thinking: streamingThinkings[modelKey] || undefined,
-                    model: model,
-                    input_tokens: null, // Will be updated when usage data is available
-                    output_tokens: null,
-                    created_at: new Date().toISOString(),
-                    provider_name: providerName,
-                    api_format: apiFormat,
-                  };
-                  completedMessages.push(assistantMessage);
-                }
-              }
+              // Keep streaming state to avoid flash - never clear after completion
+              // The streaming messages will remain visible as final messages
+              // This eliminates the refresh/blink effect
+              // streamingFinished flags will hide the cursor
 
-              // Add completed messages to the messages array
-              if (completedMessages.length > 0) {
-                messages = [...messages, ...completedMessages];
-              }
-
-              // Clear streaming state
-              streamingMessages = {};
-              streamingThinkings = {};
-              streamingCompleted = {};
-
-              // Scroll to bottom after adding completed messages
+              // Scroll to bottom
               await tick();
               scrollToBottom();
 
@@ -469,7 +651,7 @@
             // Mark this stream as completed (even though it errored)
             streamingCompleted = {
               ...streamingCompleted,
-              [modelKey]: true
+              [index]: true
             };
 
             // Check if all models are done
@@ -488,6 +670,8 @@
               streamingMessages = {};
               streamingThinkings = {};
               streamingCompleted = {};
+              streamingFinished = {};
+              currentStreamingModels = [];
 
               // Cleanup AbortController after completion (with or without errors)
               conversationAbortControllers.delete(chatId);
@@ -504,6 +688,9 @@
       error = err instanceof Error ? err.message : t('common.error');
       streamingMessages = {};
       streamingThinkings = {};
+      streamingCompleted = {};
+      streamingFinished = {};
+      currentStreamingModels = [];
       isLoading = false;
       dispatch("error", { message: error });
 
@@ -708,7 +895,7 @@
         </div>
 
         <div class="error-actions">
-          <button class="retry-btn" onclick={loadMessages}>
+          <button class="retry-btn" onclick={() => loadMessages()}>
             {t('messageBubble.retry')}
           </button>
         </div>
@@ -737,23 +924,26 @@
         <!-- Streaming messages for the last group only (if user message exists and streaming is active) -->
         {#if isLastGroup && group.userMessage && Object.keys(streamingMessages).length > 0}
           <div class="assistant-messages-grid">
-            {#each Object.entries(streamingMessages) as [modelKey, content]}
-              {@const [providerName, apiFormat, model] = modelKey.split('-')}
+            {#each Object.entries(streamingMessages) as [index, content]}
+              {@const model = currentStreamingModels[parseInt(index)]}
+              {@const providerName = model.providerName}
+              {@const apiFormat = model.apiFormat}
+              {@const modelName = model.model}
               <div class="assistant-message-column">
                 <MessageBubble
                   message={{
                     id: Date.now(),
                     role: "assistant",
                     content: content,
-                    thinking: streamingThinkings[modelKey] || undefined,
-                    model: model,
+                    thinking: streamingThinkings[parseInt(index)] || undefined,
+                    model: modelName,
                     input_tokens: null,
                     output_tokens: null,
                     created_at: new Date().toISOString(),
                     provider_name: providerName,
                     api_format: apiFormat,
                   } as any}
-                  isStreaming={true}
+                  isStreaming={!streamingFinished[parseInt(index)]}
                   showModel={true}
                   showTokens={false}
                   providerName={providerName}
@@ -1253,6 +1443,11 @@
     min-width: 300px;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Single model card - expand to full width */
+  .assistant-messages-grid:has(.assistant-message-column:only-child) .assistant-message-column {
+    flex: 0 0 100%;
   }
 
   /* Tablet styles */
