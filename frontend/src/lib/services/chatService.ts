@@ -399,7 +399,14 @@ class ChatService {
       output_tokens: number;
     }) => void,
     onError: (error: Error) => void,
-  ): Promise<void> {
+    abortController?: AbortController,
+  ): Promise<{ messageId: string }> {
+    // Generate unique message ID for this request
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(
+      `sendChatMessage: Created message ID ${messageId} for conversation ${conversation.id}`,
+    );
+
     try {
       const token = authService.getAuthHeaders().Authorization;
       if (!token) {
@@ -447,9 +454,11 @@ class ChatService {
         ...authService.getAuthHeaders(),
       };
 
-      // Add session ID for concurrent session isolation
+      // Add request identifiers for strict isolation
       const sessionId = getOrCreateSessionId();
       headers["X-Session-Id"] = sessionId;
+      headers["X-Chat-Id"] = String(conversation.id); // chat_id for conversation-level isolation
+      headers["X-Message-Id"] = messageId; // message_id for message-level isolation
 
       if (conversation.provider_name) {
         headers["X-Provider-Name"] = conversation.provider_name;
@@ -460,12 +469,20 @@ class ChatService {
 
       console.log("chatService: Request headers:", headers);
       console.log("chatService: Request body:", requestBody);
-      console.log("chatService: Session ID:", sessionId);
+      console.log(
+        "chatService: Session ID:",
+        sessionId,
+        "Chat ID:",
+        conversation.id,
+        "Message ID:",
+        messageId,
+      );
 
       const response = await fetch("/v1/messages", {
         method: "POST",
         headers: headers,
         body: JSON.stringify(requestBody),
+        signal: abortController?.signal,
       });
 
       if (!response.ok) {
@@ -575,135 +592,154 @@ class ChatService {
       let currentThinking = ""; // Accumulate thinking content
       let usage: { input_tokens: number; output_tokens: number } | undefined;
 
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read();
+      try {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
 
-        if (done) {
-          onComplete(usage);
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
-
-        for (const block of lines) {
-          if (!block.trim()) continue;
-
-          // Parse SSE format: event: type\ndata: json
-          const eventLines = block.split("\n");
-          let eventData = null;
-
-          for (const line of eventLines) {
-            if (line.startsWith("data: ")) {
-              eventData = line.slice(6).trim();
-            }
-          }
-
-          // If no explicit event type, check if data starts with "data: "
-          if (!eventData && block.startsWith("data: ")) {
-            eventData = block.slice(6).trim();
-          }
-
-          if (!eventData) continue;
-
-          if (eventData === "[DONE]") {
+          if (done) {
             onComplete(usage);
-            return;
+            break;
           }
 
-          try {
-            const parsed = JSON.parse(eventData);
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
 
-            // Handle different event types
-            if (parsed.type === "content_block_delta") {
-              // Handle thinking content
-              if (
-                parsed.delta?.type === "thinking_delta" &&
-                parsed.delta?.thinking
-              ) {
-                currentThinking += parsed.delta.thinking;
-                // Send both empty text and thinking update
-                onStream("", currentThinking);
+          for (const block of lines) {
+            if (!block.trim()) continue;
+
+            // Parse SSE format: event: type\ndata: json
+            const eventLines = block.split("\n");
+            let eventData = null;
+
+            for (const line of eventLines) {
+              if (line.startsWith("data: ")) {
+                eventData = line.slice(6).trim();
               }
-              // Handle regular text content
-              else if (parsed.delta?.text) {
-                onStream(parsed.delta.text, currentThinking);
-              }
-            } else if (parsed.type === "content_block_start") {
-              // Reset thinking when a new thinking block starts
-              if (parsed.content_block?.type === "thinking") {
-                currentThinking = "";
-              }
-            } else if (
-              parsed.type === "message_start" &&
-              parsed.message?.usage
-            ) {
-              // Capture usage information
-              usage = {
-                input_tokens: parsed.message.usage.input_tokens || 0,
-                output_tokens: parsed.message.usage.output_tokens || 0,
-              };
-              console.log("Message started with usage:", usage);
-            } else if (parsed.type === "message_delta" && parsed.usage) {
-              // Update usage information if provided in delta
-              usage = {
-                input_tokens:
-                  parsed.usage.input_tokens || usage?.input_tokens || 0,
-                output_tokens:
-                  parsed.usage.output_tokens || usage?.output_tokens || 0,
-              };
-              console.log("Usage updated:", usage);
-            } else if (parsed.type === "message_stop") {
-              onComplete(usage);
-              return;
-            } else if (parsed.type === "ping") {
-              // Ignore ping events
-              continue;
-            } else if (parsed.type === "error") {
-              // Handle streaming errors from backend
-              const errorInfo = parsed.error;
-
-              // Build comprehensive error message
-              let errorMessage =
-                errorInfo?.message || "Unknown error from provider";
-
-              // Add provider name if available
-              if (errorInfo?.provider) {
-                errorMessage = `${errorInfo.provider}: ${errorMessage}`;
-              }
-
-              // Add error type if available
-              if (errorInfo?.type) {
-                errorMessage += ` (${errorInfo.type})`;
-              }
-
-              // Log detailed error for debugging
-              console.error("Streaming error from backend:", errorInfo);
-
-              // Create detailed error object
-              const error = new Error(errorMessage) as Error & {
-                status?: number;
-                statusText?: string;
-                details?: any;
-              };
-              error.status = 503; // Service Unavailable
-              error.statusText = "Provider Error";
-              error.details = errorInfo;
-
-              // Call onError callback to handle the error
-              onError(error);
-              return;
             }
-          } catch (e) {
-            console.error("Failed to parse SSE data:", eventData, e);
+
+            // If no explicit event type, check if data starts with "data: "
+            if (!eventData && block.startsWith("data: ")) {
+              eventData = block.slice(6).trim();
+            }
+
+            if (!eventData) continue;
+
+            if (eventData === "[DONE]") {
+              onComplete(usage);
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(eventData);
+
+              // Handle different event types
+              if (parsed.type === "content_block_delta") {
+                // Handle thinking content
+                if (
+                  parsed.delta?.type === "thinking_delta" &&
+                  parsed.delta?.thinking
+                ) {
+                  currentThinking += parsed.delta.thinking;
+                  // Send both empty text and thinking update
+                  onStream("", currentThinking);
+                }
+                // Handle regular text content
+                else if (parsed.delta?.text) {
+                  onStream(parsed.delta.text, currentThinking);
+                }
+              } else if (parsed.type === "content_block_start") {
+                // Reset thinking when a new thinking block starts
+                if (parsed.content_block?.type === "thinking") {
+                  currentThinking = "";
+                }
+              } else if (
+                parsed.type === "message_start" &&
+                parsed.message?.usage
+              ) {
+                // Capture usage information
+                usage = {
+                  input_tokens: parsed.message.usage.input_tokens || 0,
+                  output_tokens: parsed.message.usage.output_tokens || 0,
+                };
+                console.log("Message started with usage:", usage);
+              } else if (parsed.type === "message_delta" && parsed.usage) {
+                // Update usage information if provided in delta
+                usage = {
+                  input_tokens:
+                    parsed.usage.input_tokens || usage?.input_tokens || 0,
+                  output_tokens:
+                    parsed.usage.output_tokens || usage?.output_tokens || 0,
+                };
+                console.log("Usage updated:", usage);
+              } else if (parsed.type === "message_stop") {
+                onComplete(usage);
+                break;
+              } else if (parsed.type === "ping") {
+                // Ignore ping events
+                continue;
+              } else if (parsed.type === "error") {
+                // Handle streaming errors from backend
+                const errorInfo = parsed.error;
+
+                // Build comprehensive error message
+                let errorMessage =
+                  errorInfo?.message || "Unknown error from provider";
+
+                // Add provider name if available
+                if (errorInfo?.provider) {
+                  errorMessage = `${errorInfo.provider}: ${errorMessage}`;
+                }
+
+                // Add error type if available
+                if (errorInfo?.type) {
+                  errorMessage += ` (${errorInfo.type})`;
+                }
+
+                // Log detailed error for debugging
+                console.error("Streaming error from backend:", errorInfo);
+
+                // Create detailed error object
+                const error = new Error(errorMessage) as Error & {
+                  status?: number;
+                  statusText?: string;
+                  details?: any;
+                };
+                error.status = 503; // Service Unavailable
+                error.statusText = "Provider Error";
+                error.details = errorInfo;
+
+                // Call onError callback to handle the error
+                onError(error);
+                break;
+              }
+            } catch (e) {
+              console.error("Failed to parse SSE data:", eventData, e);
+            }
           }
         }
+      } catch (streamError) {
+        console.error("Error reading stream:", streamError);
+        onError(
+          streamError instanceof Error
+            ? streamError
+            : new Error(String(streamError)),
+        );
+        throw streamError;
       }
+
+      // Return message ID for tracking
+      return { messageId };
     } catch (error) {
       console.error("Failed to send chat message:", error);
       onError(error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    } finally {
+      // Cleanup if needed
+      if (abortController) {
+        // AbortController will be handled by the caller
+      }
     }
   }
 

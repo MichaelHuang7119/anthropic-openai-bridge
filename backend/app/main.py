@@ -23,8 +23,8 @@ from .database.core import DatabaseCore
 from .database.health_history import HealthHistoryManager
 
 # Configure logging
-# Allow log level to be set via environment variable or default to INFO
-log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+# Allow log level to be set via environment variable or default to DEBUG
+log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
 # Map string level to logging constant
 log_level_map = {
     'DEBUG': logging.DEBUG,
@@ -64,6 +64,9 @@ if _telemetry_enabled:
 # This prevents logging every HTTP request, reducing noise in logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+# Suppress aiosqlite DEBUG logs - prevent printing every database operation
+logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 app = FastAPI(
     title="Anthropic OpenAI Bridge",

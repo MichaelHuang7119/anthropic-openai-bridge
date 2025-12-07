@@ -6,18 +6,34 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <meta
       name="description"
       content="Anthropic OpenAI Bridge - AI 模型代理服务管理界面"
     />
     <meta name="theme-color" content="#3b82f6" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- 禁用 PWA 导航手势 -->
+    <meta name="mobile-web-app-capable" content="no" />
+    <meta name="apple-mobile-web-app-capable" content="no" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="AOB" />
     <title>Anthropic OpenAI Bridge</title>
+    <style>
+      /* 禁用浏览器滑动导航手势 */
+      html, body {
+        overscroll-behavior: none;
+        touch-action: pan-x pan-y;
+      }
+      body {
+        overscroll-behavior: none;
+        touch-action: pan-x pan-y;
+      }
+      /* 确保聊天页面可以正常滚动 */
+      .chat-page, .chat-container {
+        overscroll-behavior: none;
+        touch-action: pan-x pan-y;
+      }
+    </style>
 
     <!-- 防止语言闪烁：在 HTML 解析前就设置语言 -->
     <script>

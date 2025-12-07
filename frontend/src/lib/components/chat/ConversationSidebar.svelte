@@ -357,36 +357,20 @@
     lastClickedId = conversation.id;
   }
 
-  // Mobile long press handler
+  // Mobile long press handler - DISABLED to prevent interference with page scrolling
   function handleTouchStart(conversation: Conversation, _event: TouchEvent) {
-    if (batchMode) return; // Don't trigger long press in batch mode
-
-    clearLongPressTimer();
-
-    longPressTimer = setTimeout(() => {
-      batchMode = true;
-      // Select the conversation that was long pressed
-      selectedConversations = new Set([conversation.id]);
-      showBatchActions = true;
-      longPressTimer = null;
-    }, 800); // 800ms long press duration
+    // Disabled - long press causes conflicts with page scrolling
+    return;
   }
 
   function handleTouchEnd(conversation: Conversation, _event: TouchEvent) {
-    clearLongPressTimer();
-
-    // If not in long press and not in batch mode, perform normal selection
-    if (!batchMode && longPressTimer === null) {
-      selectConversation(conversation);
-    } else if (batchMode) {
-      // In batch mode, also select this conversation on tap
-      toggleConversationSelection(conversation.id, _event);
-    }
+    // Disabled - long press causes conflicts with page scrolling
+    return;
   }
 
   function handleTouchMove() {
-    // Cancel long press if user moves finger
-    clearLongPressTimer();
+    // Disabled - long press causes conflicts with page scrolling
+    return;
   }
 
   function clearLongPressTimer() {
@@ -632,9 +616,7 @@ function formatDate(dateString: string): string {
           onkeydown={(e) =>
             (e.key === "Enter" || e.key === " ") &&
             (!batchMode ? selectConversation(conversation) : toggleConversationSelection(conversation.id, e))}
-          ontouchstart={(e) => handleTouchStart(conversation, e)}
-          ontouchend={(e) => handleTouchEnd(conversation, e)}
-          ontouchmove={handleTouchMove}
+          data-touch-events-disabled
         >
           {#if batchMode}
             <div class="checkbox-container">

@@ -3,7 +3,7 @@
   "short_name": "AOB",
   "description": "Anthropic-compatible API proxy service management panel",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",

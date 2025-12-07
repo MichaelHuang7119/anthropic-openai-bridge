@@ -39,7 +39,7 @@
     // 初始化语言设置（会尝试从后端获取，如果已登录的话）
     language.init().catch(console.error);
 
-    // 注册 Service Worker for PWA
+    // 注册 Service Worker for PWA (但禁用 PWA 导航手势)
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js')
         .then((registration) => {

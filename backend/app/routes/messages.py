@@ -24,16 +24,20 @@ def create_messages_router(model_manager: ModelManager) -> APIRouter:
         api_user: dict = Depends(require_api_key()),
         x_provider_name: Optional[str] = Header(None, alias="X-Provider-Name"),
         x_api_format: Optional[str] = Header(None, alias="X-API-Format"),
-        x_session_id: Optional[str] = Header(None, alias="X-Session-Id")
+        x_session_id: Optional[str] = Header(None, alias="X-Session-Id"),
+        x_chat_id: Optional[str] = Header(None, alias="X-Chat-Id"),
+        x_message_id: Optional[str] = Header(None, alias="X-Message-Id")
     ):
         """Handle Anthropic /v1/messages endpoint."""
-        logger.info(f"Received request with provider: {x_provider_name}, api_format: {x_api_format}, session_id: {x_session_id}")
+        logger.info(f"Received request with provider: {x_provider_name}, api_format: {x_api_format}, session_id: {x_session_id}, chat_id: {x_chat_id}, message_id: {x_message_id}")
         return await message_service.handle_messages(
             request,
             api_user,
             provider_name=x_provider_name,
             api_format=x_api_format,
-            session_id=x_session_id
+            session_id=x_session_id,
+            chat_id=x_chat_id,
+            message_id=x_message_id
         )
     
     @router.post("/v1/messages/count_tokens")

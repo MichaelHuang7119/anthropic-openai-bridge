@@ -217,10 +217,17 @@
 
   // Format model display name
   function formatModelDisplay(providerName?: string | null, apiFormat?: string | null, model?: string | null): string {
-    if (providerName && apiFormat && model) {
-      return `${providerName}(${apiFormat})/${model}`;
-    } else if (model) {
-      return model;
+    // Clean up provider name - only remove "Assistant" prefix if it's exactly "Assistant"
+    const cleanProviderName = providerName?.replace(/^Assistant\s+/i, '').trim() || '';
+    const cleanApiFormat = apiFormat?.trim() || '';
+    const cleanModel = model?.trim() || '';
+
+    if (cleanProviderName && cleanApiFormat && cleanModel) {
+      return `${cleanProviderName}(${cleanApiFormat})/${cleanModel}`;
+    } else if (cleanModel) {
+      return cleanModel;
+    } else if (cleanProviderName) {
+      return cleanProviderName;
     }
     return '';
   }

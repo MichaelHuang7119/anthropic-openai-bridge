@@ -67,7 +67,9 @@ class MessageService:
         exclude_models: Optional[Dict[str, List[str]]] = None,
         provider_name: Optional[str] = None,
         api_format: Optional[str] = None,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
+        message_id: Optional[str] = None
     ):
         """Internal function to handle messages request with optional exclude parameters.
 
@@ -81,6 +83,8 @@ class MessageService:
             provider_name: Specific provider name to use (from conversation)
             api_format: API format to use (from conversation)
             session_id: Session ID for concurrent request isolation
+            chat_id: Chat ID for conversation-level isolation
+            message_id: Message ID for message-level isolation
         """
         request_id = str(uuid.uuid4())
         start_time = time.time()
@@ -1676,27 +1680,75 @@ class MessageService:
         """Handle streaming Anthropic direct request."""
         async def generate():
             chunk_count = 0
+            reasoning_flag = False  # Track if we're inside a thinking block
+
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
+                    logger.debug(f"Anthropic streaming: {chunk}")
                     chunk_count += 1
 
-                    # 处理思维链内容：检查 content 和 reasoning_details 字段
-                    if isinstance(chunk, dict) and "content" in chunk:
-                        content = chunk["content"]
-                        if isinstance(content, list):
-                            for content_block in content:
-                                if isinstance(content_block, dict):
-                                    # 检查 content_block 中的思维链内容
-                                    if content_block.get("type") == "thinking":
-                                        # 处理 thinking 块中的思维链
-                                        thinking_text = content_block.get("thinking", "")
-                                        if thinking_text:
-                                            logger.debug(f"Found thinking content in Anthropic stream: {str(thinking_text)[:50]}...")
-                                    elif "reasoning_details" in content_block:
-                                        # 处理 reasoning_details 字段中的思维链
-                                        reasoning_details = content_block.get("reasoning_details", [])
-                                        if reasoning_details:
-                                            logger.debug(f"Found reasoning_details in Anthropic stream: {reasoning_details}")
+                    # 检查 text_delta 中是否包含推理标签并提取
+                    if isinstance(chunk, dict) and chunk.get("type") == "content_block_delta":
+                        delta = chunk.get("delta", {})
+                        if isinstance(delta, dict) and delta.get("type") == "text_delta":
+                            text = delta.get("text", "")
+                            if "<think>" in text or "</think>" in text or reasoning_flag:
+                                # 使用状态机方式提取思维链内容
+                                new_reasoning_flag = reasoning_flag
+                                thinking_content = ""
+                                remaining_text = text
+
+                                # 检查是否包含开始标签
+                                if "<think>" in text:
+                                    new_reasoning_flag = True
+                                    # 移除开始标签
+                                    remaining_text = remaining_text.replace("<think>", "")
+                                    logger.debug(f"Found reasoning start tag, extracted: {remaining_text[:50]}...")
+
+                                # 检查是否包含结束标签
+                                if "</think>" in text:
+                                    # 移除结束标签
+                                    remaining_text = remaining_text.replace("</think>", "")
+                                    # 如果原本处于推理模式中，现在结束
+                                    if new_reasoning_flag:
+                                        new_reasoning_flag = False
+                                    logger.debug(f"Found reasoning end tag, remaining text: {remaining_text[:50]}...")
+
+                                # 根据推理状态处理内容
+                                if new_reasoning_flag:
+                                    # 仍在推理中，整个剩余文本都是思维链
+                                    thinking_content = remaining_text
+                                    remaining_text = ""
+                                elif reasoning_flag:
+                                    # 推理结束，将当前文本作为思维链
+                                    thinking_content = remaining_text
+                                    remaining_text = ""
+
+                                # 如果有思维链内容，发送 thinking_delta 事件
+                                if thinking_content:
+                                    # 发送 thinking_delta 事件
+                                    thinking_chunk = {
+                                        "type": "content_block_delta",
+                                        "delta": {
+                                            "type": "thinking_delta",
+                                            "thinking": thinking_content
+                                        }
+                                    }
+                                    json_str = json.dumps(thinking_chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
+                                    yield f"event: content_block_delta\ndata: {json_str}\n\n"
+
+                                # 更新推理状态
+                                reasoning_flag = new_reasoning_flag
+
+                                # 更新 chunk 中的文本内容（移除标签后的部分）
+                                if remaining_text:
+                                    # 需要复制 chunk 以避免修改原始数据
+                                    chunk = chunk.copy()
+                                    chunk["delta"] = delta.copy()
+                                    chunk["delta"]["text"] = remaining_text
+                                else:
+                                    # 如果没有剩余文本，跳过这个 chunk
+                                    continue
 
                     # Optimize: Use faster JSON serialization
                     json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)

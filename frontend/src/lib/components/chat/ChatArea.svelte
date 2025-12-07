@@ -78,7 +78,10 @@
   let isLoading = $state(false);
   let streamingMessages: Record<string, string> = $state({});
   let streamingThinkings: Record<string, string> = $state({});
-  let streamingCompleted: Record<string, boolean> = $state({}); // Track completed streams
+  let streamingCompleted: Record<string, boolean> = $state({});
+
+  // Manage AbortControllers per conversation for strict isolation
+  const conversationAbortControllers = new Map<number, AbortController>();
   let error: string | null = $state(null);
   let errorDetails: any = $state(null); // Store detailed error information
   let showErrorDetails = $state(false); // Toggle to show/hide error details
@@ -242,6 +245,19 @@
       return;
     }
 
+    const chatId = conversation.id;
+
+    // Cancel any previous requests for this specific conversation
+    const existingController = conversationAbortControllers.get(chatId);
+    if (existingController) {
+      existingController.abort();
+      conversationAbortControllers.delete(chatId);
+    }
+
+    // Create new AbortController for this conversation
+    const abortController = new AbortController();
+    conversationAbortControllers.set(chatId, abortController);
+
     // Check if we have selected models or conversation model
     const modelsToUse = selectedModels.length > 0
       ? selectedModels
@@ -320,7 +336,7 @@
       const promises = modelsToUse.map(async (model) => {
         const modelKey = `${model.providerName}-${model.apiFormat}-${model.model}`;
 
-        await chatService.sendChatMessage(
+        const result = await chatService.sendChatMessage(
           {
             ...conversation!,
             provider_name: model.providerName,
@@ -429,6 +445,9 @@
               // Scroll to bottom after adding completed messages
               await tick();
               scrollToBottom();
+
+              // Cleanup AbortController after successful completion
+              conversationAbortControllers.delete(chatId);
             }
           },
           (err) => {
@@ -469,10 +488,14 @@
               streamingMessages = {};
               streamingThinkings = {};
               streamingCompleted = {};
+
+              // Cleanup AbortController after completion (with or without errors)
+              conversationAbortControllers.delete(chatId);
             }
 
             dispatch("error", { message: extendedErr.message });
           },
+          abortController
         );
       });
 
@@ -483,6 +506,9 @@
       streamingThinkings = {};
       isLoading = false;
       dispatch("error", { message: error });
+
+      // Cleanup AbortController on error
+      conversationAbortControllers.delete(chatId);
     }
   }
 
