@@ -5,6 +5,7 @@
   import { theme } from '$stores/theme';
   import { toast } from '$stores/toast';
   import { authService } from '$services/auth';
+  import { getThemeShortcutsText } from '$lib/config/keyboardShortcuts';
 
   interface Props {
     show: boolean;
@@ -382,6 +383,25 @@
                   {/if}
                 </button>
                 <span class="help-text">{t('settings.themeHelp')}</span>
+                <span class="shortcut-hint">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                  </svg>
+                  <span class="shortcut-text">
+                    <span class="shortcut-list">
+                      {#each getThemeShortcutsText() as shortcut, index}
+                        <span class="shortcut-item">
+                          <strong>{shortcut}</strong>
+                        </span>
+                        {#if index < getThemeShortcutsText().length - 1}
+                          <span class="shortcut-separator">or</span>
+                        {/if}
+                      {/each}
+                    </span>
+                    <span class="shortcut-desc">{t('settings.toggleThemeShortcut')}</span>
+                  </span>
+                </span>
               </div>
             </Card>
           {:else if activeTab === 'security'}
@@ -1040,6 +1060,75 @@
 
   .theme-text {
     font-weight: 500;
+  }
+
+  .shortcut-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 0.375rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8125rem;
+  }
+
+  .shortcut-hint svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .shortcut-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .shortcut-list {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .shortcut-item strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    background: var(--bg-secondary, #e5e7eb);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary, #374151);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .shortcut-separator {
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .shortcut-desc {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .shortcut-hint {
+      font-size: 0.75rem;
+    }
+
+    .shortcut-desc {
+      display: block;
+      width: 100%;
+      margin-left: 0;
+      margin-top: 0.25rem;
+    }
   }
 
   /* 密码输入框样式 */

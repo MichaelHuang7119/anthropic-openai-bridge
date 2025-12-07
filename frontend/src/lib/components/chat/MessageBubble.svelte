@@ -215,6 +215,16 @@
     return tokens.toLocaleString();
   }
 
+  // Format model display name
+  function formatModelDisplay(providerName?: string | null, apiFormat?: string | null, model?: string | null): string {
+    if (providerName && apiFormat && model) {
+      return `${providerName}(${apiFormat})/${model}`;
+    } else if (model) {
+      return model;
+    }
+    return '';
+  }
+
   function handleRetry() {
     onretry?.({ message });
   }
@@ -286,41 +296,49 @@
 </script>
 
 <div class="message-bubble {message.role}">
-  <div class="message-header">
-    <span class="role-label">
-      {message.role === "user" ? t('messageBubble.user') : t('messageBubble.assistant')}
-    </span>
-    {#if showModel && (providerName || message.model)}
-      <span class="model-info">
-        {#if providerName}
-          <span class="provider-name">{providerName}</span>
-          {#if apiFormat}
-            <span class="api-format">({apiFormat})</span>
-          {/if}
-          {#if message.model}
-            <span class="model-separator">/</span>
-          {/if}
+  {#if message.role === "user"}
+    <div class="message-header">
+      <div class="user-message-header">
+        <span class="role-label">
+          {t('messageBubble.user')}
+        </span>
+        {#if message.created_at}
+          <span class="timestamp" title={formatFullTime(message.created_at)}>
+            {formatTime(message.created_at)}
+          </span>
         {/if}
-        {#if message.model}
-          <span class="model-name">{message.model}</span>
+      </div>
+    </div>
+  {:else}
+    <div class="message-header">
+      <div class="message-header-top">
+        <span class="role-label">
+          {t('messageBubble.assistant')}
+        </span>
+        {#if showModel && (providerName || apiFormat || message.model)}
+          <span class="model-info">
+            <span class="model-display">{formatModelDisplay(providerName, apiFormat, message.model)}</span>
+          </span>
         {/if}
-      </span>
-    {/if}
-    {#if showTokens && message.input_tokens !== undefined && message.output_tokens !== undefined}
-      <span class="token-info">
-        {t('messageBubble.inputTokens')}: {formatTokens(message.input_tokens)} | {t('messageBubble.outputTokens')}: {formatTokens(
-          message.output_tokens,
-        )} | {t('messageBubble.totalTokens')}: {formatTokens(
-          (message.input_tokens || 0) + (message.output_tokens || 0),
-        )}
-      </span>
-    {/if}
-    {#if message.created_at}
-      <span class="timestamp" title={formatFullTime(message.created_at)}>
-        {formatTime(message.created_at)}
-      </span>
-    {/if}
-  </div>
+      </div>
+      <div class="message-header-bottom">
+        {#if showTokens && message.input_tokens !== undefined && message.output_tokens !== undefined}
+          <span class="token-info">
+            <div class="token-icon" title={`${t('messageBubble.inputTokens')}: ${formatTokens(message.input_tokens)} | ${t('messageBubble.outputTokens')}: ${formatTokens(message.output_tokens)} | ${t('messageBubble.totalTokens')}: ${formatTokens((message.input_tokens || 0) + (message.output_tokens || 0))}`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 7H7C5.89543 7 5 7.89543 5 9V17C5 18.1046 5.89543 19 7 19H17C18.1046 19 19 18.1046 19 17V9C19 7.89543 18.1046 7 17 7H15M9 7C9 8.10457 9.89543 9 11 9H13C14.1046 9 15 8.10457 15 7M9 7C9 5.89543 9.89543 5 11 5H13C14.1046 5 15 5.89543 15 7M12 12H15M12 15H15M9 12H9.01M9 15H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </span>
+        {/if}
+        {#if message.created_at}
+          <span class="timestamp" title={formatFullTime(message.created_at)}>
+            {formatTime(message.created_at)}
+          </span>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   {#if message.thinking}
     <div class="thinking-section">
@@ -354,8 +372,8 @@
     </div>
   {/if}
 
-  <div class="message-content">
-    <div class="content-text" bind:this={contentContainer}>
+  <div class="message-content" class:flex={message.role === "assistant"}>
+    <div class="content-text" bind:this={contentContainer} class:flex-fill={message.role === "assistant"}>
       {#if isEditing}
         <div class="edit-mode">
           <textarea
@@ -392,22 +410,22 @@
         {@html renderedContent}
       {/if}
     </div>
-
-    {#if message.role === "user"}
-      <div class="message-actions">
-        {#if isEditing}
-          <button class="edit-btn sending" disabled>
-            {t('messageInput.send')}
-          </button>
-        {:else}
-          <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
-          </button>
-          <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
-          </button>
-        {/if}
-      </div>
-    {/if}
   </div>
+
+  {#if message.role === "user"}
+    <div class="message-actions-below">
+      {#if isEditing}
+        <button class="edit-btn sending" disabled>
+          {t('messageInput.send')}
+        </button>
+      {:else}
+        <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
+        </button>
+        <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
+        </button>
+      {/if}
+    </div>
+  {/if}
 
   {#if message.role === "assistant" && message.content}
     <div class="message-actions">
@@ -436,22 +454,45 @@
   }
 
   .message-bubble.assistant {
-    align-items: flex-start;
+    align-items: stretch;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: var(--bg-secondary);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
 
   .message-header {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
     margin-bottom: 0.625rem;
     font-size: 0.8rem;
+    max-width: 100%;
+  }
+
+  .message-header-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     flex-wrap: wrap;
     max-width: 100%;
   }
 
-  .message-bubble.user .message-header {
-    justify-content: flex-end;
-    flex-direction: row-reverse;
+  .message-header-bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .user-message-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .role-label {
@@ -495,20 +536,32 @@
     color: var(--text-secondary);
   }
 
+  .model-display {
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
   .token-info {
     color: var(--text-tertiary);
     font-size: 0.7rem;
   }
 
+  .token-icon {
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+
+  .token-icon:hover {
+    opacity: 1;
+    color: var(--primary-color);
+  }
+
   .timestamp {
     color: var(--text-tertiary);
     font-size: 0.7rem;
-    margin-left: auto;
-  }
-
-  .message-bubble.user .timestamp {
-    margin-left: 0;
-    margin-right: auto;
   }
 
   .code-block-container {
@@ -519,6 +572,7 @@
     border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
   }
 
@@ -632,6 +686,9 @@
     border-radius: 0.5rem;
     background: var(--bg-tertiary);
     overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .thinking-toggle {
@@ -686,6 +743,11 @@
     line-height: 1.6;
     color: var(--text-secondary);
     animation: slideDown 0.2s ease-out;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
   @keyframes slideDown {
@@ -704,6 +766,8 @@
     max-width: 100%;
     overflow-wrap: break-word;
     word-wrap: break-word;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .thinking-content :global(code) {
@@ -719,7 +783,13 @@
     display: flex;
     gap: 0.75rem;
     position: relative;
-      }
+    width: 100%;
+  }
+
+  .message-content.flex {
+    display: flex;
+    flex: 1;
+  }
 
   .message-bubble.user .message-content {
     justify-content: flex-end;
@@ -727,6 +797,15 @@
 
   .message-bubble.assistant .message-content {
     justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .content-text.flex-fill {
+    flex: 1;
+  }
+
+  .message-content:has(.edit-mode) {
+    width: 100%;
   }
 
   .content-text {
@@ -748,12 +827,19 @@
   }
 
   .message-bubble.assistant .content-text {
-    flex: 1;
+    padding: 1rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
   }
 
-  .message-bubble.assistant .content-text {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
+  .message-bubble.user .content-text:has(.edit-mode) {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
   .message-bubble.user .content-text {
@@ -761,11 +847,17 @@
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    flex: 1;
     max-width: 85%;
     margin-left: auto;
     text-align: left;
     transition: all 0.2s ease;
+  }
+
+  .message-bubble.user .content-text:has(.edit-mode) {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    flex: none;
   }
 
   .message-bubble.user .content-text:hover {
@@ -810,6 +902,8 @@
     margin: 0;
     /* Ensure pre tags also respect container boundaries */
     max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
     /* Remove top padding since header covers that area */
     padding-top: 3rem;
   }
@@ -854,6 +948,7 @@
     overflow-x: auto;
     display: block;
     max-width: 100%;
+    box-sizing: border-box;
   }
 
   .content-text :global(table thead) {
@@ -927,6 +1022,19 @@
     opacity: 1;
   }
 
+  .message-actions-below {
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .message-bubble:hover .message-actions-below {
+    opacity: 1;
+  }
+
   .retry-btn,
   .copy-btn,
   .edit-btn {
@@ -978,11 +1086,16 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
   }
 
   .edit-textarea {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     background: var(--bg-primary);
@@ -991,7 +1104,7 @@
     font-family: inherit;
     line-height: 1.6;
     resize: vertical;
-    min-height: 80px;
+    min-height: 100px;
     transition: border-color 0.2s;
   }
 
@@ -1003,15 +1116,16 @@
 
   .edit-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     justify-content: flex-end;
+    width: 100%;
   }
 
   .edit-send-btn,
   .edit-cancel-btn {
-    padding: 0.5rem 1rem;
+    padding: 0.625rem 1.5rem;
     border: none;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
@@ -1019,14 +1133,16 @@
   }
 
   .edit-send-btn {
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .edit-send-btn:hover {
-    background: var(--primary-color-dark, #3b82f6);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(90, 156, 255, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 
   .edit-cancel-btn {
@@ -1041,7 +1157,8 @@
   }
 
   @media (max-width: 768px) {
-    .message-header {
+    .message-header-top,
+    .message-header-bottom {
       flex-wrap: wrap;
     }
 

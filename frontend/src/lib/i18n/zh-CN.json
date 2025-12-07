@@ -48,7 +48,9 @@
     "nextPage": "下一页",
     "searchProvider": "搜索供应商...",
     "searchModel": "搜索模型...",
-    "close": "关闭"
+    "close": "关闭",
+    "modelsSelected": "个模型已选择",
+    "modelSelected": "个模型已选择"
   },
   "header": {
     "logout": "退出登录",
@@ -141,7 +143,12 @@
     "middleModel": "中等模型",
     "smallModel": "小模型",
     "loadingModels": "加载模型配置中...",
-    "placeholderSelectProvider": "请选择供应商"
+    "placeholderSelectProvider": "请选择供应商",
+    "addModel": "添加模型",
+    "removeModel": "删除模型",
+    "selectedModels": "已选择的模型",
+    "modelsSelected": "已选择模型",
+    "modelName": "模型名称"
   },
   "messageInput": {
     "placeholder": "输入消息...",
@@ -571,6 +578,8 @@
     "lightMode": "浅色模式",
     "darkMode": "深色模式",
     "themeHelp": "切换深色和浅色主题",
+    "themeShortcut": "主题切换快捷键",
+    "toggleThemeShortcut": "（主题切换快捷键：支持多种组合键）",
     "languageUpdated": "语言设置已更新",
     "languageUpdateError": "更新语言失败",
     "tabList": "设置选项卡列表",

@@ -46,7 +46,9 @@
     "nextPage": "Próxima página",
     "deleting": "Deleting...",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "Sair",
@@ -139,7 +141,8 @@
     "middleModel": "Modelos médios",
     "smallModel": "Modelos pequenos",
     "loadingModels": "Carregando configuração dos modelos...",
-    "placeholderSelectProvider": "Por favor, selecione um fornecedor"
+    "placeholderSelectProvider": "Por favor, selecione um fornecedor",
+    "selectedModels": "Selected Models"
   },
   "messageInput": {
     "placeholder": "Digite uma mensagem...",
@@ -576,7 +579,9 @@
     "hidePassword": "Ocultar senha",
     "searchLanguage": "Pesquisar idiomas...",
     "noLanguagesFound": "Nenhum idioma encontrado",
-    "languages": "idiomas"
+    "languages": "idiomas",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
   },
   "welcome": {
     "title": "Bem-vindo ao Anthropic OpenAI Bridge",

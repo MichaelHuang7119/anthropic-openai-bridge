@@ -15,16 +15,16 @@
 
   let {
     conversation = $bindable(null),
-    selectedModel = $bindable(null),
-    selectedProvider = $bindable(""),
+    selectedModels = $bindable([]),
+    selectedProviderName = $bindable(""),
     selectedApiFormat = $bindable(""),
     selectedModelName = $bindable(""),
     selectedCategory = $bindable("middle"),
     sidebarCollapsed = $bindable(false),
   }: {
     conversation: ConversationDetail | null;
-    selectedModel: any;
-    selectedProvider: string;
+    selectedModels: ModelChoice[];
+    selectedProviderName: string;
     selectedApiFormat: string;
     selectedModelName: string;
     selectedCategory: string;
@@ -42,10 +42,43 @@
     dispatch("modelSelected", event.detail);
   }
 
+  // Group messages into user-assistant pairs for display
+  function getMessageGroups() {
+    const groups = [];
+    let i = 0;
+
+    while (i < messages.length) {
+      const group = {
+        userMessage: null as Message | null,
+        assistantMessages: [] as Message[],
+      };
+
+      // Find user message
+      if (messages[i].role === "user") {
+        group.userMessage = messages[i];
+        i++;
+      }
+
+      // Find all following assistant messages
+      while (i < messages.length && messages[i].role === "assistant") {
+        group.assistantMessages.push(messages[i]);
+        i++;
+      }
+
+      // Only add group if it has content
+      if (group.userMessage || group.assistantMessages.length > 0) {
+        groups.push(group);
+      }
+    }
+
+    return groups;
+  }
+
   let messages: Message[] = $state([]);
   let isLoading = $state(false);
-  let streamingMessage: string | null = $state(null);
-  let streamingThinking: string | null = $state(null);
+  let streamingMessages: Record<string, string> = $state({});
+  let streamingThinkings: Record<string, string> = $state({});
+  let streamingCompleted: Record<string, boolean> = $state({}); // Track completed streams
   let error: string | null = $state(null);
   let errorDetails: any = $state(null); // Store detailed error information
   let showErrorDetails = $state(false); // Toggle to show/hide error details
@@ -84,6 +117,25 @@
 
       const detail = await chatService.getConversation(conversation.id);
       messages = detail.messages || [];
+
+      // Update model selector based on the last assistant message
+      if (messages.length > 0) {
+        // Find the last assistant message
+        const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+
+        if (lastAssistantMessage) {
+          // Update model selector to show the model from the last assistant message
+          selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
+          selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
+          selectedModelName = lastAssistantMessage.model || selectedModelName;
+
+          console.log("ChatArea: Updated model selector from last message:", {
+            providerName: selectedProviderName,
+            apiFormat: selectedApiFormat,
+            model: selectedModelName
+          });
+        }
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
       errorDetails = {
@@ -136,7 +188,7 @@
 
   // Auto-scroll to bottom only if user hasn't scrolled up
   $effect(() => {
-    if (messages.length > 0 || streamingMessage || streamingThinking) {
+    if (messages.length > 0 || Object.keys(streamingMessages).length > 0 || Object.keys(streamingThinkings).length > 0) {
       // For streaming messages, use requestAnimationFrame for smoother scrolling
       // For regular messages, use a small delay to ensure DOM is ready
       const scrollAction = () => {
@@ -147,7 +199,7 @@
       };
 
       // Use requestAnimationFrame for streaming messages, setTimeout for others
-      if (streamingMessage || streamingThinking) {
+      if (Object.keys(streamingMessages).length > 0 || Object.keys(streamingThinkings).length > 0) {
         requestAnimationFrame(scrollAction);
       } else {
         setTimeout(scrollAction, 0);
@@ -190,17 +242,18 @@
       return;
     }
 
-    if (!selectedModelName && !conversation.model) {
-      error = t('common.error');
-      return;
-    }
+    // Check if we have selected models or conversation model
+    const modelsToUse = selectedModels.length > 0
+      ? selectedModels
+      : (selectedModelName || conversation.model
+          ? [{
+              providerName: selectedProviderName || conversation.provider_name || '',
+              apiFormat: selectedApiFormat || conversation.api_format || '',
+              model: selectedModelName || conversation.model || ''
+            }]
+          : []);
 
-    // Use currently selected model configuration instead of conversation's saved config
-    const useProvider = selectedProvider || conversation.provider_name || null;
-    const useApiFormat = selectedApiFormat || conversation.api_format || null;
-    const useModel = selectedModelName || conversation.model || null;
-
-    if (!useModel) {
+    if (modelsToUse.length === 0) {
       error = t('common.error');
       return;
     }
@@ -212,11 +265,7 @@
     userScrolledUp = false;
     isAtBottom = true;
 
-    console.log("ChatArea: Sending message with config:", {
-      provider: useProvider,
-      apiFormat: useApiFormat,
-      model: useModel,
-    });
+    console.log("ChatArea: Sending message to models:", modelsToUse);
 
     try {
       // Add user message to UI
@@ -224,9 +273,9 @@
         id: Date.now(),
         role: "user",
         content: userMessage,
-        provider_name: useProvider,
-        api_format: useApiFormat,
-        model: useModel,
+        provider_name: modelsToUse[0].providerName || null,
+        api_format: modelsToUse[0].apiFormat || null,
+        model: null,
         input_tokens: null,
         output_tokens: null,
         created_at: new Date().toISOString(),
@@ -242,170 +291,196 @@
         conversationId: conversation.id,
         role: "user",
         content: userMessage,
-        model: useModel,
-        provider_name: useProvider,
-        api_format: useApiFormat,
       });
       await chatService.addMessage(
         conversation.id,
         "user",
         userMessage,
-        useModel,
+        null!,
         undefined, // thinking
         undefined, // inputTokens
         undefined, // outputTokens
-        useProvider || undefined,
-        useApiFormat || undefined,
+        undefined, // provider
+        undefined, // apiFormat
       );
 
-      // Send to AI with current selected configuration
-      streamingMessage = "";
-      streamingThinking = "";
+      // Initialize streaming state for all models
+      streamingMessages = {};
+      streamingThinkings = {};
+      streamingCompleted = {};
+      modelsToUse.forEach(model => {
+        const modelKey = `${model.providerName}-${model.apiFormat}-${model.model}`;
+        streamingMessages[modelKey] = "";
+        streamingThinkings[modelKey] = "";
+        streamingCompleted[modelKey] = false;
+      });
       isLoading = true;
 
-      await chatService.sendChatMessage(
-        {
-          ...conversation,
-          provider_name: useProvider,
-          api_format: useApiFormat,
-          model: useModel,
-          messages: messages,
-        },
-        userMessage,
-        (chunk, thinking) => {
-          if (chunk) {
-            streamingMessage += chunk;
-            // Scroll immediately when new chunk arrives for smooth streaming experience
-            if (!userScrolledUp && isAtBottom) {
-              scrollToBottom();
-            }
-          }
-          if (thinking !== undefined) {
-            streamingThinking = thinking;
-            // Scroll immediately when thinking content updates
-            if (!userScrolledUp && isAtBottom) {
-              scrollToBottom();
-            }
-          }
-        },
-        async (usage) => {
-          // On complete
-          const assistantMessage = streamingMessage;
-          const thinkingContent = streamingThinking;
-          streamingMessage = null;
-          streamingThinking = null;
-          isLoading = false;
+      // Send to all selected models
+      const promises = modelsToUse.map(async (model) => {
+        const modelKey = `${model.providerName}-${model.apiFormat}-${model.model}`;
 
-          if (assistantMessage) {
-            // Add assistant message to UI (with thinking content and usage)
-            const assistantMsg: Message = {
-              id: Date.now() + 1,
-              role: "assistant",
-              content: assistantMessage,
-              thinking: thinkingContent || undefined,
-              provider_name: useProvider,
-              api_format: useApiFormat,
-              model: useModel,
-              input_tokens: usage?.input_tokens || null,
-              output_tokens: usage?.output_tokens || null,
-              created_at: new Date().toISOString(),
+        await chatService.sendChatMessage(
+          {
+            ...conversation!,
+            provider_name: model.providerName,
+            api_format: model.apiFormat,
+            model: model.model,
+            messages: messages,
+          },
+          userMessage,
+          (chunk, thinking) => {
+            if (chunk) {
+              streamingMessages = {
+                ...streamingMessages,
+                [modelKey]: (streamingMessages[modelKey] || "") + chunk
+              };
+              // Scroll immediately when new chunk arrives for smooth streaming experience
+              if (!userScrolledUp && isAtBottom) {
+                scrollToBottom();
+              }
+            }
+            if (thinking !== undefined) {
+              streamingThinkings = {
+                ...streamingThinkings,
+                [modelKey]: thinking
+              };
+              // Scroll immediately when thinking content updates
+              if (!userScrolledUp && isAtBottom) {
+                scrollToBottom();
+              }
+            }
+          },
+          async (usage) => {
+            // On complete for this model
+            const assistantMessage = streamingMessages[modelKey] || "";
+            const thinkingContent = streamingThinkings[modelKey];
+
+            if (assistantMessage) {
+              // Add to database (with thinking content and usage)
+              try {
+                await chatService.addMessage(
+                  conversation!.id,
+                  "assistant",
+                  assistantMessage,
+                  model.model,
+                  thinkingContent || undefined,
+                  usage?.input_tokens,
+                  usage?.output_tokens,
+                  model.providerName || undefined,
+                  model.apiFormat || undefined,
+                );
+              } catch (err) {
+                console.error("Failed to save assistant message:", err);
+              }
+              // Don't add to messages array - let loadMessages handle it
+            }
+
+            // Mark this stream as completed
+            streamingCompleted = {
+              ...streamingCompleted,
+              [modelKey]: true
             };
-            messages = [...messages, assistantMsg];
 
-            // Add to database (with thinking content and usage)
-            const savedMessage = await chatService.addMessage(
-              conversation!.id,
-              "assistant",
-              assistantMessage,
-              useModel,
-              thinkingContent || undefined,
-              usage?.input_tokens,
-              usage?.output_tokens,
-              useProvider || undefined,
-              useApiFormat || undefined,
-            );
-
-            // Update the temporary message with the actual saved message data - preserve frontend config
-            if (savedMessage && conversation) {
-              console.log("=== DEBUG CONFIG TRACKING ===");
-              console.log("Frontend sent to database:", {
-                provider: useProvider,
-                apiFormat: useApiFormat,
-                model: useModel
-              });
-              console.log("Database returned savedMessage:", savedMessage);
-              console.log("Original temporary assistantMsg:", assistantMsg);
-
-              // Create updated message with explicit typing
-              const updatedMessage: Message = {
-                id: savedMessage.id,
-                role: 'assistant',
-                content: assistantMsg.content,
-                model: assistantMsg.model || useModel || savedMessage.model || null,
-                thinking: assistantMsg.thinking || savedMessage.thinking || undefined,
-                input_tokens: savedMessage.input_tokens !== undefined ? savedMessage.input_tokens : null,
-                output_tokens: savedMessage.output_tokens !== undefined ? savedMessage.output_tokens : null,
-                created_at: savedMessage.created_at || new Date().toISOString(),
-                // Explicitly preserve frontend configuration
-                provider_name: assistantMsg.provider_name || useProvider || null,
-                api_format: assistantMsg.api_format || useApiFormat || null,
-              };
-
-              messages = messages.map((msg) =>
-                msg.id === assistantMsg.id ? updatedMessage : msg
-              );
-
-              // Verify the final configuration
-              const finalUpdatedMsg = messages.find(m => m.id === assistantMsg.id);
-              console.log("Final message after update:", {
-                provider_name: finalUpdatedMsg?.provider_name,
-                api_format: finalUpdatedMsg?.api_format,
-                model: finalUpdatedMsg?.model,
-                id: finalUpdatedMsg?.id,
-                created_at: finalUpdatedMsg?.created_at
-              });
-              console.log("========================");
-
-              // Update conversation messages - with type safety
-              const updatedConversation: ConversationDetail = {
-                ...conversation,
-                messages: messages,
-                // Ensure conversation config matches current selection if changed
-                provider_name: useProvider || conversation.provider_name || null,
-                api_format: useApiFormat || conversation.api_format || null,
-                model: useModel || conversation.model || null,
-              };
-
-              conversation = updatedConversation;
-              dispatch("conversationUpdate", { conversation: updatedConversation });
+            // Check if all models are done
+            let allCompleted = true;
+            for (const key in streamingCompleted) {
+              if (!streamingCompleted[key]) {
+                allCompleted = false;
+                break;
+              }
             }
-          }
-        },
-        (err) => {
-          // Type assert to ExtendedError to access additional properties
-          const extendedErr = err as ExtendedError;
 
-          // Store detailed error information
-          error = extendedErr.message;
-          errorDetails = {
-            message: extendedErr.message,
-            status: extendedErr.status,
-            statusText: extendedErr.statusText,
-            details: extendedErr.details,
-            timestamp: new Date().toISOString()
-          };
+            if (allCompleted) {
+              // All streams completed - merge streaming messages into messages array and cleanup
+              isLoading = false;
 
-          console.error("Chat message error:", err);
+              // Convert streaming messages to Message objects and add to messages array
+              const completedMessages: Message[] = [];
+              for (const [modelKey, content] of Object.entries(streamingMessages)) {
+                if (content) {
+                  const [providerName, apiFormat, model] = modelKey.split('-');
+                  const assistantMessage: Message = {
+                    id: Date.now() + Math.random(), // Unique ID for streaming messages
+                    role: "assistant",
+                    content: content,
+                    thinking: streamingThinkings[modelKey] || undefined,
+                    model: model,
+                    input_tokens: null, // Will be updated when usage data is available
+                    output_tokens: null,
+                    created_at: new Date().toISOString(),
+                    provider_name: providerName,
+                    api_format: apiFormat,
+                  };
+                  completedMessages.push(assistantMessage);
+                }
+              }
 
-          streamingMessage = null;
-          streamingThinking = null;
-          isLoading = false;
-          dispatch("error", { message: extendedErr.message });
-        },
-      );
+              // Add completed messages to the messages array
+              if (completedMessages.length > 0) {
+                messages = [...messages, ...completedMessages];
+              }
+
+              // Clear streaming state
+              streamingMessages = {};
+              streamingThinkings = {};
+              streamingCompleted = {};
+
+              // Scroll to bottom after adding completed messages
+              await tick();
+              scrollToBottom();
+            }
+          },
+          (err) => {
+            // Type assert to ExtendedError to access additional properties
+            const extendedErr = err as ExtendedError;
+
+            // Store detailed error information
+            error = extendedErr.message;
+            errorDetails = {
+              message: extendedErr.message,
+              status: extendedErr.status,
+              statusText: extendedErr.statusText,
+              details: extendedErr.details,
+              timestamp: new Date().toISOString()
+            };
+
+            console.error("Chat message error for model", model.model, ":", err);
+
+            // Mark this stream as completed (even though it errored)
+            streamingCompleted = {
+              ...streamingCompleted,
+              [modelKey]: true
+            };
+
+            // Check if all models are done
+            let allCompleted = true;
+            for (const key in streamingCompleted) {
+              if (!streamingCompleted[key]) {
+                allCompleted = false;
+                break;
+              }
+            }
+
+            if (allCompleted) {
+              // All streams completed (with or without errors) - cleanup
+              isLoading = false;
+              // Clear streaming state
+              streamingMessages = {};
+              streamingThinkings = {};
+              streamingCompleted = {};
+            }
+
+            dispatch("error", { message: extendedErr.message });
+          },
+        );
+      });
+
+      await Promise.all(promises);
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
-      streamingMessage = null;
+      streamingMessages = {};
+      streamingThinkings = {};
       isLoading = false;
       dispatch("error", { message: error });
     }
@@ -473,8 +548,8 @@
     {/if}
 
     <ModelSelector
-      bind:selectedModel={selectedModel}
-      bind:selectedProvider={selectedProvider}
+      bind:selectedModels={selectedModels}
+      bind:selectedProviderName={selectedProviderName}
       bind:selectedApiFormat={selectedApiFormat}
       bind:selectedModelName={selectedModelName}
       bind:selectedCategory={selectedCategory}
@@ -617,37 +692,73 @@
         <p>{t('chatArea.startConversation')}</p>
       </div>
     {:else}
-      {#each messages as message}
-        <MessageBubble
-          {message}
-          showModel={true}
-          showTokens={true}
-          providerName={message.provider_name ?? selectedProvider ?? (conversation?.provider_name ?? null)}
-          apiFormat={message.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
-          onretry={handleRetry}
-          onedit={handleEditMessage}
-        />
-      {/each}
+      {@const messageGroups = getMessageGroups()}
+      {@const lastGroupIndex = messageGroups.length - 1}
+      {#each messageGroups as group, index}
+        {@const isLastGroup = index === lastGroupIndex}
+        {#if group.userMessage}
+          <MessageBubble
+            message={group.userMessage}
+            showModel={false}
+            showTokens={true}
+            providerName={group.userMessage.provider_name ?? selectedProviderName ?? (conversation?.provider_name ?? null)}
+            apiFormat={group.userMessage.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
+            onretry={handleRetry}
+            onedit={handleEditMessage}
+          />
+        {/if}
 
-      {#if streamingMessage !== null || streamingThinking !== null}
-        <MessageBubble
-          message={{
-            id: Date.now(),
-            role: "assistant",
-            content: streamingMessage || "",
-            thinking: streamingThinking || undefined,
-            model: (selectedModel?.model || selectedModelName) || conversation?.model || null,
-            input_tokens: null,
-            output_tokens: null,
-            created_at: new Date().toISOString(),
-          } as any}
-          isStreaming={true}
-          showModel={true}
-          showTokens={false}
-          providerName={selectedProvider}
-          apiFormat={selectedApiFormat}
-        />
-      {/if}
+        <!-- Streaming messages for the last group only (if user message exists and streaming is active) -->
+        {#if isLastGroup && group.userMessage && Object.keys(streamingMessages).length > 0}
+          <div class="assistant-messages-grid">
+            {#each Object.entries(streamingMessages) as [modelKey, content]}
+              {@const [providerName, apiFormat, model] = modelKey.split('-')}
+              <div class="assistant-message-column">
+                <MessageBubble
+                  message={{
+                    id: Date.now(),
+                    role: "assistant",
+                    content: content,
+                    thinking: streamingThinkings[modelKey] || undefined,
+                    model: model,
+                    input_tokens: null,
+                    output_tokens: null,
+                    created_at: new Date().toISOString(),
+                    provider_name: providerName,
+                    api_format: apiFormat,
+                  } as any}
+                  isStreaming={true}
+                  showModel={true}
+                  showTokens={false}
+                  providerName={providerName}
+                  apiFormat={apiFormat}
+                />
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if group.assistantMessages.length > 0}
+          <div class="assistant-messages-grid">
+            {#each group.assistantMessages as assistantMessage}
+              {@const isStreaming = `${assistantMessage.provider_name}-${assistantMessage.api_format}-${assistantMessage.model}` in streamingMessages}
+              {#if !isStreaming}
+                <div class="assistant-message-column">
+                  <MessageBubble
+                    message={assistantMessage}
+                    showModel={true}
+                    showTokens={true}
+                    providerName={assistantMessage.provider_name ?? selectedProviderName ?? (conversation?.provider_name ?? null)}
+                    apiFormat={assistantMessage.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
+                    onretry={handleRetry}
+                    onedit={handleEditMessage}
+                  />
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      {/each}
     {/if}
   </div>
 
@@ -1081,6 +1192,41 @@
     color: var(--text-secondary);
     font-size: 1rem;
     opacity: 0.7;
+  }
+
+  /* Multi-model cards layout */
+  .assistant-messages-grid {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+    padding-bottom: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .assistant-messages-grid::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .assistant-messages-grid::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .assistant-messages-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+
+  .assistant-messages-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  .assistant-message-column {
+    flex: 0 0 calc(50% - 0.5rem);
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Tablet styles */

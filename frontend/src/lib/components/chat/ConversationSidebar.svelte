@@ -16,7 +16,7 @@
   interface Props {
     selectedProviderName?: string;
     selectedApiFormat?: string;
-    selectedModelValue?: string;
+    selectedModelName?: string;
     conversations?: Conversation[];
     currentConversationId?: number | null;
     providers?: ProviderConfig[];
@@ -32,7 +32,7 @@
   let {
     selectedProviderName = $bindable(""),
     selectedApiFormat = $bindable(""),
-    selectedModelValue = $bindable(""),
+    selectedModelName = $bindable(""),
     conversations = $bindable([]),
     currentConversationId = $bindable(null),
     providers = [],
@@ -93,27 +93,20 @@
     try {
       loading = true;
       await loadConversations();
-
-      // Select default model when providers are loaded
-      if (providers.length > 0 && !selectedModelValue) {
-        selectedProviderName = providers[0].name;
-        selectedApiFormat = providers[0].api_format;
-
-        // Find first available model in any category
-        for (const category of ["big", "middle", "small"]) {
-          const models =
-            providers[0].models[category as keyof ProviderConfig["models"]];
-          if (models && models.length > 0) {
-            selectedModelValue = models[0];
-            break;
-          }
-        }
-      }
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to load conversations:", err);
     } finally {
       loading = false;
+    }
+  });
+
+  // Effect to initialize default model selection when providers are loaded
+  // Note: We rely on ModelSelector to set the initial default selection
+  // This component just tracks the selection state
+  $effect(() => {
+    if (providers.length > 0 && (!selectedProviderName || !selectedApiFormat || !selectedModelName)) {
+      console.log("ConversationSidebar: Waiting for ModelSelector to initialize defaults...");
     }
   });
 
@@ -127,7 +120,12 @@
         const models =
           providers[0].models[category as keyof ProviderConfig["models"]];
         if (models && models.length > 0) {
-          selectedModelValue = models[0];
+          selectedModelName = models[0];
+          console.log("_setDefaultModelSelection:", {
+            provider: selectedProviderName,
+            format: selectedApiFormat,
+            model: selectedModelName
+          });
           break;
         }
       }
@@ -139,6 +137,28 @@
       conversations = await chatService.getConversations();
       filteredConversations = conversations; // Initialize filtered conversations
       resetVisibleCount(); // Reset pagination when conversations are loaded
+
+      // If no conversations remain and we have providers, ensure we have a valid model selection
+      if (conversations.length === 0 && providers.length > 0) {
+        // Reset all three fields to default
+        selectedProviderName = providers[0].name;
+        selectedApiFormat = providers[0].api_format;
+
+        // Find first available model in any category
+        for (const category of ["big", "middle", "small"]) {
+          const models =
+            providers[0].models[category as keyof ProviderConfig["models"]];
+          if (models && models.length > 0) {
+            selectedModelName = models[0];
+            console.log("Reset model selection after deleting all conversations:", {
+              provider: selectedProviderName,
+              format: selectedApiFormat,
+              model: selectedModelName
+            });
+            break;
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to load conversations:", err);
       throw err;
@@ -409,6 +429,8 @@
 
       // Clear selections
       clearAllSelections();
+
+      console.log("Batch delete completed");
     } catch (err) {
       console.error("Failed to batch delete conversations:", err);
       alert(t('common.error'));
@@ -418,15 +440,24 @@
   }
 
   function handleNewConversation() {
-    if (!selectedProviderName || !selectedApiFormat || !selectedModelValue) {
-      alert(t('common.error'));
+    console.log("handleNewConversation called with:", {
+      selectedProviderName,
+      selectedApiFormat,
+      selectedModelName,
+      providersLength: providers.length,
+    });
+
+    if (!selectedProviderName || !selectedApiFormat || !selectedModelName) {
+      const errorMsg = `Cannot create new conversation: missing model configuration (provider: ${selectedProviderName}, format: ${selectedApiFormat}, model: ${selectedModelName})`;
+      console.error(errorMsg);
+      alert(errorMsg);
       return;
     }
 
     dispatch("newConversation", {
       providerName: selectedProviderName,
       apiFormat: selectedApiFormat,
-      model: selectedModelValue,
+      model: selectedModelName,
     });
   }
 

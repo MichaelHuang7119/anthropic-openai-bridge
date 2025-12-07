@@ -7,6 +7,7 @@
   import { theme } from '$stores/theme';
   import { language, tStore } from '$stores/language';
   import { authService } from '$services/auth';
+  import { handleKeyboardEvent } from '$lib/config/keyboardShortcuts';
   import '../lib/styles/global.css';
 
   // 获取翻译函数（响应式）
@@ -32,11 +33,11 @@
   }
 
   // 初始化主题和语言，以及认证检查
-  onMount(async () => {
+  onMount(() => {
     theme.init();
 
     // 初始化语言设置（会尝试从后端获取，如果已登录的话）
-    await language.init();
+    language.init().catch(console.error);
 
     // 注册 Service Worker for PWA
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -53,6 +54,18 @@
     if ($page.url.pathname !== '/login' && !authService.isAuthenticated()) {
       goto('/login');
     }
+
+    // 添加全局键盘快捷键监听
+    const handleKeydown = (event: KeyboardEvent) => {
+      handleKeyboardEvent(event);
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+
+    // 返回清理函数
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+    };
   });
 
   function _handleLogout() {

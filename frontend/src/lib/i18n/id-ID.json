@@ -46,7 +46,9 @@
     "nextPage": "Halaman Selanjutnya",
     "deleting": "Deleting...",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "Keluar",
@@ -139,7 +141,8 @@
     "middleModel": "Model Menengah",
     "smallModel": "Model Kecil",
     "loadingModels": "Memuat konfigurasi model...",
-    "placeholderSelectProvider": "Silakan pilih penyedia"
+    "placeholderSelectProvider": "Silakan pilih penyedia",
+    "selectedModels": "Selected Models"
   },
   "messageInput": {
     "placeholder": "Ketik pesan...",
@@ -576,7 +579,9 @@
     "hidePassword": "Sembunyikan kata sandi",
     "searchLanguage": "Cari bahasa...",
     "noLanguagesFound": "Tidak ada bahasa yang ditemukan",
-    "languages": "bahasa"
+    "languages": "bahasa",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
   },
   "welcome": {
     "title": "Selamat datang di Anthropic OpenAI Bridge",

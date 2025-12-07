@@ -46,7 +46,9 @@
     "nextPage": "หน้าถัดไป",
     "deleting": "Deleting...",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "ออกจากระบบ",
@@ -139,7 +141,8 @@
     "middleModel": "โมเดลกลาง",
     "smallModel": "โมเดลเล็ก",
     "loadingModels": "กำลังโหลดการตั้งค่าโมเดล...",
-    "placeholderSelectProvider": "กรุณาเลือกผู้ให้บริการ"
+    "placeholderSelectProvider": "กรุณาเลือกผู้ให้บริการ",
+    "selectedModels": "Selected Models"
   },
   "messageInput": {
     "placeholder": "พิมพ์ข้อความ...",
@@ -576,7 +579,9 @@
     "hidePassword": "ซ่อนรหัสผ่าน",
     "searchLanguage": "ค้นหาภาษา...",
     "noLanguagesFound": "ไม่พบภาษา",
-    "languages": "ภาษา"
+    "languages": "ภาษา",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
   },
   "welcome": {
     "title": "ยินดีต้อนรับสู่ Anthropic OpenAI Bridge",

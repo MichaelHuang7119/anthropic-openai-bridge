@@ -27,7 +27,8 @@
   let providers = $state<ProviderConfig[]>([]);
 
   // Model selection state (shared between components)
-  let selectedProvider = $state<string>("");
+  let selectedModels = $state<ModelChoice[]>([]);
+  let selectedProviderName = $state<string>("");
   let selectedApiFormat = $state<string>("");
   let selectedModelName = $state<string>("");
   let selectedCategory = $state<string>("middle");
@@ -83,6 +84,22 @@
           models: p.models,
         }));
       console.log("Providers loaded:", $state.snapshot(providers));
+
+      // Initialize default model selection if not already set
+      if (providers.length > 0 && !selectedModelName) {
+        selectedProviderName = providers[0].name;
+        selectedApiFormat = providers[0].api_format;
+
+        // Find first available model in any category
+        for (const category of ["big", "middle", "small"]) {
+          const models = providers[0].models[category as keyof typeof providers[0]["models"]];
+          if (models && models.length > 0) {
+            selectedModelName = models[0];
+            console.log("Default model initialized:", selectedModelName);
+            break;
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to load providers:", err);
       throw err;
@@ -102,7 +119,7 @@
   async function handleModelSelected(event: CustomEvent) {
     const modelChoice = event.detail;
     // Update all fields to sync with ConversationSidebar
-    selectedProvider = modelChoice.providerName;
+    selectedProviderName = modelChoice.providerName;
     selectedApiFormat = modelChoice.apiFormat;
     selectedModelName = modelChoice.model;
     _selectedModelChoice = modelChoice;
@@ -127,34 +144,87 @@
 
       // Initialize model selection state from conversation config
       // This ensures the model selector shows the correct values when loading an existing conversation
-      // Priority: last message info > conversation initial info
-      if (currentConversation.last_model) {
-        // Use last message info if available
-        if (currentConversation.last_provider_name) {
-          selectedProvider = currentConversation.last_provider_name;
+
+      // Get all unique model combinations from the conversation
+      const uniqueModels = new Map<string, ModelChoice>();
+
+      // Extract models from all messages in the conversation
+      if (currentConversation.messages) {
+        currentConversation.messages.forEach((message) => {
+          if (message.role === "assistant" && message.provider_name && message.api_format && message.model) {
+            const key = `${message.provider_name}-${message.api_format}-${message.model}`;
+            if (!uniqueModels.has(key)) {
+              uniqueModels.set(key, {
+                providerName: message.provider_name,
+                apiFormat: message.api_format,
+                model: message.model,
+              });
+            }
+          }
+        });
+      }
+
+      // If we found multiple models, set them to selectedModels
+      if (uniqueModels.size > 1) {
+        selectedModels = Array.from(uniqueModels.values());
+        console.log("Loaded multi-model conversation with models:", selectedModels);
+
+        // Also update the single model selection for compatibility
+        if (selectedModels.length > 0) {
+          selectedProviderName = selectedModels[0].providerName;
+          selectedApiFormat = selectedModels[0].apiFormat;
+          selectedModelName = selectedModels[0].model;
         }
-        if (currentConversation.last_api_format) {
-          selectedApiFormat = currentConversation.last_api_format;
+      } else if (uniqueModels.size === 1) {
+        // Single model conversation
+        const model = uniqueModels.values().next().value;
+        if (model) {
+          selectedProviderName = model.providerName;
+          selectedApiFormat = model.apiFormat;
+          selectedModelName = model.model;
+          selectedModels = [model];
+          console.log("Loaded single-model conversation with model:", model);
         }
-        selectedModelName = currentConversation.last_model;
       } else {
-        // Fall back to conversation initial info
-        if (currentConversation.provider_name) {
-          selectedProvider = currentConversation.provider_name;
-        }
-        if (currentConversation.api_format) {
-          selectedApiFormat = currentConversation.api_format;
-        }
-        if (currentConversation.model) {
-          selectedModelName = currentConversation.model;
+        // Fall back to conversation-level model info
+        if (currentConversation.last_model) {
+          // Use last message info if available
+          if (currentConversation.last_provider_name) {
+            selectedProviderName = currentConversation.last_provider_name;
+          }
+          if (currentConversation.last_api_format) {
+            selectedApiFormat = currentConversation.last_api_format;
+          }
+          selectedModelName = currentConversation.last_model;
+          selectedModels = [{
+            providerName: selectedProviderName,
+            apiFormat: selectedApiFormat,
+            model: selectedModelName,
+          }];
+        } else {
+          // Fall back to conversation initial info
+          if (currentConversation.provider_name) {
+            selectedProviderName = currentConversation.provider_name;
+          }
+          if (currentConversation.api_format) {
+            selectedApiFormat = currentConversation.api_format;
+          }
+          if (currentConversation.model) {
+            selectedModelName = currentConversation.model;
+            selectedModels = [{
+              providerName: selectedProviderName,
+              apiFormat: selectedApiFormat,
+              model: selectedModelName,
+            }];
+          }
         }
       }
 
       console.log("Model selection initialized from conversation:", {
-        provider: selectedProvider,
-        apiFormat: selectedApiFormat,
-        model: selectedModelName,
-        using: currentConversation.last_model ? 'last_message' : 'initial'
+        selectedModels,
+        selectedProviderName,
+        selectedApiFormat,
+        selectedModelName,
       });
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
@@ -173,17 +243,27 @@
       isLoading = true;
       error = null;
 
+      console.log("Creating new conversation with:", { providerName, apiFormat, model });
+
       // Create new conversation
       const title = t('chat.newConversation');
-      await chatService.createConversation(
+      const newConversation = await chatService.createConversation(
         title,
         providerName,
         apiFormat,
         model,
       );
 
+      console.log("New conversation created:", newConversation);
+
       // Reload conversations from backend to ensure consistency
       await loadConversations();
+
+      // Automatically select the newly created conversation
+      if (newConversation) {
+        currentConversation = await chatService.getConversation(newConversation.id);
+        console.log("New conversation selected:", currentConversation);
+      }
 
       showToast(t('common.success'), "success");
     } catch (err) {
@@ -227,9 +307,9 @@
         {conversations}
         currentConversationId={currentConversation?.id || null}
         {providers}
-        bind:selectedProviderName={selectedProvider}
+        bind:selectedProviderName={selectedProviderName}
         bind:selectedApiFormat
-        bind:selectedModelValue={selectedModelName}
+        bind:selectedModelName={selectedModelName}
         on:toggleSidebar={toggleSidebar}
         on:conversationSelected={handleConversationSelected}
         on:newConversation={handleNewConversation}
@@ -240,9 +320,9 @@
       <ChatArea
         bind:this={chatArea}
         conversation={currentConversation}
-        selectedModel={selectedModelName}
-        {selectedProvider}
-        {selectedApiFormat}
+        bind:selectedModels={selectedModels}
+        bind:selectedProviderName={selectedProviderName}
+        bind:selectedApiFormat={selectedApiFormat}
         bind:selectedModelName={selectedModelName}
         bind:selectedCategory={selectedCategory}
         {sidebarCollapsed}

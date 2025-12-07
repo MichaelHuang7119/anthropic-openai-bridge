@@ -6,25 +6,28 @@
   import { tStore } from "$stores/language";
 
   interface Props {
-    selectedModel?: ModelChoice | null;
-    selectedProvider?: string;
+    selectedModels?: ModelChoice[];
+    selectedProviderName?: string;
     selectedApiFormat?: string;
     selectedModelName?: string;
     selectedCategory?: string;
     onModelSelected?: (modelChoice: ModelChoice) => void;
+    onModelsSelected?: (modelChoices: ModelChoice[]) => void;
   }
 
   const dispatch = createEventDispatcher<{
     modelSelected: ModelChoice;
+    modelsSelected: ModelChoice[];
   }>();
 
   let {
-    selectedModel = $bindable(null),
-    selectedProvider = $bindable(""),
+    selectedModels = $bindable([]),
+    selectedProviderName = $bindable(""),
     selectedApiFormat = $bindable(""),
     selectedModelName = $bindable(""),
     selectedCategory = $bindable("middle"),
     onModelSelected: _onModelSelected,
+    onModelsSelected: _onModelsSelected,
   }: Props = $props();
 
   let isExpanded = $state(false);
@@ -70,19 +73,19 @@
   // Get available models for current selection
   function getAvailableModels(): string[] {
     // Return empty array if selection is incomplete (normal during initialization)
-    if (!selectedProvider || !selectedApiFormat || !selectedCategory) {
+    if (!selectedProviderName || !selectedApiFormat || !selectedCategory) {
       return [];
     }
 
     const provider = providers.find((p) => {
-      return p.name === selectedProvider && p.api_format === selectedApiFormat;
+      return p.name === selectedProviderName && p.api_format === selectedApiFormat;
     });
 
     if (!provider) {
       // Only log if providers are loaded but provider not found (indicates a real issue)
       if (providers.length > 0) {
         console.warn("Provider not found:", {
-          selectedProvider,
+          selectedProviderName,
           selectedApiFormat,
           availableProviders: providers.map((p) => ({
             name: p.name,
@@ -133,26 +136,62 @@
     }))
   );
 
-  // Reset model selection when provider, category, or available models change
+  // Function to add current selection to selectedModels
+  function addModelToSelection() {
+    if (selectedProviderName && selectedApiFormat && selectedModelName) {
+      const modelChoice: ModelChoice = {
+        providerName: selectedProviderName,
+        apiFormat: selectedApiFormat,
+        model: selectedModelName,
+      };
+
+      // Check if model already exists (allow duplicates as per requirement)
+      // Just add the model
+      selectedModels = [...selectedModels, modelChoice];
+      dispatch("modelsSelected", selectedModels);
+      console.log("Model added:", modelChoice, "Total models:", selectedModels.length);
+    }
+  }
+
+  // Function to remove model from selection
+  function removeModelFromSelection(index: number) {
+    selectedModels = selectedModels.filter((_, i) => i !== index);
+    dispatch("modelsSelected", selectedModels);
+    console.log("Model removed. Total models:", selectedModels.length);
+  }
+
+  // Auto-select first available model if current selection is invalid
   $effect(() => {
-    // Auto-select first available model if current selection is invalid
     if (
       availableModels.length > 0 &&
       (!selectedModelName || !availableModels.includes(selectedModelName))
     ) {
       selectedModelName = availableModels[0];
     }
+  });
 
-    // Dispatch model selection event
-    if (selectedProvider && selectedApiFormat && selectedModelName) {
-      const modelChoice: ModelChoice = {
-        providerName: selectedProvider,
-        apiFormat: selectedApiFormat,
-        model: selectedModelName,
-      };
-      selectedModel = modelChoice;
-      dispatch("modelSelected", modelChoice);
-      console.log("Model selected:", modelChoice);
+  // Effect to update category when model selection changes
+  $effect(() => {
+    if (providers.length > 0 && selectedProviderName && selectedApiFormat && selectedModelName) {
+      const provider = providers.find(
+        (p) =>
+          p.name === selectedProviderName && p.api_format === selectedApiFormat,
+      );
+
+      if (provider) {
+        // Find which category contains the selected model
+        for (const category of modelCategories) {
+          const models =
+            provider.models[category as keyof ProviderConfig["models"]];
+          if (models && models.includes(selectedModelName)) {
+            selectedCategory = category;
+            console.log(
+              `Model "${selectedModelName}" found in category "${category}"`,
+            );
+            break;
+          }
+        }
+      }
     }
   });
 
@@ -171,12 +210,14 @@
           enabled: p.enabled,
         }));
 
+      console.log("ModelSelector: Loaded providers:", $state.snapshot(providers));
+
       if (providers.length > 0) {
         // If provider/format/model are already set (from conversation), validate and find category
-        if (selectedProvider && selectedApiFormat && selectedModelName) {
+        if (selectedProviderName && selectedApiFormat && selectedModelName) {
           const provider = providers.find(
             (p) =>
-              p.name === selectedProvider && p.api_format === selectedApiFormat,
+              p.name === selectedProviderName && p.api_format === selectedApiFormat,
           );
 
           if (provider) {
@@ -198,48 +239,20 @@
             // If model not found in any category, fall back to defaults
             if (!foundCategory) {
               console.warn(
-                `Model "${selectedModelName}" not found in provider "${selectedProvider}", using defaults`,
+                `Model "${selectedModelName}" not found in provider "${selectedProviderName}", using defaults`,
               );
-              selectedProvider = "";
+              selectedProviderName = "";
               selectedApiFormat = "";
               selectedModelName = "";
             }
           } else {
             // Provider not found or not enabled, fall back to defaults
             console.warn(
-              `Provider "${selectedProvider}" (${selectedApiFormat}) not found or not enabled, using defaults`,
+              `Provider "${selectedProviderName}" (${selectedApiFormat}) not found or not enabled, using defaults`,
             );
-            selectedProvider = "";
+            selectedProviderName = "";
             selectedApiFormat = "";
             selectedModelName = "";
-          }
-        }
-
-        // Set defaults if not already set or if validation failed
-        if (!selectedProvider) {
-          selectedProvider = sortedProviders[0].name;
-        }
-        if (!selectedApiFormat) {
-          selectedApiFormat = sortedProviders[0].api_format;
-        }
-
-        // Find first available model if not set
-        if (!selectedModelName) {
-          const provider =
-            providers.find(
-              (p) =>
-                p.name === selectedProvider &&
-                p.api_format === selectedApiFormat,
-            ) || providers[0];
-
-          for (const category of modelCategories) {
-            const models =
-              provider.models[category as keyof ProviderConfig["models"]];
-            if (models && models.length > 0) {
-              selectedCategory = category;
-              selectedModelName = models[0];
-              break;
-            }
           }
         }
       }
@@ -248,6 +261,42 @@
       console.error("Failed to load providers:", err);
     } finally {
       loading = false;
+    }
+  });
+
+  // Effect to set defaults when sortedProviders changes
+  $effect(() => {
+    if (sortedProviders.length > 0) {
+      // Set defaults if not already set
+      if (!selectedProviderName) {
+        selectedProviderName = sortedProviders[0].name;
+        console.log("Default provider set to:", selectedProviderName);
+      }
+      if (!selectedApiFormat) {
+        selectedApiFormat = sortedProviders[0].api_format;
+        console.log("Default API format set to:", selectedApiFormat);
+      }
+
+      // Find first available model if not set
+      if (!selectedModelName) {
+        const provider =
+          providers.find(
+            (p) =>
+              p.name === selectedProviderName &&
+              p.api_format === selectedApiFormat,
+          ) || sortedProviders[0];
+
+        for (const category of modelCategories) {
+          const models =
+            provider.models[category as keyof ProviderConfig["models"]];
+          if (models && models.length > 0) {
+            selectedCategory = category;
+            selectedModelName = models[0];
+            console.log("Default model set to:", selectedModelName);
+            break;
+          }
+        }
+      }
     }
   });
 
@@ -281,7 +330,7 @@
   // Handle provider selection
   function handleProviderChange(providerValue: string) {
     const [name, apiFormat] = providerValue.split("||");
-    selectedProvider = name;
+    selectedProviderName = name;
     selectedApiFormat = apiFormat;
 
     // Reset model selection
@@ -316,19 +365,39 @@
   function handleModelChange(modelValue: string) {
     selectedModelName = modelValue;
   }
+
+  // Format model display text
+  function formatModelDisplay(model: ModelChoice): string {
+    return `${model.providerName}(${model.apiFormat})/${model.model}`;
+  }
 </script>
 
 <div class="model-selector" bind:this={selectorElement}>
   <!-- Collapsed Header - Always Visible -->
   <div class="selector-header" onclick={toggleExpanded} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleExpanded()}>
     <div class="header-content">
-      <span class="header-label">{t('modelSelector.provider')}</span>
+      <span class="header-label">
+        {#if selectedModels.length > 0}
+          {t('modelSelector.modelsSelected')} ({selectedModels.length})
+        {:else}
+          {t('modelSelector.modelsSelected')}
+        {/if}
+      </span>
       <span class="header-value">
-        {#if selectedProvider}
-          <strong>{selectedProvider}</strong>
-          {#if selectedApiFormat}
-            <span class="api-format">{selectedApiFormat}</span>
-          {/if}
+        {#if selectedModels.length > 0}
+          <div class="selected-models-preview">
+            {#each selectedModels.slice(0, 2) as model, i}
+              <span class="selected-model-tag">
+                {formatModelDisplay(model)}
+                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(i); }} title={t('modelSelector.removeModel')}>
+                  ×
+                </button>
+              </span>
+            {/each}
+            {#if selectedModels.length > 2}
+              <span class="more-models">+{selectedModels.length - 2}</span>
+            {/if}
+          </div>
         {:else}
           <span class="placeholder">{t('modelSelector.placeholderSelectProvider')}</span>
         {/if}
@@ -347,12 +416,30 @@
       {:else if error}
         <div class="error">{error}</div>
       {:else if providers.length > 0}
+        <!-- Selected Models List -->
+        {#if selectedModels.length > 0}
+          <div class="selected-models-section">
+            <h4 class="section-title">{t('modelSelector.selectedModels')}</h4>
+            <div class="selected-models-list">
+              {#each selectedModels as model, i}
+                <div class="selected-model-item">
+                  <span class="model-display">{formatModelDisplay(model)}</span>
+                  <button class="remove-model-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(i); }} title={t('modelSelector.removeModel')}>
+                    ×
+                  </button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Model Selection Form -->
         <div class="selector-row">
           <div class="selector-group">
             <label for="provider-select">{t('modelSelector.provider')}</label>
             <SlidingList
               options={providerOptions}
-              value={`${selectedProvider}||${selectedApiFormat}`}
+              value={`${selectedProviderName}||${selectedApiFormat}`}
               placeholder={t('modelSelector.selectProvider')}
               onChange={handleProviderChange}
               searchable={true}
@@ -383,16 +470,11 @@
           </div>
         </div>
 
-        {#if selectedModel}
-          <div class="model-info">
-            <span class="provider"
-              >{t('modelSelector.provider')}: <strong>{selectedModel.providerName}</strong></span
-            >
-            <span class="format"
-              >{t('modelSelector.apiFormat')}: <strong>{selectedModel.apiFormat}</strong></span
-            >
-            <span class="model">{t('modelSelector.model')}: <strong>{selectedModel.model}</strong></span>
-          </div>
+        <!-- Add Model Button -->
+        {#if selectedProviderName && selectedApiFormat && selectedModelName}
+          <button class="add-model-btn" onclick={addModelToSelection}>
+            {t('modelSelector.addModel')}: {selectedModelName}
+          </button>
         {/if}
       {:else}
         <div class="error">{t('common.error')}</div>
@@ -463,17 +545,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: calc(100vw - 10rem);
-  }
-
-  .header-value strong {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .api-format {
-    color: var(--text-tertiary);
-    font-weight: 400;
-    opacity: 0.7;
   }
 
   .placeholder {
@@ -547,23 +618,152 @@
     white-space: nowrap;
   }
 
-  .model-info {
-    margin-top: 0.75rem;
+  .selected-models-section {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .selected-models-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  /* Custom scrollbar for selected models list */
+  .selected-models-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .selected-models-list::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+  }
+
+  .selected-models-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+
+  .selected-models-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+  }
+
+  .selected-model-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+  }
+
+  .model-display {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .remove-model-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  .remove-model-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .add-model-btn {
+    width: 100%;
     padding: 0.75rem;
-    background: var(--bg-secondary);
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success-color, #22c55e);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+  }
+
+  .add-model-btn:hover {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-color, #22c55e);
+    border-color: rgba(34, 197, 94, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+  }
+
+  .selected-models-preview {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+  }
+
+  .selected-model-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     font-size: 0.75rem;
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-
-  .model-info span {
     color: var(--text-secondary);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .model-info strong {
-    color: var(--text-primary);
+  .remove-tag-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.875rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+  }
+
+  .remove-tag-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .more-models {
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
     font-weight: 600;
   }
 
@@ -612,11 +812,6 @@
 
     .selector-group {
       min-width: 100%;
-    }
-
-    .model-info {
-      flex-direction: column;
-      gap: 0.5rem;
     }
   }
 </style>

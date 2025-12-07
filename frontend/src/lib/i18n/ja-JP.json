@@ -46,7 +46,9 @@
     "nextPage": "次のページ",
     "deleting": "Deleting...",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "ログアウト",
@@ -139,7 +141,8 @@
     "middleModel": "中規模モデル",
     "smallModel": "小規模モデル",
     "loadingModels": "モデル設定を読み込み中...",
-    "placeholderSelectProvider": "プロバイダーを選択してください"
+    "placeholderSelectProvider": "プロバイダーを選択してください",
+    "selectedModels": "Selected Models"
   },
   "messageInput": {
     "placeholder": "メッセージを入力...",
@@ -576,7 +579,9 @@
     "hidePassword": "パスワードを隠す",
     "searchLanguage": "言語を検索...",
     "noLanguagesFound": "一致する言語が見つかりません",
-    "languages": "言語"
+    "languages": "言語",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
   },
   "welcome": {
     "title": "Anthropic OpenAI Bridge へようこそ",

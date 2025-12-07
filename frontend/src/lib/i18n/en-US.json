@@ -46,7 +46,9 @@
     "previousPage": "Previous Page",
     "nextPage": "Next Page",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "Logout",
@@ -139,7 +141,12 @@
     "middleModel": "Medium Models",
     "smallModel": "Small Models",
     "loadingModels": "Loading model configuration...",
-    "placeholderSelectProvider": "Please select a provider"
+    "placeholderSelectProvider": "Please select a provider",
+    "addModel": "Add Model",
+    "removeModel": "Remove Model",
+    "selectedModels": "Selected Models",
+    "modelsSelected": "Selected Models",
+    "modelName": "Model Name"
   },
   "messageInput": {
     "placeholder": "Type a message...",
@@ -569,6 +576,8 @@
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
     "themeHelp": "Switch between dark and light themes",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)",
     "languageUpdated": "Language updated",
     "languageUpdateError": "Failed to update language",
     "tabList": "Settings Tab List",

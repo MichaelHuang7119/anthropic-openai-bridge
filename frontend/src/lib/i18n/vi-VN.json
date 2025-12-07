@@ -46,7 +46,9 @@
     "nextPage": "Trang tiếp theo",
     "deleting": "Deleting...",
     "searchProvider": "Search providers...",
-    "searchModel": "Search models..."
+    "searchModel": "Search models...",
+    "modelsSelected": "models selected",
+    "modelSelected": "model selected"
   },
   "header": {
     "logout": "Đăng xuất",
@@ -139,7 +141,8 @@
     "middleModel": "Mô hình trung bình",
     "smallModel": "Mô hình nhỏ",
     "loadingModels": "Đang tải cấu hình mô hình...",
-    "placeholderSelectProvider": "Vui lòng chọn một nhà cung cấp"
+    "placeholderSelectProvider": "Vui lòng chọn một nhà cung cấp",
+    "selectedModels": "Selected Models"
   },
   "messageInput": {
     "placeholder": "Nhập tin nhắn...",
@@ -576,7 +579,9 @@
     "hidePassword": "Ẩn mật khẩu",
     "searchLanguage": "Tìm ngôn ngữ...",
     "noLanguagesFound": "Không tìm thấy ngôn ngữ nào",
-    "languages": "ngôn ngữ"
+    "languages": "ngôn ngữ",
+    "themeShortcut": "Theme Shortcut",
+    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
   },
   "welcome": {
     "title": "Chào mừng đến với Anthropic OpenAI Bridge",
