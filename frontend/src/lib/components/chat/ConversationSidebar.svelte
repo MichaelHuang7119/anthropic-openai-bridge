@@ -358,22 +358,22 @@
   }
 
   // Mobile long press handler - DISABLED to prevent interference with page scrolling
-  function handleTouchStart(conversation: Conversation, _event: TouchEvent) {
+  function _handleTouchStart(_conversation: Conversation, _event: TouchEvent) {
     // Disabled - long press causes conflicts with page scrolling
     return;
   }
 
-  function handleTouchEnd(conversation: Conversation, _event: TouchEvent) {
+  function _handleTouchEnd(_conversation: Conversation, _event: TouchEvent) {
     // Disabled - long press causes conflicts with page scrolling
     return;
   }
 
-  function handleTouchMove() {
+  function _handleTouchMove() {
     // Disabled - long press causes conflicts with page scrolling
     return;
   }
 
-  function clearLongPressTimer() {
+  function _clearLongPressTimer() {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
