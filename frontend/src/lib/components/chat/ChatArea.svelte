@@ -193,7 +193,8 @@
         });
 
         // Update model selector based on the last user question and its assistant responses
-        if (messages.length > 0) {
+        // Only update if not already set to avoid flicker on page refresh
+        if (messages.length > 0 && (!selectedModels || selectedModels.length === 0)) {
           // Find the last user message to determine which models were actually used
           const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
 
@@ -210,6 +211,7 @@
             });
 
             // Extract models from these assistant messages
+            // Keep all models (including duplicates) since each has different conversation results
             const modelsList: ModelChoice[] = [];
             assistantMessagesForLastQuestion.forEach(msg => {
               if (msg.provider_name && msg.api_format && msg.model) {
@@ -279,13 +281,20 @@
               });
             }
           }
+        } else if (messages.length > 0 && selectedModels && selectedModels.length > 0) {
+          console.log("ChatArea: Skipping model selector update - already initialized from parent:", {
+            selectedModels,
+            selectedProviderName,
+            selectedApiFormat,
+            selectedModelName
+          });
         }
       } else {
         // Streaming in progress - only update model selector, don't replace messages
         console.log("ChatArea: Skipping load due to active streaming");
 
-        // Update model selector from loaded messages if available
-        if (loadedMessages.length > 0) {
+        // Update model selector from loaded messages if available and not already set
+        if (loadedMessages.length > 0 && (!selectedModels || selectedModels.length === 0)) {
           // Find the last user message to determine which models were actually used
           const lastUserMessageIndex = [...loadedMessages].reverse().findIndex(m => m.role === "user");
 
@@ -302,6 +311,7 @@
             });
 
             // Extract models from these assistant messages
+            // Keep all models (including duplicates) since each has different conversation results
             const modelsList: ModelChoice[] = [];
             assistantMessagesForLastQuestion.forEach(msg => {
               if (msg.provider_name && msg.api_format && msg.model) {
@@ -329,6 +339,13 @@
               });
             }
           }
+        } else if (loadedMessages.length > 0 && selectedModels && selectedModels.length > 0) {
+          console.log("ChatArea: Skipping model selector update during streaming - already initialized from parent:", {
+            selectedModels,
+            selectedProviderName,
+            selectedApiFormat,
+            selectedModelName
+          });
         }
       }
     } catch (err) {

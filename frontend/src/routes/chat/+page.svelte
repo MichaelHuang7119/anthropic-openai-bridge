@@ -155,72 +155,80 @@
 
       // Initialize model selection state from conversation config
       // This ensures the model selector shows the correct values when loading an existing conversation
+      // We always use models from the LAST question to match user expectations
 
-      // Get all unique model combinations from the conversation
-      const uniqueModels = new Map<string, ModelChoice>();
+      // Get models from the last user question and its assistant responses
+      if (conversationData.messages && conversationData.messages.length > 0) {
+        // Find the last user message
+        const messages = conversationData.messages;
+        const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === "user");
 
-      // Extract models from all messages in the conversation
-      if (conversationData.messages) {
-        conversationData.messages.forEach((message) => {
-          if (message.role === "assistant" && message.provider_name && message.api_format && message.model) {
-            const key = `${message.provider_name}-${message.api_format}-${message.model}`;
-            if (!uniqueModels.has(key)) {
-              uniqueModels.set(key, {
-                providerName: message.provider_name,
-                apiFormat: message.api_format,
-                model: message.model,
+        if (lastUserMessageIndex !== -1) {
+          const actualIndex = messages.length - 1 - lastUserMessageIndex;
+          const lastUserMessage = messages[actualIndex];
+
+          // Find all assistant messages that came after this last user message
+          const lastUserMessageDate = new Date(lastUserMessage.created_at || 0).getTime();
+          const assistantMessagesForLastQuestion = messages.filter(msg => {
+            if (msg.role !== "assistant") return false;
+            const msgDate = new Date(msg.created_at || 0).getTime();
+            return msgDate >= lastUserMessageDate;
+          });
+
+          // Extract models from these assistant messages
+          // Keep all models (including duplicates) since each has different conversation results
+          const modelsList: ModelChoice[] = [];
+
+          assistantMessagesForLastQuestion.forEach(msg => {
+            if (msg.provider_name && msg.api_format && msg.model) {
+              modelsList.push({
+                providerName: msg.provider_name,
+                apiFormat: msg.api_format,
+                model: msg.model,
               });
             }
-          }
-        });
-      }
+          });
 
-      // If we found multiple models, set them to selectedModels
-      if (uniqueModels.size > 1) {
-        selectedModels = Array.from(uniqueModels.values());
-        console.log("Loaded multi-model conversation with models:", selectedModels);
+          // Set the models from the last question
+          if (modelsList.length > 0) {
+            selectedModels = modelsList;
+            console.log("Loaded models from last question:", selectedModels);
 
-        // Also update the single model selection for compatibility
-        if (selectedModels.length > 0) {
-          selectedProviderName = selectedModels[0].providerName;
-          selectedApiFormat = selectedModels[0].apiFormat;
-          selectedModelName = selectedModels[0].model;
-        }
-      } else if (uniqueModels.size === 1) {
-        // Single model conversation
-        const model = uniqueModels.values().next().value;
-        if (model) {
-          selectedProviderName = model.providerName;
-          selectedApiFormat = model.apiFormat;
-          selectedModelName = model.model;
-          selectedModels = [model];
-          console.log("Loaded single-model conversation with model:", model);
-        }
-      } else {
-        // Fall back to conversation-level model info
-        if (conversationData.last_model) {
-          // Use last message info if available
-          if (conversationData.last_provider_name) {
-            selectedProviderName = conversationData.last_provider_name;
+            // Update single model selection for compatibility
+            if (selectedModels.length > 0) {
+              selectedProviderName = selectedModels[0].providerName;
+              selectedApiFormat = selectedModels[0].apiFormat;
+              selectedModelName = selectedModels[0].model;
+            }
+          } else {
+            // Fallback: use last assistant message
+            const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+            if (lastAssistantMessage) {
+              selectedProviderName = lastAssistantMessage.provider_name || "";
+              selectedApiFormat = lastAssistantMessage.api_format || "";
+              selectedModelName = lastAssistantMessage.model || "";
+              selectedModels = [{
+                providerName: selectedProviderName,
+                apiFormat: selectedApiFormat,
+                model: selectedModelName,
+              }];
+              console.log("Loaded model from last assistant message (fallback):", selectedModels[0]);
+            }
           }
-          if (conversationData.last_api_format) {
-            selectedApiFormat = conversationData.last_api_format;
-          }
-          selectedModelName = conversationData.last_model;
-          selectedModels = [{
-            providerName: selectedProviderName,
-            apiFormat: selectedApiFormat,
-            model: selectedModelName,
-          }];
         } else {
-          // Fall back to conversation initial info
-          if (conversationData.provider_name) {
-            selectedProviderName = conversationData.provider_name;
-          }
-          if (conversationData.api_format) {
-            selectedApiFormat = conversationData.api_format;
-          }
-          if (conversationData.model) {
+          // No user messages, use conversation-level model info
+          if (conversationData.last_model) {
+            selectedProviderName = conversationData.last_provider_name || "";
+            selectedApiFormat = conversationData.last_api_format || "";
+            selectedModelName = conversationData.last_model;
+            selectedModels = [{
+              providerName: selectedProviderName,
+              apiFormat: selectedApiFormat,
+              model: selectedModelName,
+            }];
+          } else if (conversationData.model) {
+            selectedProviderName = conversationData.provider_name || "";
+            selectedApiFormat = conversationData.api_format || "";
             selectedModelName = conversationData.model;
             selectedModels = [{
               providerName: selectedProviderName,
@@ -228,6 +236,27 @@
               model: selectedModelName,
             }];
           }
+        }
+      } else {
+        // Fall back to conversation-level model info
+        if (conversationData.last_model) {
+          selectedProviderName = conversationData.last_provider_name || "";
+          selectedApiFormat = conversationData.last_api_format || "";
+          selectedModelName = conversationData.last_model;
+          selectedModels = [{
+            providerName: selectedProviderName,
+            apiFormat: selectedApiFormat,
+            model: selectedModelName,
+          }];
+        } else if (conversationData.model) {
+          selectedProviderName = conversationData.provider_name || "";
+          selectedApiFormat = conversationData.api_format || "";
+          selectedModelName = conversationData.model;
+          selectedModels = [{
+            providerName: selectedProviderName,
+            apiFormat: selectedApiFormat,
+            model: selectedModelName,
+          }];
         }
       }
 
