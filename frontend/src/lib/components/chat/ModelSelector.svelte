@@ -264,20 +264,14 @@
   });
 
   // Effect to set defaults when sortedProviders changes
+  // Only set defaults if all values are empty (not initialized by parent)
   $effect(() => {
     if (sortedProviders.length > 0) {
-      // Set defaults if not already set
-      if (!selectedProviderName) {
+      // Only set defaults if nothing is set yet (not initialized by parent)
+      if (!selectedProviderName && !selectedApiFormat && !selectedModelName) {
         selectedProviderName = sortedProviders[0].name;
-        console.log("Default provider set to:", selectedProviderName);
-      }
-      if (!selectedApiFormat) {
         selectedApiFormat = sortedProviders[0].api_format;
-        console.log("Default API format set to:", selectedApiFormat);
-      }
 
-      // Find first available model if not set
-      if (!selectedModelName) {
         const provider =
           providers.find(
             (p) =>

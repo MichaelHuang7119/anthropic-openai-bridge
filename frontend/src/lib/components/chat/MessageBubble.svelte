@@ -446,7 +446,7 @@
 
 <style>
   .message-bubble {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
     animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
