@@ -516,6 +516,22 @@
         output_tokens: null,
         created_at: new Date().toISOString(),
       };
+
+      // Check if this is the first user message before adding to messages array
+      const isFirstMessage = messages.filter(m => m.role === "user").length === 0;
+      if (isFirstMessage) {
+        const generatedTitle = chatService.generateTitle(userMessage);
+        const updatedConversation = await chatService.updateConversation(conversation.id, generatedTitle);
+        // Update the conversation in parent component
+        conversation = {
+          ...conversation,
+          title: updatedConversation.title
+        };
+        dispatch("conversationUpdate", { conversation });
+        // Force reload messages to ensure consistency
+        await loadMessages(true);
+      }
+
       messages = [...messages, userMsg];
 
       // Scroll to user message immediately
