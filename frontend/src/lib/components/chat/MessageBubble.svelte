@@ -439,6 +439,7 @@
         onclick={handleCopy}
         title={t('messageBubble.copy')}
       >
+        {copied ? t('messageBubble.copied') : t('messageBubble.copy')}
       </button>
     </div>
   {/if}
@@ -1015,7 +1016,6 @@
     opacity: 0;
     transition: opacity 0.3s;
     align-self: flex-end;
-    margin-top: 0.5rem;
   }
 
   .message-bubble.assistant .message-actions {
@@ -1062,12 +1062,16 @@
     font-size: 1rem;
   }
 
-  .copy-btn::before {
-    content: t('messageBubble.copy');
+  .copy-btn {
+    color: var(--text-secondary);
   }
 
-  .copy-btn.copied::before {
-    content: t('messageBubble.copied');
+  .copy-btn:hover {
+    color: var(--primary-color);
+  }
+
+  .copy-btn.copied {
+    color: var(--success-color, #10b981);
   }
 
   .edit-btn::before {
