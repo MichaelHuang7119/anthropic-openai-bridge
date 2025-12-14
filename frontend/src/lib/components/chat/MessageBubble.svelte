@@ -1059,6 +1059,8 @@
     opacity: 1;
     transition: opacity 0.3s;
     align-self: flex-end;
+    /* margin-top: 0.75rem; */
+    padding-top: 0.5rem;
   }
 
   .message-bubble.assistant .message-actions {
@@ -1153,7 +1155,7 @@
     font-size: 0.75rem;
     color: var(--text-secondary);
     font-weight: 500;
-    margin-right: 0.5rem;
+    margin-right: 0.75rem;
     user-select: none;
   }
 
