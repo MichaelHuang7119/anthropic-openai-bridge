@@ -92,6 +92,8 @@
     "modelConfig": "Modelconfiguratie",
     "modelConfigHelp": "Configureer ten minste één model, het wordt aanbevolen om alle drie categorieën te configureren",
     "addModel": "Model toevoegen",
+    "updateModel": "Model bijwerken",
+    "editModel": "Model bewerken",
     "addBigModel": "Groot model toevoegen",
     "addMiddleModel": "Middelgroot model toevoegen",
     "addSmallModel": "Klein model toevoegen",
@@ -142,7 +144,13 @@
     "smallModel": "Kleine modellen",
     "loadingModels": "Modelconfiguratie laden...",
     "placeholderSelectProvider": "Selecteer alsjeblieft een provider",
-    "selectedModels": "Selected Models"
+    "selectedModels": "Geselecteerde modellen",
+    "updateModel": "Model bijwerken",
+    "editModel": "Model bewerken",
+    "removeModel": "Model verwijderen",
+    "modelsSelected": "Modellen geselecteerd",
+    "modelName": "Modelnaam",
+    "addModel": "Model toevoegen"
   },
   "messageInput": {
     "placeholder": "Typ een bericht...",

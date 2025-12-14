@@ -274,7 +274,7 @@ class ConversationsManager:
             # Get messages
             await cursor.execute(
                 """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -312,6 +312,7 @@ class ConversationsManager:
                         "output_tokens": msg_row["output_tokens"],
                         "provider_name": msg_row["provider_name"],
                         "api_format": msg_row["api_format"],
+                        "parent_message_id": msg_row["parent_message_id"],
                         "created_at": msg_created_at_beijing,
                     }
                 )
@@ -400,6 +401,7 @@ class ConversationsManager:
         output_tokens: Optional[int] = None,
         provider_name: Optional[str] = None,
         api_format: Optional[str] = None,
+        parent_message_id: Optional[int] = None,
     ) -> Optional[int]:
         """
         Add a message to a conversation.
@@ -414,6 +416,7 @@ class ConversationsManager:
             output_tokens: Output token count
             provider_name: Provider used for this message
             api_format: API format for this message (optional)
+            parent_message_id: ID of the parent message (optional)
 
         Returns:
             Message ID if successful, None otherwise
@@ -422,67 +425,18 @@ class ConversationsManager:
             conn = await self.db_core.get_connection()
             cursor = await conn.cursor()
 
-            # For assistant messages, check if a message with same content already exists
-            if role == "assistant" and content:
-                await cursor.execute(
-                    """
-                    SELECT id FROM conversation_messages
-                    WHERE conversation_id = ? AND role = 'assistant' AND content = ?
-                    ORDER BY created_at DESC LIMIT 1
-                """,
-                    (conversation_id, content),
-                )
-                existing_message = await cursor.fetchone()
-
-                if existing_message:
-                    # Update existing message with usage data if available
-                    if input_tokens or output_tokens:
-                        await cursor.execute(
-                            """
-                            UPDATE conversation_messages
-                            SET input_tokens = ?, output_tokens = ?, thinking = ?, updated_at = CURRENT_TIMESTAMP
-                            WHERE id = ?
-                        """,
-                            (input_tokens, output_tokens, thinking, existing_message["id"]),
-                        )
-                    else:
-                        # Update thinking content only
-                        await cursor.execute(
-                            """
-                            UPDATE conversation_messages
-                            SET thinking = ?, updated_at = CURRENT_TIMESTAMP
-                            WHERE id = ?
-                        """,
-                            (thinking, existing_message["id"]),
-                        )
-                    message_id = existing_message["id"]
-                    print(f"Conversation {conversation_id}: Updated existing assistant message ID {message_id}")
-                    await conn.commit()
-                    return message_id
-                else:
-                    # Insert new assistant message
-                    await cursor.execute(
-                        """
-                        INSERT INTO conversation_messages
-                        (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format),
-                    )
-                    message_id = cursor.lastrowid
-                    print(f"Conversation {conversation_id}: Inserted new assistant message ID {message_id}")
-            else:
-                # Insert user message or assistant message without content (shouldn't happen normally)
-                await cursor.execute(
-                    """
-                    INSERT INTO conversation_messages
-                    (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format),
-                )
-                message_id = cursor.lastrowid
-                print(f"Conversation {conversation_id}: Inserted new {'user' if role == 'user' else 'assistant'} message ID {message_id}")
+            # Always insert new messages (no deduplication) to support retry functionality
+            # This allows multiple assistant messages for the same user question
+            await cursor.execute(
+                """
+                INSERT INTO conversation_messages
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id),
+            )
+            message_id = cursor.lastrowid
+            print(f"Conversation {conversation_id}: Inserted new {role} message ID {message_id}")
 
             # Update conversation updated_at
             await cursor.execute(
@@ -519,7 +473,7 @@ class ConversationsManager:
             cursor = await conn.cursor()
 
             query = """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -565,6 +519,7 @@ class ConversationsManager:
                         "output_tokens": row["output_tokens"],
                         "provider_name": row["provider_name"],
                         "api_format": row["api_format"],
+                        "parent_message_id": row["parent_message_id"],
                         "created_at": created_at_beijing,
                     }
                 )

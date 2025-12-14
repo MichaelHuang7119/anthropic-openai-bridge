@@ -35,6 +35,8 @@ export interface Message {
   input_tokens: number | null;
   output_tokens: number | null;
   created_at: string;
+  parent_message_id?: number | null; // ID of the parent user message for assistant messages
+  isStreaming?: boolean; // Whether this message is currently streaming
 }
 
 export interface ChatState {
@@ -272,6 +274,7 @@ class ChatService {
     outputTokens?: number,
     providerName?: string,
     apiFormat?: string,
+    parentMessageId?: number,
   ): Promise<Message> {
     try {
       const token = authService.getToken();
@@ -288,6 +291,7 @@ class ChatService {
         output_tokens?: number;
         provider_name?: string;
         api_format?: string;
+        parent_message_id?: number;
       } = {
         role,
         content,
@@ -299,6 +303,8 @@ class ChatService {
       if (outputTokens !== undefined) requestBody.output_tokens = outputTokens;
       if (providerName !== undefined) requestBody.provider_name = providerName;
       if (apiFormat !== undefined) requestBody.api_format = apiFormat;
+      if (parentMessageId !== undefined)
+        requestBody.parent_message_id = parentMessageId;
 
       const response = await fetch(
         `${this.baseUrl}/conversations/${conversationId}/messages`,
@@ -591,6 +597,7 @@ class ChatService {
       let buffer = "";
       let currentThinking = ""; // Accumulate thinking content
       let usage: { input_tokens: number; output_tokens: number } | undefined;
+      let hasCompleted = false; // Track if onComplete has already been called
 
       try {
         // eslint-disable-next-line no-constant-condition
@@ -627,7 +634,10 @@ class ChatService {
             if (!eventData) continue;
 
             if (eventData === "[DONE]") {
-              onComplete(usage);
+              if (!hasCompleted) {
+                onComplete(usage);
+                hasCompleted = true;
+              }
               break;
             }
 
@@ -674,7 +684,10 @@ class ChatService {
                 };
                 console.log("Usage updated:", usage);
               } else if (parsed.type === "message_stop") {
-                onComplete(usage);
+                if (!hasCompleted) {
+                  onComplete(usage);
+                  hasCompleted = true;
+                }
                 break;
               } else if (parsed.type === "ping") {
                 // Ignore ping events

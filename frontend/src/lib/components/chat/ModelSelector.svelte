@@ -32,6 +32,7 @@
 
   let isExpanded = $state(false);
   let selectorElement: HTMLDivElement;
+  let editingIndex = $state<number | null>(null);
 
   interface ProviderConfig {
     name: string;
@@ -137,7 +138,7 @@
   );
 
   // Function to add current selection to selectedModels
-  function addModelToSelection() {
+  function addOrUpdateModel() {
     if (selectedProviderName && selectedApiFormat && selectedModelName) {
       const modelChoice: ModelChoice = {
         providerName: selectedProviderName,
@@ -145,10 +146,26 @@
         model: selectedModelName,
       };
 
-      // Allow duplicates to support testing same model with different parameters
-      selectedModels = [...selectedModels, modelChoice];
-      dispatch("modelsSelected", selectedModels);
-      console.log("Model added:", modelChoice, "Total models:", selectedModels.length);
+      if (editingIndex !== null) {
+        // Update existing model
+        const newModels = [...selectedModels];
+        newModels[editingIndex] = modelChoice;
+        selectedModels = newModels;
+        dispatch("modelsSelected", selectedModels);
+        console.log("Model updated at index", editingIndex, ":", modelChoice);
+      } else {
+        // Add new model (allow duplicates to support testing same model with different parameters)
+        selectedModels = [...selectedModels, modelChoice];
+        dispatch("modelsSelected", selectedModels);
+        console.log("Model added:", modelChoice, "Total models:", selectedModels.length);
+      }
+
+      // Reset form
+      editingIndex = null;
+      selectedProviderName = "";
+      selectedApiFormat = "";
+      selectedModelName = "";
+      selectedCategory = "middle";
     }
   }
 
@@ -157,6 +174,44 @@
     selectedModels = selectedModels.filter((_, i) => i !== index);
     dispatch("modelsSelected", selectedModels);
     console.log("Model removed. Total models:", selectedModels.length);
+  }
+
+  // Function to edit a model
+  function editModel(index: number) {
+    const model = selectedModels[index];
+    selectedProviderName = model.providerName;
+    selectedApiFormat = model.apiFormat;
+    selectedModelName = model.model;
+
+    // Find and set the category
+    const provider = providers.find(
+      (p) => p.name === selectedProviderName && p.api_format === selectedApiFormat,
+    );
+    if (provider) {
+      for (const category of modelCategories) {
+        const models = provider.models[category as keyof ProviderConfig["models"]];
+        if (models && models.includes(selectedModelName)) {
+          selectedCategory = category;
+          break;
+        }
+      }
+    }
+
+    editingIndex = index;
+    isExpanded = true; // Auto-expand when editing
+    console.log("Editing model at index", index, ":", model);
+  }
+
+  // Function to cancel editing
+  function cancelEdit() {
+    editingIndex = null;
+    selectedProviderName = "";
+    selectedApiFormat = "";
+    selectedModelName = "";
+    selectedCategory = "middle";
+    console.log("Canceled editing");
+
+    // Don't close the dropdown, keep it expanded for further actions
   }
 
   // Auto-select first available model if current selection is invalid
@@ -298,6 +353,10 @@
     if (isExpanded && selectorElement) {
       // Check if click is outside the selector element
       if (!selectorElement.contains(event.target as Node)) {
+        // If currently editing, cancel edit and reset to default state before closing
+        if (editingIndex !== null) {
+          cancelEdit(); // Reset to add model state
+        }
         isExpanded = false;
       }
     }
@@ -417,9 +476,14 @@
               {#each selectedModels as model, i}
                 <div class="selected-model-item">
                   <span class="model-display">{formatModelDisplay(model)}</span>
-                  <button class="remove-model-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(i); }} title={t('modelSelector.removeModel')}>
-                    ×
-                  </button>
+                  <div class="model-actions">
+                    <button class="edit-model-btn" onclick={(e) => { e.stopPropagation(); editModel(i); }} title={t('modelSelector.editModel')} disabled={editingIndex === i}>
+                      ✏️
+                    </button>
+                    <button class="remove-model-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(i); }} title={t('modelSelector.removeModel')}>
+                      ×
+                    </button>
+                  </div>
                 </div>
               {/each}
             </div>
@@ -463,11 +527,22 @@
           </div>
         </div>
 
-        <!-- Add Model Button -->
+        <!-- Add/Update Model Buttons -->
         {#if selectedProviderName && selectedApiFormat && selectedModelName}
-          <button class="add-model-btn" onclick={addModelToSelection}>
-            {t('modelSelector.addModel')}: {selectedModelName}
-          </button>
+          <div class="action-buttons">
+            <button class="add-model-btn" onclick={(e) => { e.stopPropagation(); addOrUpdateModel(); }}>
+              {#if editingIndex !== null}
+                {t('modelSelector.updateModel')}: {selectedModelName}
+              {:else}
+                {t('modelSelector.addModel')}: {selectedModelName}
+              {/if}
+            </button>
+            {#if editingIndex !== null}
+              <button class="cancel-edit-btn" onclick={(e) => { e.stopPropagation(); cancelEdit(); }}>
+                {t('common.cancel')}
+              </button>
+            {/if}
+          </div>
         {/if}
       {:else}
         <div class="error">{t('common.error')}</div>
@@ -670,6 +745,33 @@
     flex: 1;
   }
 
+  .model-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+  }
+
+  .edit-model-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  .edit-model-btn:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .edit-model-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .remove-model-btn {
     background: none;
     border: none;
@@ -687,8 +789,14 @@
     color: #ef4444;
   }
 
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
   .add-model-btn {
-    width: 100%;
+    flex: 1;
     padding: 0.75rem;
     background: rgba(34, 197, 94, 0.1);
     color: var(--success-color, #22c55e);
@@ -698,7 +806,6 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    margin-top: 0.5rem;
   }
 
   .add-model-btn:hover {
@@ -707,6 +814,25 @@
     border-color: rgba(34, 197, 94, 0.4);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+  }
+
+  .cancel-edit-btn {
+    flex: 0 0 auto;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .cancel-edit-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--text-tertiary);
   }
 
   .selected-models-preview {

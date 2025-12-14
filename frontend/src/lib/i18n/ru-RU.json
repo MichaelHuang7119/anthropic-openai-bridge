@@ -92,6 +92,8 @@
     "modelConfig": "Конфигурация модели",
     "modelConfigHelp": "Настройте хотя бы одну модель, рекомендуется настроить все три категории",
     "addModel": "Добавить модель",
+    "updateModel": "Обновить модель",
+    "editModel": "Редактировать модель",
     "addBigModel": "Добавить большую модель",
     "addMiddleModel": "Добавить среднюю модель",
     "addSmallModel": "Добавить малую модель",
@@ -142,7 +144,13 @@
     "smallModel": "Малые модели",
     "loadingModels": "Загрузка конфигурации моделей...",
     "placeholderSelectProvider": "Пожалуйста, выберите провайдера",
-    "selectedModels": "Selected Models"
+    "selectedModels": "Выбранные модели",
+    "updateModel": "Обновить модель",
+    "editModel": "Редактировать модель",
+    "removeModel": "Удалить модель",
+    "modelsSelected": "Модели выбраны",
+    "modelName": "Название модели",
+    "addModel": "Добавить модель"
   },
   "messageInput": {
     "placeholder": "Введите сообщение...",

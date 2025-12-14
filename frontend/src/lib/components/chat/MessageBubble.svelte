@@ -20,8 +20,13 @@
     showTokens = false,
     providerName = null,
     apiFormat = null,
-    onretry,
+    onretryModel,
     onedit,
+    resultIndex = 0,
+    totalResults = 1,
+    showResultNavigation = false,
+    onNavigatePrev,
+    onNavigateNext,
   }: {
     message: Message;
     isStreaming?: boolean;
@@ -29,8 +34,13 @@
     showTokens?: boolean;
     providerName?: string | null;
     apiFormat?: string | null;
-    onretry?: (event: { message: Message }) => void;
+    onretryModel?: (event: { providerName: string; apiFormat: string; model: string }) => void;
     onedit?: (event: { message: Message; newContent: string }) => void;
+    resultIndex?: number;
+    totalResults?: number;
+    showResultNavigation?: boolean;
+    onNavigatePrev?: () => void;
+    onNavigateNext?: () => void;
   } = $props();
 
   // State for thinking collapse/expand
@@ -232,10 +242,6 @@
     return '';
   }
 
-  function handleRetry() {
-    onretry?.({ message });
-  }
-
   function handleEdit() {
     isEditing = true;
     editContent = message.content;
@@ -397,12 +403,19 @@
             }}
           ></textarea>
           <div class="edit-actions">
-            <button class="edit-send-btn" onclick={handleSendEdit}>
-              {t('messageInput.send')}
-            </button>
-            <button class="edit-cancel-btn" onclick={handleCancelEdit}>
-              {t('messageBubble.cancel')}
-            </button>
+            <div class="edit-actions-left">
+              <button class="edit-btn-primary" onclick={handleSendEdit}>
+                {t('common.save')}
+              </button>
+            </div>
+            <div class="edit-actions-right">
+              <button class="edit-btn-primary" onclick={handleSendEdit}>
+                {t('messageInput.send')}
+              </button>
+              <button class="edit-btn-secondary" onclick={handleCancelEdit}>
+                {t('messageBubble.cancel')}
+              </button>
+            </div>
           </div>
         </div>
       {:else if isStreaming}
@@ -418,14 +431,10 @@
 
   {#if message.role === "user"}
     <div class="message-actions-below">
-      {#if isEditing}
-        <button class="edit-btn sending" disabled>
-          {t('messageInput.send')}
-        </button>
-      {:else}
+      {#if !isEditing}
         <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
         </button>
-        <button class="retry-btn" onclick={handleRetry} title={t('messageBubble.retry')}>
+        <button class="copy-btn-user {copied ? 'copied' : ''}" onclick={handleCopy} title={copied ? t('messageBubble.copied') : t('messageBubble.copy')}>
         </button>
       {/if}
     </div>
@@ -433,13 +442,47 @@
 
   {#if message.role === "assistant" && message.content}
     <div class="message-actions">
+      {#if showResultNavigation || totalResults > 1 || isStreaming}
+        <div class="result-navigation">
+          <button
+            class="nav-btn"
+            onclick={onNavigatePrev}
+            title="Previous result"
+            disabled={totalResults <= 1}
+          >
+            ‹
+          </button>
+          <span class="result-index">
+            {resultIndex + 1}/{totalResults}
+          </span>
+          <button
+            class="nav-btn"
+            onclick={onNavigateNext}
+            title="Next result"
+            disabled={totalResults <= 1}
+          >
+            ›
+          </button>
+        </div>
+      {/if}
+      <button
+        class="retry-btn-assistant"
+        onclick={() => onretryModel?.({ providerName: providerName || '', apiFormat: apiFormat || '', model: message.model || '' })}
+        title={t('messageBubble.retry')}
+      >
+        ↻
+      </button>
       <button
         class="copy-btn"
         class:copied
         onclick={handleCopy}
         title={t('messageBubble.copy')}
       >
-        {copied ? t('messageBubble.copied') : t('messageBubble.copy')}
+        {#if !copied}
+          {t('messageBubble.copy')}
+        {:else}
+          {t('messageBubble.copied')}
+        {/if}
       </button>
     </div>
   {/if}
@@ -1013,17 +1056,13 @@
   }
 
   .message-actions {
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.3s;
     align-self: flex-end;
   }
 
   .message-bubble.assistant .message-actions {
     align-self: flex-start;
-  }
-
-  .message-bubble:hover .message-actions {
-    opacity: 1;
   }
 
   .message-actions-below {
@@ -1041,6 +1080,7 @@
 
   .retry-btn,
   .copy-btn,
+  .copy-btn-user,
   .edit-btn {
     padding: 0.25rem;
     background: none;
@@ -1053,6 +1093,7 @@
 
   .retry-btn:hover,
   .copy-btn:hover,
+  .copy-btn-user:hover,
   .edit-btn:hover {
     color: var(--primary-color);
   }
@@ -1062,16 +1103,87 @@
     font-size: 1rem;
   }
 
-  .copy-btn {
+  .copy-btn,
+  .copy-btn-user {
     color: var(--text-secondary);
   }
 
-  .copy-btn:hover {
+  .copy-btn:hover,
+  .copy-btn-user:hover {
     color: var(--primary-color);
   }
 
-  .copy-btn.copied {
+  .copy-btn.copied,
+  .copy-btn-user.copied {
     color: var(--success-color, #10b981);
+  }
+
+  .copy-btn::before {
+    content: "📋";
+    font-size: 0.9rem;
+  }
+
+  .copy-btn-user::before {
+    content: "📋";
+    font-size: 0.9rem;
+  }
+
+  .retry-btn-assistant {
+    padding: 0.25rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 0.9rem;
+  }
+
+  .retry-btn-assistant:hover {
+    color: var(--primary-color);
+  }
+
+  .result-navigation {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 0.5rem;
+    user-select: none;
+  }
+
+  .nav-btn {
+    padding: 0.125rem 0.375rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: bold;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .result-index {
+    min-width: 2.5rem;
+    text-align: center;
+    font-weight: 600;
   }
 
   .edit-btn::before {
@@ -1085,8 +1197,8 @@
   }
 
   .edit-btn.sending::before {
-    content: "✓";
-    font-size: 1rem;
+    content: "✎";
+    font-size: 0.9rem;
   }
 
   /* Edit mode styles */
@@ -1124,13 +1236,24 @@
 
   .edit-actions {
     display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
+    gap: 0.75rem;
   }
 
-  .edit-send-btn,
-  .edit-cancel-btn {
+  .edit-actions-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .edit-actions-right {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .edit-btn-primary,
+  .edit-btn-secondary {
     padding: 0.625rem 1.5rem;
     border: none;
     border-radius: 0.5rem;
@@ -1140,26 +1263,28 @@
     font-weight: 500;
   }
 
-  .edit-send-btn {
+  .edit-btn-primary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
-  .edit-send-btn:hover {
+  .edit-btn-primary:hover {
     background: var(--bg-secondary);
     color: var(--text-primary);
+    border-color: var(--border-color);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .edit-cancel-btn {
+  .edit-btn-secondary {
     background: var(--bg-secondary);
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
   }
 
-  .edit-cancel-btn:hover {
+  .edit-btn-secondary:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
@@ -1209,13 +1334,17 @@
     }
 
     .edit-actions {
-      gap: 0.375rem;
+      gap: 0.5rem;
     }
 
-    .edit-send-btn,
-    .edit-cancel-btn {
-      padding: 0.375rem 0.75rem;
+    .edit-btn-primary,
+    .edit-btn-secondary {
+      padding: 0.5rem 1rem;
       font-size: 0.8125rem;
+    }
+
+    .edit-actions-right {
+      gap: 0.5rem;
     }
   }
 </style>

@@ -145,6 +145,8 @@
     "loadingModels": "加载模型配置中...",
     "placeholderSelectProvider": "请选择供应商",
     "addModel": "添加模型",
+    "updateModel": "更新模型",
+    "editModel": "编辑模型",
     "removeModel": "删除模型",
     "selectedModels": "已选择的模型",
     "modelsSelected": "已选择模型",

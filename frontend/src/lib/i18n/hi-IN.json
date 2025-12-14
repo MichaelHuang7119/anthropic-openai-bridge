@@ -92,6 +92,8 @@
     "modelConfig": "मॉडल कॉन्फ़िगरेशन",
     "modelConfigHelp": "कम से कम एक मॉडल कॉन्फ़िगर करें, तीनों श्रेणियों को कॉन्फ़िगर करने की सिफारिश की जाती है",
     "addModel": "मॉडल जोड़ें",
+    "updateModel": "मॉडल अपडेट करें",
+    "editModel": "मॉडल संपादित करें",
     "addBigModel": "बड़ा मॉडल जोड़ें",
     "addMiddleModel": "मध्यम मॉडल जोड़ें",
     "addSmallModel": "छोटा मॉडल जोड़ें",
@@ -142,7 +144,13 @@
     "smallModel": "छोटे मॉडल",
     "loadingModels": "मॉडल कॉन्फ़िगरेशन लोड हो रहा है...",
     "placeholderSelectProvider": "कृपया एक प्रदाता चुनें",
-    "selectedModels": "Selected Models"
+    "selectedModels": "चुने गए मॉडल",
+    "updateModel": "मॉडल अपडेट करें",
+    "editModel": "मॉडल संपादित करें",
+    "removeModel": "मॉडल हटाएं",
+    "modelsSelected": "मॉडल चुने गए",
+    "modelName": "मॉडल नाम",
+    "addModel": "मॉडल जोड़ें"
   },
   "messageInput": {
     "placeholder": "संदेश लिखें...",

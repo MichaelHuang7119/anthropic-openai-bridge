@@ -32,8 +32,7 @@
   let conversations = $derived(sessionState.conversations);
   let currentConversation = $derived(sessionState.currentConversation);
   let isLoading = $derived(sessionState.isLoading);
-  let _error = $derived(sessionState.error);
-
+  
   // Provider配置是全局的，不属于会话状态
   let providers = $state<ProviderConfig[]>([]);
 
@@ -191,14 +190,44 @@
 
           // Set the models from the last question
           if (modelsList.length > 0) {
-            selectedModels = modelsList;
-            console.log("Loaded models from last question:", selectedModels);
+            // For single model conversation, use only the LAST model
+            // For multi-model conversation, keep all models
+            // Determine if this is a single or multi-model conversation
+            const isSingleModel = assistantMessagesForLastQuestion.length === 1;
 
-            // Update single model selection for compatibility
-            if (selectedModels.length > 0) {
-              selectedProviderName = selectedModels[0].providerName;
-              selectedApiFormat = selectedModels[0].apiFormat;
-              selectedModelName = selectedModels[0].model;
+            if (isSingleModel) {
+              // Single model: use only the last model
+              const lastModel = modelsList[modelsList.length - 1];
+              selectedModels = [lastModel];
+              console.log("Loaded model from last question (single model mode):", lastModel);
+
+              // Update single model selection for compatibility
+              selectedProviderName = lastModel.providerName;
+              selectedApiFormat = lastModel.apiFormat;
+              selectedModelName = lastModel.model;
+            } else {
+              // Multi-model: keep all unique models
+              // Remove duplicates based on model+provider+api_format
+              const uniqueModels: ModelChoice[] = [];
+              const seen = new Set<string>();
+
+              modelsList.forEach(model => {
+                const key = `${model.providerName}-${model.apiFormat}-${model.model}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  uniqueModels.push(model);
+                }
+              });
+
+              selectedModels = uniqueModels;
+              console.log("Loaded models from last question (multi-model mode):", uniqueModels);
+
+              // Update single model selection for compatibility (use first model)
+              if (selectedModels.length > 0) {
+                selectedProviderName = selectedModels[0].providerName;
+                selectedApiFormat = selectedModels[0].apiFormat;
+                selectedModelName = selectedModels[0].model;
+              }
             }
           } else {
             // Fallback: use last assistant message
@@ -298,8 +327,9 @@
 
       // Automatically select the newly created conversation
       if (newConversation) {
-        currentConversation = await chatService.getConversation(newConversation.id);
-        console.log("New conversation selected:", currentConversation);
+        const conversationData = await chatService.getConversation(newConversation.id);
+        console.log("New conversation selected:", conversationData);
+        sessionStore.update(state => ({ ...state, currentConversation: conversationData }));
       }
 
       showToast(t('common.success'), "success");

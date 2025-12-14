@@ -92,6 +92,8 @@
     "modelConfig": "Configuration du modèle",
     "modelConfigHelp": "Configurez au moins un modèle, il est recommandé de configurer les trois catégories",
     "addModel": "Ajouter un modèle",
+    "updateModel": "Mettre à jour le modèle",
+    "editModel": "Modifier le modèle",
     "addBigModel": "Ajouter un grand modèle",
     "addMiddleModel": "Ajouter un modèle moyen",
     "addSmallModel": "Ajouter un petit modèle",
@@ -142,7 +144,13 @@
     "smallModel": "Petits modèles",
     "loadingModels": "Chargement de la configuration des modèles...",
     "placeholderSelectProvider": "Veuillez sélectionner un fournisseur",
-    "selectedModels": "Selected Models"
+    "selectedModels": "Modèles sélectionnés",
+    "updateModel": "Mettre à jour le modèle",
+    "editModel": "Modifier le modèle",
+    "removeModel": "Supprimer le modèle",
+    "modelsSelected": "Modèles sélectionnés",
+    "modelName": "Nom du modèle",
+    "addModel": "Ajouter un modèle"
   },
   "messageInput": {
     "placeholder": "Tapez un message...",

@@ -45,35 +45,48 @@
   // Group messages into user-assistant pairs for display
   function getMessageGroups() {
     const groups = [];
-    let i = 0;
 
-    console.log("ChatArea: getMessageGroups called with", messages.length, "messages");
+    // Simple chronological grouping - each user message followed by its assistant messages
+    let currentUserMessage: Message | null = null;
+    let currentAssistantMessages: Message[] = [];
 
-    while (i < messages.length) {
-      const group = {
-        userMessage: null as Message | null,
-        assistantMessages: [] as Message[],
-      };
+    for (const msg of messages) {
+      if (msg.role === "user") {
+        // Save previous group if exists
+        if (currentUserMessage) {
+          groups.push({
+            userMessage: currentUserMessage,
+            assistantMessages: [...currentAssistantMessages] // Clone array
+          });
+        }
 
-      // Find user message
-      if (messages[i].role === "user") {
-        group.userMessage = messages[i];
-        i++;
-      }
-
-      // Find all following assistant messages
-      while (i < messages.length && messages[i].role === "assistant") {
-        group.assistantMessages.push(messages[i]);
-        i++;
-      }
-
-      // Only add group if it has content
-      if (group.userMessage || group.assistantMessages.length > 0) {
-        groups.push(group);
+        // Start new group
+        currentUserMessage = msg;
+        currentAssistantMessages = [];
+      } else if (msg.role === "assistant") {
+        // Add to current assistant messages
+        if (currentUserMessage) {
+          currentAssistantMessages.push(msg);
+        }
       }
     }
 
-    console.log("ChatArea: Total groups created:", groups.length);
+    // Save last group if exists
+    if (currentUserMessage) {
+      groups.push({
+        userMessage: currentUserMessage,
+        assistantMessages: [...currentAssistantMessages] // Clone array
+      });
+    }
+
+    console.log("ChatArea: getMessageGroups - All messages:", $state.snapshot(messages));
+    console.log("ChatArea: getMessageGroups - Groups created:", $state.snapshot(groups.map(g => ({
+      userMessageId: g.userMessage?.id,
+      assistantMessagesCount: g.assistantMessages.length,
+      assistantMessageIds: g.assistantMessages.map(m => m.id),
+      assistantMessages: g.assistantMessages
+    }))));
+
     return groups;
   }
 
@@ -82,8 +95,97 @@
   let streamingMessages: Record<number, string> = $state({});
   let streamingThinkings: Record<number, string> = $state({});
   let streamingCompleted: Record<number, boolean> = $state({});
-  let currentStreamingModels: ModelChoice[] = $state([]);
+  let _currentStreamingModels: ModelChoice[] = $state([]);
   let streamingFinished: Record<number, boolean> = $state({});
+
+  // Track which message ID is currently being viewed for each model group (like open-webui)
+  let currentViewingMessageIds: Record<string, number | null> = $state({});
+
+  // Initialize currentViewingMessageIds from localStorage with conversation context
+  let initializationComplete = $state(false);
+  let hasLoadedMessageIds = $state(false);
+
+  function initializeViewingMessageIds(conversationId?: number | string) {
+    if (!initializationComplete && typeof window !== 'undefined') {
+      try {
+        const storageKey = conversationId ? `chatViewingMessageIds_${conversationId}` : 'chatViewingMessageIds';
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            currentViewingMessageIds = parsed;
+            hasLoadedMessageIds = true;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load viewing message IDs from localStorage:", e);
+        currentViewingMessageIds = {};
+      }
+      initializationComplete = true;
+    }
+  }
+
+  // Save currentViewingMessageIds to localStorage whenever it changes
+  $effect(() => {
+    if (typeof window !== 'undefined' && initializationComplete && hasLoadedMessageIds) {
+      const storageKey = conversation?.id ? `chatViewingMessageIds_${conversation.id}` : 'chatViewingMessageIds';
+      localStorage.setItem(storageKey, JSON.stringify(currentViewingMessageIds));
+    }
+  });
+
+  // Re-initialize model selector when viewing message IDs change (with delay to avoid race condition)
+  let reinitTimeout: ReturnType<typeof setTimeout> | null = null;
+  $effect(() => {
+    if (initializationComplete && hasLoadedMessageIds && messages.length > 0) {
+      // Clear any pending timeout
+      if (reinitTimeout) {
+        clearTimeout(reinitTimeout);
+      }
+      // Delay to ensure currentViewingMessageIds are fully loaded
+      reinitTimeout = setTimeout(() => {
+        // Trigger model selector update by setting selectedModels to itself (will re-trigger the effect)
+        selectedModels = [...selectedModels];
+      }, 100);
+    }
+  });
+
+  // Function to navigate through different results for a model (based on message ID like open-webui)
+  function navigateResult(groupKey: string, direction: 'prev' | 'next', modelGroupMessages: Message[]) {
+    const currentMessageId = currentViewingMessageIds[groupKey];
+    let currentIndex: number;
+
+    if (currentMessageId === null || currentMessageId === undefined) {
+      // Default to showing the last message (most recent)
+      currentIndex = modelGroupMessages.length - 1;
+    } else {
+      currentIndex = modelGroupMessages.findIndex(m => m.id === currentMessageId);
+      if (currentIndex === -1) {
+        // Message not found, default to last message
+        currentIndex = modelGroupMessages.length - 1;
+      }
+    }
+
+    let newIndex: number;
+    if (direction === 'next') {
+      newIndex = (currentIndex + 1) % modelGroupMessages.length;
+    } else {
+      newIndex = (currentIndex - 1 + modelGroupMessages.length) % modelGroupMessages.length;
+    }
+
+    // Update currentViewingMessageIds with the new message ID
+    const newMessageId = modelGroupMessages[newIndex].id;
+    currentViewingMessageIds = {
+      ...currentViewingMessageIds,
+      [groupKey]: newMessageId
+    };
+  }
+
+  // Initialize when conversation is loaded
+  $effect(() => {
+    if (conversation?.id && !initializationComplete) {
+      initializeViewingMessageIds(conversation.id);
+    }
+  });
 
   // Manage AbortControllers per conversation for strict isolation
   const conversationAbortControllers = new Map<number, AbortController>();
@@ -124,6 +226,17 @@
       if (lastLoadedConversationId !== conversationId) {
         console.log("ChatArea: Loading messages for new conversation:", conversationId);
         lastLoadedConversationId = conversationId;
+
+        // Reset streaming state when switching conversations
+        streamingMessages = {};
+        streamingThinkings = {};
+        streamingCompleted = {};
+        streamingFinished = {};
+        _currentStreamingModels = [];
+        isLoading = false;
+        error = null;
+        errorDetails = null;
+
         loadMessages();
       } else {
         console.log("ChatArea: Skipping load - same conversation:", conversationId);
@@ -132,6 +245,16 @@
       // console.log("ChatArea: no conversation");
       messages = [];
       lastLoadedConversationId = null;
+
+      // Reset all state when no conversation
+      streamingMessages = {};
+      streamingThinkings = {};
+      streamingCompleted = {};
+      streamingFinished = {};
+      _currentStreamingModels = [];
+      isLoading = false;
+      error = null;
+      errorDetails = null;
     }
   });
 
@@ -154,6 +277,9 @@
       // Always load fresh messages from the backend to prevent duplicates
       const detail = await chatService.getConversation(conversation.id);
       const loadedMessages = detail.messages || [];
+
+      // Clear existing messages array before loading new messages
+      messages = [];
 
       const uniqueIds = new Set(loadedMessages.map(m => m.id));
       console.log("ChatArea: Backend returned messages:", {
@@ -185,7 +311,29 @@
           uniqueMessages.push(message);
         }
 
-        messages = uniqueMessages;
+        // Preserve temporary user messages that haven't been saved to database yet
+        // These have IDs generated with Date.now() (not from database)
+        const tempUserMessages = messages.filter(m => m.role === "user" && !loadedMessages.some(dbMsg => dbMsg.id === m.id));
+        const tempAssistantMessages = messages.filter(m => m.role === "assistant" && !loadedMessages.some(dbMsg => dbMsg.id === m.id));
+
+        // Also preserve streaming messages that are currently being displayed
+        // These are messages in the last user message group that have streaming state
+        const streamingMessageContents = new Set(Object.values(streamingMessages));
+        const streamingAssistantMessages = messages.filter(m =>
+          m.role === "assistant" &&
+          (streamingMessageContents.has(m.content as any) || m.isStreaming)
+        );
+
+        if (tempUserMessages.length > 0 || tempAssistantMessages.length > 0 || streamingAssistantMessages.length > 0) {
+          console.log("ChatArea: Preserving temporary messages:", {
+            tempUserMessages,
+            tempAssistantMessages,
+            streamingAssistantMessages
+          });
+          messages = [...uniqueMessages, ...tempUserMessages, ...tempAssistantMessages];
+        } else {
+          messages = uniqueMessages;
+        }
 
         console.log("ChatArea: Set messages array:", {
           uniqueMessageCount: messages.length,
@@ -202,83 +350,347 @@
             const actualIndex = messages.length - 1 - lastUserMessageIndex;
             const lastUserMessage = messages[actualIndex];
 
-            // Find all assistant messages that came after this last user message
-            const lastUserMessageDate = new Date(lastUserMessage.created_at || 0).getTime();
+            // Find all assistant messages that belong to this last user message (by parent_message_id)
             const assistantMessagesForLastQuestion = messages.filter(msg => {
-              if (msg.role !== "assistant") return false;
-              const msgDate = new Date(msg.created_at || 0).getTime();
-              return msgDate >= lastUserMessageDate;
+              return msg.role === "assistant" && msg.parent_message_id === lastUserMessage.id;
             });
 
-            // Extract models from these assistant messages
-            // Keep all models (including duplicates) since each has different conversation results
-            const modelsList: ModelChoice[] = [];
+            console.log("ChatArea: Navigation count debug - BEFORE:", {
+              lastUserMessageId: lastUserMessage.id,
+              assistantMessagesCount: assistantMessagesForLastQuestion.length,
+              assistantMessages: assistantMessagesForLastQuestion.map(m => ({ id: m.id, model: m.model, created_at: m.created_at }))
+            });
+
+            // Check for duplicate messages (same content and model)
+            const uniqueMessages = new Map<string, Message>();
             assistantMessagesForLastQuestion.forEach(msg => {
-              if (msg.provider_name && msg.api_format && msg.model) {
-                modelsList.push({
-                  providerName: msg.provider_name,
-                  apiFormat: msg.api_format,
-                  model: msg.model,
-                });
+              const key = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.content}`;
+              if (!uniqueMessages.has(key)) {
+                uniqueMessages.set(key, msg);
               }
             });
 
-            if (modelsList.length > 0) {
-              selectedModels = modelsList;
+            console.log("ChatArea: Navigation count debug - After deduplication:", {
+              uniqueMessageCount: uniqueMessages.size,
+              totalMessagesCount: assistantMessagesForLastQuestion.length,
+              duplicateMessagesCount: assistantMessagesForLastQuestion.length - uniqueMessages.size
+            });
 
-              // Update single model selection for backward compatibility
-              const firstModel = modelsList[0];
-              selectedProviderName = firstModel.providerName;
-              selectedApiFormat = firstModel.apiFormat;
-              selectedModelName = firstModel.model;
+            // Use unique messages for navigation count
+            const uniqueAssistantMessages = Array.from(uniqueMessages.values());
 
-              console.log("ChatArea: Updated model selector from last question:", {
-                selectedModels,
-                selectedProviderName,
-                selectedApiFormat,
-                selectedModelName,
-                totalModels: modelsList.length
-              });
+            // For single-model scenario: show only the LAST retry (regardless of model changes)
+            // For multi-model scenario: show latest model from each model subgroup
+            const modelsList: ModelChoice[] = [];
+
+            // Check if this is a single-model scenario (all messages have same provider/api_format combination)
+            const uniqueProviderApiCombinations = new Set(
+              uniqueAssistantMessages
+                .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                .map(msg => `${msg.provider_name}-${msg.api_format}`)
+            );
+
+            const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+
+            if (isSingleModelScenario) {
+              // Single model scenario: show ONLY the last retry (latest message)
+              const sortedMessages = uniqueAssistantMessages
+                .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                .sort((a, b) => {
+                  const aTime = new Date(a.created_at || 0).getTime();
+                  const bTime = new Date(b.created_at || 0).getTime();
+                  return bTime - aTime;
+                });
+
+              if (sortedMessages.length > 0) {
+                const latestMessage = sortedMessages[0];
+                modelsList.push({
+                  providerName: latestMessage.provider_name || '',
+                  apiFormat: latestMessage.api_format || '',
+                  model: latestMessage.model || '',
+                });
+              }
             } else {
-              // Fallback: use last assistant message
-              const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
+              // Multi-model scenario: group by model configuration and get latest from each group
+              const groupedModels = new Map<string, Message[]>();
 
-              if (lastAssistantMessage) {
-                selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
-                selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
-                selectedModelName = lastAssistantMessage.model || selectedModelName;
-                selectedModels = [{
-                  providerName: selectedProviderName,
-                  apiFormat: selectedApiFormat,
-                  model: selectedModelName,
-                }];
+              // First pass: group messages by model configuration
+              uniqueAssistantMessages.forEach(msg => {
+                if (msg.provider_name && msg.api_format && msg.model) {
+                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                  if (!groupedModels.has(modelKey)) {
+                    groupedModels.set(modelKey, []);
+                  }
+                  groupedModels.get(modelKey)!.push(msg);
+                }
+              });
 
-                console.log("ChatArea: Updated model selector from last message (fallback):", {
+              // Second pass: for each group, get the latest message (by created_at)
+              groupedModels.forEach((messages) => {
+                const sortedMessages = messages.sort((a, b) => {
+                  const aTime = new Date(a.created_at || 0).getTime();
+                  const bTime = new Date(b.created_at || 0).getTime();
+                  return bTime - aTime;
+                });
+                const latestMessage = sortedMessages[0];
+                if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                  modelsList.push({
+                    providerName: latestMessage.provider_name,
+                    apiFormat: latestMessage.api_format,
+                    model: latestMessage.model,
+                  });
+                }
+              });
+            }
+
+            if (modelsList.length > 0) {
+              // For multi-model scenario, show only the currently selected model (based on navigation)
+              // For single-model scenario, show the latest model
+              if (!isSingleModelScenario && modelsList.length > 1) {
+                // Multi-model scenario: find the currently selected model based on navigation state
+                const lastUserMessageId = lastUserMessage.id;
+
+                // Build model groups from assistant messages to maintain order
+                const modelGroupsOrdered = new Map<string, Message[]>();
+                const modelOrder: string[] = [];
+
+                // First pass: group messages by model configuration while maintaining order
+                uniqueAssistantMessages.forEach(msg => {
+                  if (msg.provider_name && msg.api_format && msg.model) {
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    if (!modelGroupsOrdered.has(modelKey)) {
+                      modelGroupsOrdered.set(modelKey, []);
+                      modelOrder.push(modelKey);
+                    }
+                    modelGroupsOrdered.get(modelKey)!.push(msg);
+                  }
+                });
+
+                // Find the currently selected model based on navigation state
+                let currentSelectedModelIndex = 0;
+                let selectedModel: ModelChoice | null = null;
+
+                // Check if currentViewingMessageIds are loaded before trying to find current model
+                if (initializationComplete && hasLoadedMessageIds && Object.keys(currentViewingMessageIds).length > 0) {
+                  // Iterate through model groups in order to find the currently selected one
+                  for (let i = 0; i < modelOrder.length; i++) {
+                    const modelKey = modelOrder[i];
+                    const groupKey = `${lastUserMessageId}-${modelKey}`;
+
+                    // Check if this model group has a current viewing message
+                    const currentMessageId = currentViewingMessageIds[groupKey];
+                    if (currentMessageId) {
+                      currentSelectedModelIndex = i;
+                      // Extract model info from modelKey (format: provider-api_format-model)
+                      const [providerName, apiFormat, model] = modelKey.split('-');
+                      selectedModel = {
+                        providerName,
+                        apiFormat,
+                        model
+                      };
+                      break;
+                    }
+                  }
+
+                  // If no current viewing message found, default to the last model (current latest)
+                  if (!selectedModel) {
+                    currentSelectedModelIndex = modelOrder.length - 1;
+                    const lastModelKey = modelOrder[currentSelectedModelIndex];
+                    const [providerName, apiFormat, model] = lastModelKey.split('-');
+                    selectedModel = {
+                      providerName,
+                      apiFormat,
+                      model
+                    };
+                  }
+                } else {
+                  // If viewing message IDs not loaded yet, show all models for now
+                  // They will be updated when viewing message IDs are loaded
+                  selectedModels = modelsList;
+                  selectedProviderName = modelsList[0].providerName;
+                  selectedApiFormat = modelsList[0].apiFormat;
+                  selectedModelName = modelsList[0].model;
+                }
+
+                // If selectedModel is set (viewing IDs loaded), update to show only current model
+                if (selectedModel) {
+                  selectedModels = [selectedModel];
+                  selectedProviderName = selectedModel.providerName;
+                  selectedApiFormat = selectedModel.apiFormat;
+                  selectedModelName = selectedModel.model;
+                }
+              } else {
+                // Single model scenario or fallback
+                const firstModel = modelsList[0];
+                selectedModels = [firstModel];
+                selectedProviderName = firstModel.providerName;
+                selectedApiFormat = firstModel.apiFormat;
+                selectedModelName = firstModel.model;
+              }
+            } else {
+              // Fallback: find models from all assistant messages (not just last user question)
+              const allAssistantMessages = messages.filter(msg => msg.role === "assistant");
+              if (allAssistantMessages.length > 0) {
+                // Group assistant messages by model configuration and get the latest from each group
+                const groupedModels = new Map<string, Message[]>();
+
+                allAssistantMessages.forEach(msg => {
+                  if (msg.provider_name && msg.api_format && msg.model) {
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    if (!groupedModels.has(modelKey)) {
+                      groupedModels.set(modelKey, []);
+                    }
+                    groupedModels.get(modelKey)!.push(msg);
+                  }
+                });
+
+                // Get latest message from each group
+                const modelsList: ModelChoice[] = [];
+                groupedModels.forEach((messages) => {
+                  const sortedMessages = messages.sort((a, b) => {
+                    const aTime = new Date(a.created_at || 0).getTime();
+                    const bTime = new Date(b.created_at || 0).getTime();
+                    return bTime - aTime;
+                  });
+                  const latestMessage = sortedMessages[0];
+                  if (latestMessage?.provider_name && latestMessage?.api_format && latestMessage?.model) {
+                    modelsList.push({
+                      providerName: latestMessage.provider_name!,
+                      apiFormat: latestMessage.api_format!,
+                      model: latestMessage.model!,
+                    });
+                  }
+                });
+
+                if (modelsList.length > 0) {
+                  // Check if this is a single-model scenario (all messages have same provider/api_format combination)
+                  const uniqueProviderApiCombinations = new Set(
+                    allAssistantMessages
+                      .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                      .map(msg => `${msg.provider_name}-${msg.api_format}`)
+                  );
+
+                  const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+
+                  if (isSingleModelScenario) {
+                    // Single model scenario: show ONLY the last retry (latest message)
+                    const sortedMessages = allAssistantMessages
+                      .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                      .sort((a, b) => {
+                        const aTime = new Date(a.created_at || 0).getTime();
+                        const bTime = new Date(b.created_at || 0).getTime();
+                        return bTime - aTime;
+                      });
+
+                    if (sortedMessages.length > 0) {
+                      const latestMessage = sortedMessages[0];
+                      if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                        selectedModels = [{
+                          providerName: latestMessage.provider_name,
+                          apiFormat: latestMessage.api_format,
+                          model: latestMessage.model,
+                        }];
+                        selectedProviderName = latestMessage.provider_name;
+                        selectedApiFormat = latestMessage.api_format;
+                        selectedModelName = latestMessage.model;
+                      }
+                    }
+                  } else {
+                    // Multi-model scenario: show only the latest model (last in the list)
+                    const latestModel = modelsList[modelsList.length - 1];
+                    selectedModels = [latestModel];
+                    selectedProviderName = latestModel.providerName;
+                    selectedApiFormat = latestModel.apiFormat;
+                    selectedModelName = latestModel.model;
+                  }
+
+                  console.log("ChatArea: Updated model selector from all messages (fallback with grouping):", {
+                    selectedModels,
+                    selectedProviderName,
+                    selectedApiFormat,
+                    selectedModelName
+                  });
+                }
+              }
+            }
+          } else {
+            // Fallback: find models from all assistant messages (not just last user question)
+            const allAssistantMessages = messages.filter(msg => msg.role === "assistant");
+            if (allAssistantMessages.length > 0) {
+              // Check if this is a single-model scenario (all messages have same provider/api_format combination)
+              const uniqueProviderApiCombinations = new Set(
+                allAssistantMessages
+                  .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                  .map(msg => `${msg.provider_name}-${msg.api_format}`)
+              );
+
+              const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+              const modelsList: ModelChoice[] = [];
+
+              if (isSingleModelScenario) {
+                // Single model scenario: show ONLY the last retry (latest message)
+                const sortedMessages = allAssistantMessages
+                  .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                  .sort((a, b) => {
+                    const aTime = new Date(a.created_at || 0).getTime();
+                    const bTime = new Date(b.created_at || 0).getTime();
+                    return bTime - aTime;
+                  });
+
+                if (sortedMessages.length > 0) {
+                  const latestMessage = sortedMessages[0];
+                  modelsList.push({
+                    providerName: latestMessage.provider_name || '',
+                    apiFormat: latestMessage.api_format || '',
+                    model: latestMessage.model || '',
+                  });
+                }
+              } else {
+                // Multi-model scenario: group by model configuration and get latest from each group
+                const groupedModels = new Map<string, Message[]>();
+
+                allAssistantMessages.forEach(msg => {
+                  if (msg.provider_name && msg.api_format && msg.model) {
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    if (!groupedModels.has(modelKey)) {
+                      groupedModels.set(modelKey, []);
+                    }
+                    groupedModels.get(modelKey)!.push(msg);
+                  }
+                });
+
+                // Get latest message from each group
+                groupedModels.forEach((messages) => {
+                  const sortedMessages = messages.sort((a, b) => {
+                    const aTime = new Date(a.created_at || 0).getTime();
+                    const bTime = new Date(b.created_at || 0).getTime();
+                    return bTime - aTime;
+                  });
+                  const latestMessage = sortedMessages[0];
+                  if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                    modelsList.push({
+                      providerName: latestMessage.provider_name,
+                      apiFormat: latestMessage.api_format,
+                      model: latestMessage.model,
+                    });
+                  }
+                });
+              }
+
+              if (modelsList.length > 0) {
+                // Show only the latest model (last in the list) for fallback
+                const latestModel = modelsList[modelsList.length - 1];
+                selectedModels = [latestModel];
+                selectedProviderName = latestModel.providerName;
+                selectedApiFormat = latestModel.apiFormat;
+                selectedModelName = latestModel.model;
+                console.log("ChatArea: Updated model selector from all messages (fallback - latest only):", {
+                  selectedModels,
                   selectedProviderName,
                   selectedApiFormat,
                   selectedModelName
                 });
               }
-            }
-          } else {
-            // Fallback: use last assistant message
-            const lastAssistantMessage = [...messages].reverse().find(m => m.role === "assistant");
-
-            if (lastAssistantMessage) {
-              selectedProviderName = lastAssistantMessage.provider_name || selectedProviderName;
-              selectedApiFormat = lastAssistantMessage.api_format || selectedApiFormat;
-              selectedModelName = lastAssistantMessage.model || selectedModelName;
-              selectedModels = [{
-                providerName: selectedProviderName,
-                apiFormat: selectedApiFormat,
-                model: selectedModelName,
-              }];
-
-              console.log("ChatArea: Updated model selector from last message (fallback):", {
-                selectedProviderName,
-                selectedApiFormat,
-                selectedModelName
-              });
             }
           }
         } else if (messages.length > 0 && selectedModels && selectedModels.length > 0) {
@@ -302,26 +714,86 @@
             const actualIndex = loadedMessages.length - 1 - lastUserMessageIndex;
             const lastUserMessage = loadedMessages[actualIndex];
 
-            // Find all assistant messages that came after this last user message
-            const lastUserMessageDate = new Date(lastUserMessage.created_at || 0).getTime();
+            // Find all assistant messages that belong to this last user message (by parent_message_id)
             const assistantMessagesForLastQuestion = loadedMessages.filter(msg => {
-              if (msg.role !== "assistant") return false;
-              const msgDate = new Date(msg.created_at || 0).getTime();
-              return msgDate >= lastUserMessageDate;
+              return msg.role === "assistant" && msg.parent_message_id === lastUserMessage.id;
             });
 
-            // Extract models from these assistant messages
-            // Keep all models (including duplicates) since each has different conversation results
-            const modelsList: ModelChoice[] = [];
+            // Check for duplicate messages (same content and model)
+            const uniqueMessagesStreaming = new Map<string, Message>();
             assistantMessagesForLastQuestion.forEach(msg => {
-              if (msg.provider_name && msg.api_format && msg.model) {
-                modelsList.push({
-                  providerName: msg.provider_name,
-                  apiFormat: msg.api_format,
-                  model: msg.model,
-                });
+              const key = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.content}`;
+              if (!uniqueMessagesStreaming.has(key)) {
+                uniqueMessagesStreaming.set(key, msg);
               }
             });
+
+            // Use unique messages for navigation count
+            const uniqueAssistantMessages = Array.from(uniqueMessagesStreaming.values());
+
+            // For single-model scenario: show only the LAST retry (regardless of model changes)
+            // For multi-model scenario: show latest model from each model subgroup
+            const modelsList: ModelChoice[] = [];
+
+            // Check if this is a single-model scenario (all messages have same provider/api_format combination)
+            const uniqueProviderApiCombinations = new Set(
+              uniqueAssistantMessages
+                .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                .map(msg => `${msg.provider_name}-${msg.api_format}`)
+            );
+
+            const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+
+            if (isSingleModelScenario) {
+              // Single model scenario: show ONLY the last retry (latest message)
+              const sortedMessages = uniqueAssistantMessages
+                .filter(msg => msg.provider_name && msg.api_format && msg.model)
+                .sort((a, b) => {
+                  const aTime = new Date(a.created_at || 0).getTime();
+                  const bTime = new Date(b.created_at || 0).getTime();
+                  return bTime - aTime;
+                });
+
+              if (sortedMessages.length > 0) {
+                const latestMessage = sortedMessages[0];
+                modelsList.push({
+                  providerName: latestMessage.provider_name || '',
+                  apiFormat: latestMessage.api_format || '',
+                  model: latestMessage.model || '',
+                });
+              }
+            } else {
+              // Multi-model scenario: group by model configuration and get latest from each group
+              const groupedModels = new Map<string, Message[]>();
+
+              // First pass: group messages by model configuration
+              uniqueAssistantMessages.forEach(msg => {
+                if (msg.provider_name && msg.api_format && msg.model) {
+                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                  if (!groupedModels.has(modelKey)) {
+                    groupedModels.set(modelKey, []);
+                  }
+                  groupedModels.get(modelKey)!.push(msg);
+                }
+              });
+
+              // Second pass: for each group, get the latest message (by created_at)
+              groupedModels.forEach((messages) => {
+                const sortedMessages = messages.sort((a, b) => {
+                  const aTime = new Date(a.created_at || 0).getTime();
+                  const bTime = new Date(b.created_at || 0).getTime();
+                  return bTime - aTime;
+                });
+                const latestMessage = sortedMessages[0];
+                if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                  modelsList.push({
+                    providerName: latestMessage.provider_name,
+                    apiFormat: latestMessage.api_format,
+                    model: latestMessage.model,
+                  });
+                }
+              });
+            }
 
             if (modelsList.length > 0) {
               selectedModels = modelsList;
@@ -445,22 +917,29 @@
     }
   }
 
-  async function handleSendMessage(event: { message: string }) {
+  async function handleSendMessage(event: { message: string; selectedModels?: ModelChoice[]; skipAddUserMessage?: boolean; appendToExisting?: boolean; userMessageId?: number; streamingMessageId?: number }) {
+    console.log("========================================");
+    console.log("handleSendMessage called with:", event);
+
     if (!conversation) {
+      console.error("✗ No conversation available");
       error = t('common.error');
       return;
     }
 
     if (!authService.isAuthenticated()) {
+      console.error("✗ Not authenticated");
       error = t('common.error');
       return;
     }
 
     const chatId = conversation.id;
+    console.log("Chat ID:", chatId);
 
     // Cancel any previous requests for this specific conversation
     const existingController = conversationAbortControllers.get(chatId);
     if (existingController) {
+      console.log("Aborting existing controller for chat:", chatId);
       existingController.abort();
       conversationAbortControllers.delete(chatId);
     }
@@ -470,15 +949,18 @@
     conversationAbortControllers.set(chatId, abortController);
 
     // Check if we have selected models or conversation model
-    const modelsToUse = selectedModels.length > 0
-      ? selectedModels
-      : (selectedModelName || conversation.model
-          ? [{
-              providerName: selectedProviderName || conversation.provider_name || '',
-              apiFormat: selectedApiFormat || conversation.api_format || '',
-              model: selectedModelName || conversation.model || ''
-            }]
-          : []);
+    // Use event.selectedModels if provided, otherwise use global selectedModels
+    const modelsToUse = event.selectedModels && event.selectedModels.length > 0
+      ? event.selectedModels
+      : selectedModels.length > 0
+        ? selectedModels
+        : (selectedModelName || conversation.model
+            ? [{
+                providerName: selectedProviderName || conversation.provider_name || '',
+                apiFormat: selectedApiFormat || conversation.api_format || '',
+                model: selectedModelName || conversation.model || ''
+              }]
+            : []);
 
     console.log("ChatArea: Sending message details:", {
       selectedModelsLength: selectedModels.length,
@@ -486,15 +968,19 @@
       selectedModelName: selectedModelName,
       conversationModel: conversation.model,
       modelsToUse: modelsToUse,
-      modelsToUseLength: modelsToUse.length
+      modelsToUseLength: modelsToUse.length,
+      streamingMessageId: event.streamingMessageId,
+      skipAddUserMessage: event.skipAddUserMessage
     });
 
     if (modelsToUse.length === 0) {
+      console.error("✗ No models to use");
       error = t('common.error');
       return;
     }
 
     const userMessage = event.message;
+    console.log("User message:", userMessage);
     error = null;
 
     // Reset scroll state when sending new message
@@ -502,59 +988,65 @@
     isAtBottom = true;
 
     console.log("ChatArea: Sending message to models:", modelsToUse);
+    console.log("========================================");
 
     try {
-      // Add user message to UI immediately for better UX
-      const userMsg: Message = {
-        id: Date.now(),
-        role: "user",
-        content: userMessage,
-        provider_name: modelsToUse[0].providerName || null,
-        api_format: modelsToUse[0].apiFormat || null,
-        model: null,
-        input_tokens: null,
-        output_tokens: null,
-        created_at: new Date().toISOString(),
-      };
-
-      // Check if this is the first user message before adding to messages array
-      const isFirstMessage = messages.filter(m => m.role === "user").length === 0;
-      if (isFirstMessage) {
-        const generatedTitle = chatService.generateTitle(userMessage);
-        const updatedConversation = await chatService.updateConversation(conversation.id, generatedTitle);
-        // Update the conversation in parent component
-        conversation = {
-          ...conversation,
-          title: updatedConversation.title
+      // Only add user message if not skipped (for retry scenarios)
+      if (!event.skipAddUserMessage) {
+        // Add user message to UI immediately for better UX
+        const userMsg: Message = {
+          id: Date.now(),
+          role: "user",
+          content: userMessage,
+          provider_name: modelsToUse[0].providerName || null,
+          api_format: modelsToUse[0].apiFormat || null,
+          model: null,
+          input_tokens: null,
+          output_tokens: null,
+          created_at: new Date().toISOString(),
         };
-        dispatch("conversationUpdate", { conversation });
-        // Force reload messages to ensure consistency
-        await loadMessages(true);
+
+        // Check if this is the first user message before adding to messages array
+        const isFirstMessage = messages.filter(m => m.role === "user").length === 0;
+        if (isFirstMessage) {
+          const generatedTitle = chatService.generateTitle(userMessage);
+          const updatedConversation = await chatService.updateConversation(conversation.id, generatedTitle);
+          // Update the conversation in parent component
+          conversation = {
+            ...conversation,
+            title: updatedConversation.title
+          };
+          dispatch("conversationUpdate", { conversation });
+          // Don't reload messages to preserve the UI state
+          // The messages are already in the UI
+        }
+
+        messages = [...messages, userMsg];
+
+        // Scroll to user message immediately
+        await tick();
+        scrollToBottom();
       }
 
-      messages = [...messages, userMsg];
-
-      // Scroll to user message immediately
-      await tick();
-      scrollToBottom();
-
-      // Save user message to database
-      console.log("ChatArea: Adding message to database:", {
-        conversationId: conversation.id,
-        role: "user",
-        content: userMessage,
-      });
-      await chatService.addMessage(
-        conversation.id,
-        "user",
-        userMessage,
-        null!,
-        undefined, // thinking
-        undefined, // inputTokens
-        undefined, // outputTokens
-        undefined, // provider
-        undefined, // apiFormat
-      );
+      // Save user message to database (skip for retries to avoid duplicates)
+      if (!event.skipAddUserMessage) {
+        console.log("ChatArea: Adding message to database:", {
+          conversationId: conversation.id,
+          role: "user",
+          content: userMessage,
+        });
+        await chatService.addMessage(
+          conversation.id,
+          "user",
+          userMessage,
+          null!,
+          undefined, // thinking
+          undefined, // inputTokens
+          undefined, // outputTokens
+          undefined, // provider
+          undefined, // apiFormat
+        );
+      }
 
       // Initialize streaming state for all models
       // Use instance index as the key to support duplicate model selections
@@ -562,8 +1054,8 @@
       streamingThinkings = {};
       streamingCompleted = {};
       streamingFinished = {};
-      currentStreamingModels = [...modelsToUse]; // Store current models for template access
-      modelsToUse.forEach((model, index) => {
+      _currentStreamingModels = [...modelsToUse]; // Store current models for template access
+      modelsToUse.forEach((_model, index) => {
         streamingMessages[index] = "";
         streamingThinkings[index] = "";
         streamingCompleted[index] = false;
@@ -573,7 +1065,7 @@
 
       // Send to all selected models
       const promises = modelsToUse.map(async (model, index) => {
-        const _result = await chatService.sendChatMessage(
+        await chatService.sendChatMessage(
           {
             ...conversation!,
             provider_name: model.providerName,
@@ -584,10 +1076,27 @@
           userMessage,
           (chunk, thinking) => {
             if (chunk) {
+              // Update streaming state
+              const newContent = (streamingMessages[index] || "") + chunk;
               streamingMessages = {
                 ...streamingMessages,
-                [index]: (streamingMessages[index] || "") + chunk
+                [index]: newContent
               };
+
+              // If this is a retry (streamingMessageId provided), update the message directly
+              if (event.streamingMessageId) {
+                messages = messages.map(m => {
+                  if (m.id === event.streamingMessageId) {
+                    return {
+                      ...m,
+                      content: newContent,  // Use newContent instead of m.content + chunk
+                      isStreaming: true
+                    };
+                  }
+                  return m;
+                });
+              }
+
               // Scroll immediately when new chunk arrives for smooth streaming experience
               if (!userScrolledUp && isAtBottom) {
                 scrollToBottom();
@@ -598,6 +1107,20 @@
                 ...streamingThinkings,
                 [index]: thinking
               };
+
+              // If this is a retry, update the message directly
+              if (event.streamingMessageId) {
+                messages = messages.map(m => {
+                  if (m.id === event.streamingMessageId) {
+                    return {
+                      ...m,
+                      thinking: thinking
+                    };
+                  }
+                  return m;
+                });
+              }
+
               // Scroll immediately when thinking content updates
               if (!userScrolledUp && isAtBottom) {
                 scrollToBottom();
@@ -609,11 +1132,25 @@
             const assistantMessage = streamingMessages[index] || "";
             const thinkingContent = streamingThinkings[index];
 
+            // Prevent duplicate onComplete calls from saving multiple times
+            // Set streamingCompleted flag immediately when onComplete is first called
+            if (streamingCompleted[index]) {
+              return;
+            }
+
             if (assistantMessage) {
-              // Save to database only - don't add to messages array
-              // Streaming messages are kept visible directly
-              // Async save to database (don't await to keep UI responsive)
-              chatService.addMessage(
+              // Mark as completed BEFORE saving to prevent race condition
+              streamingCompleted = {
+                ...streamingCompleted,
+                [index]: true
+              };
+              streamingFinished = {
+                ...streamingFinished,
+                [index]: true
+              };
+              // Always save to database, including for retry messages
+              // This ensures we have a complete history of all messages including retries
+              await chatService.addMessage(
                 conversation!.id,
                 "assistant",
                 assistantMessage,
@@ -623,21 +1160,28 @@
                 usage?.output_tokens,
                 model.providerName || undefined,
                 model.apiFormat || undefined,
+                event.userMessageId,
               ).catch(err => {
                 console.error("Failed to save assistant message:", err);
-                // Note: Message still visible in UI even if save failed
               });
-            }
 
-            // Mark this stream as completed and finished
-            streamingCompleted = {
-              ...streamingCompleted,
-              [index]: true
-            };
-            streamingFinished = {
-              ...streamingFinished,
-              [index]: true
-            };
+              // If this was a retry, update the frontend message state
+              if (event.streamingMessageId) {
+                messages = messages.map(m => {
+                  if (m.id === event.streamingMessageId) {
+                    return {
+                      ...m,
+                      content: assistantMessage,
+                      thinking: thinkingContent,
+                      input_tokens: usage?.input_tokens || null,
+                      output_tokens: usage?.output_tokens || null,
+                      isStreaming: false  // Ensure streaming state is reset
+                    };
+                  }
+                  return m;
+                });
+              }
+            }
 
             // Check if all models are done
             let allCompleted = true;
@@ -649,13 +1193,35 @@
             }
 
             if (allCompleted) {
-              // All streams completed - keep streaming messages visible permanently
+              // All streams completed - reload messages to get the latest state from database
               isLoading = false;
 
-              // Keep streaming state to avoid flash - never clear after completion
-              // The streaming messages will remain visible as final messages
-              // This eliminates the refresh/blink effect
-              // streamingFinished flags will hide the cursor
+              console.log("ChatArea: All streams completed, messages before reload:", messages);
+
+              // Reload messages to ensure we have the latest database state
+              // This ensures correct result counting (e.g., 4/5 instead of losing the count)
+              // Skip reload if this is a retry (streamingMessageId provided) to avoid reverting to old content
+              if (!event.streamingMessageId) {
+                setTimeout(async () => {
+                  await loadMessages(true); // Force reload to get latest state
+                  console.log("ChatArea: Messages reloaded after completion");
+
+                  // Clear streaming state after reload to avoid flash
+                  streamingMessages = {};
+                  streamingThinkings = {};
+                  streamingCompleted = {};
+                  streamingFinished = {};
+                  _currentStreamingModels = [];
+                }, 100); // Small delay to ensure database writes are complete
+              } else {
+                console.log("ChatArea: Skipping reload for retry message");
+                // For retry messages, clear streaming state immediately since we already updated the message
+                streamingMessages = {};
+                streamingThinkings = {};
+                streamingCompleted = {};
+                streamingFinished = {};
+                _currentStreamingModels = [];
+              }
 
               // Scroll to bottom
               await tick();
@@ -704,7 +1270,7 @@
               streamingThinkings = {};
               streamingCompleted = {};
               streamingFinished = {};
-              currentStreamingModels = [];
+              _currentStreamingModels = [];
 
               // Cleanup AbortController after completion (with or without errors)
               conversationAbortControllers.delete(chatId);
@@ -723,7 +1289,7 @@
       streamingThinkings = {};
       streamingCompleted = {};
       streamingFinished = {};
-      currentStreamingModels = [];
+      _currentStreamingModels = [];
       isLoading = false;
       dispatch("error", { message: error });
 
@@ -732,8 +1298,151 @@
     }
   }
 
-  function handleRetry(event: { message: any }) {
-    handleSendMessage({ message: event.message.content });
+  function handleRetryModel(event: { providerName: string; apiFormat: string; model: string }) {
+    const { providerName, apiFormat, model } = event;
+    console.log("========================================");
+    console.log("Retrying model:", { providerName, apiFormat, model });
+    console.log("Current messages array:", messages.length, "messages");
+    console.log("currentViewingMessageIds:", $state.snapshot(currentViewingMessageIds));
+
+    // Debug: print all assistant messages
+    const assistantMessages = messages.filter(m => m.role === "assistant");
+    console.log("All assistant messages:", assistantMessages.map(m => ({
+      id: m.id,
+      provider_name: m.provider_name,
+      api_format: m.api_format,
+      model: m.model,
+      parent_message_id: (m as any).parent_message_id,
+      content: m.content.substring(0, 50) + "..."
+    })));
+
+    // Find the LAST assistant message that matches this model
+    // In multi-model scenarios, we want the most recent message for this model
+    let retryingMessageIndex = -1;
+    let retryingMessage = null;
+
+    // Search backwards through messages to find the most recent matching message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      console.log(`Checking message ${i}:`, {
+        id: msg.id,
+        role: msg.role,
+        provider_name: msg.provider_name,
+        api_format: msg.api_format,
+        model: msg.model,
+        matches: msg.role === "assistant" &&
+          msg.provider_name?.toLowerCase() === providerName.toLowerCase() &&
+          msg.api_format?.toLowerCase() === apiFormat.toLowerCase() &&
+          msg.model?.toLowerCase() === model.toLowerCase()
+      });
+
+      if (msg.role === "assistant" &&
+          msg.provider_name?.toLowerCase() === providerName.toLowerCase() &&
+          msg.api_format?.toLowerCase() === apiFormat.toLowerCase() &&
+          msg.model?.toLowerCase() === model.toLowerCase()) {
+        retryingMessageIndex = i;
+        retryingMessage = msg;
+        console.log("✓ Found matching message at index", i);
+        break;
+      }
+    }
+
+    console.log("Retry message search result:", {
+      retryingMessageIndex,
+      targetModel: `${providerName}-${apiFormat}-${model}`,
+      foundMessage: retryingMessageIndex !== -1 ? messages[retryingMessageIndex] : null
+    });
+
+    if (retryingMessageIndex !== -1 && retryingMessage) {
+      let userMessage: Message | null = null;
+
+      // Try to find user message using parent_message_id first (modern mode)
+      if ((retryingMessage as any).parent_message_id) {
+        userMessage = messages.find(m => m.id === (retryingMessage as any).parent_message_id) || null;
+        console.log("Found user message via parent_message_id:", userMessage?.id);
+      }
+
+      // Fallback: Find the user message by searching backwards from the retrying message
+      if (!userMessage) {
+        console.log("parent_message_id not found, searching backwards for user message...");
+        for (let i = retryingMessageIndex - 1; i >= 0; i--) {
+          const msg = messages[i];
+          console.log(`Checking message ${i} for user message:`, {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content.substring(0, 50)
+          });
+          if (msg.role === "user") {
+            userMessage = msg;
+            console.log("✓ Found user message by backwards search at index", i, ":", userMessage.id);
+            break;
+          }
+        }
+      }
+
+      if (userMessage && userMessage.role === "user") {
+        console.log("✓ Retrying message:", retryingMessage.id, "with userMessage:", userMessage.id);
+
+        // Create a new assistant message for the retry (new database record)
+        const newRetryMessageId = Date.now(); // Temporary ID for UI
+        console.log("Creating new retry message with temp ID:", newRetryMessageId);
+
+        // Add the new retry message to the messages array
+        const newRetryMessage: Message = {
+          id: newRetryMessageId,
+          role: "assistant",
+          content: "",
+          thinking: "",
+          isStreaming: true,
+          model: model,
+          provider_name: providerName,
+          api_format: apiFormat,
+          parent_message_id: userMessage.id,
+          input_tokens: null,
+          output_tokens: null,
+          created_at: new Date().toISOString()
+        };
+
+        messages = [...messages, newRetryMessage];
+
+        // Update navigation index to show the latest message (new retry)
+        const groupKey = `${userMessage.id}-${providerName}-${apiFormat}-${model}`;
+        currentViewingMessageIds = {
+          ...currentViewingMessageIds,
+          [groupKey]: newRetryMessageId
+        };
+
+        console.log("Updating navigation:", { groupKey, newRetryMessageId });
+        console.log("Updated currentViewingMessageIds:", $state.snapshot(currentViewingMessageIds));
+
+        // Start streaming new response
+        console.log("Calling handleSendMessage with streamingMessageId:", newRetryMessageId);
+        handleSendMessage({
+          message: userMessage.content,
+          userMessageId: userMessage.id,
+          selectedModels: [{ providerName, apiFormat, model }],
+          skipAddUserMessage: true,
+          appendToExisting: true,
+          streamingMessageId: newRetryMessageId
+        });
+
+        console.log("✓ Retry initiated with new message ID:", newRetryMessageId);
+        console.log("========================================");
+      } else {
+        console.error("✗ User message not found for retry");
+        console.log("========================================");
+      }
+    } else {
+      console.error("✗ Retry message not found");
+      console.warn("Retry message search details:", {
+        providerName,
+        apiFormat,
+        model,
+        totalMessages: messages.length,
+        assistantMessagesCount: assistantMessages.length
+      });
+      console.log("========================================");
+    }
   }
 
   async function handleEditMessage(event: { message: any; newContent: string }) {
@@ -939,9 +1648,9 @@
       </div>
     {:else}
       {@const messageGroups = getMessageGroups()}
-      {@const lastGroupIndex = messageGroups.length - 1}
-      {#each messageGroups as group, index}
-        {@const isLastGroup = index === lastGroupIndex}
+
+      {#each messageGroups as group}
+        <!-- Render user message only once per group (first occurrence) -->
         {#if group.userMessage}
           <MessageBubble
             message={group.userMessage}
@@ -949,65 +1658,153 @@
             showTokens={true}
             providerName={group.userMessage.provider_name ?? selectedProviderName ?? (conversation?.provider_name ?? null)}
             apiFormat={group.userMessage.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
-            onretry={handleRetry}
             onedit={handleEditMessage}
           />
         {/if}
 
-        <!-- Streaming messages for the last group only (if user message exists and streaming is active) -->
-        {#if isLastGroup && group.userMessage && Object.keys(streamingMessages).length > 0}
-          <div class="assistant-messages-grid">
-            {#each Object.entries(streamingMessages) as [index, content]}
-              {@const model = currentStreamingModels[parseInt(index)]}
-              {@const providerName = model.providerName}
-              {@const apiFormat = model.apiFormat}
-              {@const modelName = model.model}
-              <div class="assistant-message-column">
-                <MessageBubble
-                  message={{
-                    id: Date.now(),
-                    role: "assistant",
-                    content: content,
-                    thinking: streamingThinkings[parseInt(index)] || undefined,
-                    model: modelName,
-                    input_tokens: null,
-                    output_tokens: null,
-                    created_at: new Date().toISOString(),
-                    provider_name: providerName,
-                    api_format: apiFormat,
-                  } as any}
-                  isStreaming={!streamingFinished[parseInt(index)]}
-                  showModel={true}
-                  showTokens={false}
-                  providerName={providerName}
-                  apiFormat={apiFormat}
-                />
-              </div>
-            {/each}
-          </div>
-        {/if}
+        <!-- Render all assistant messages for this user message, grouped by model -->
+        {#if group.assistantMessages.length > 0 || Object.keys(streamingMessages).length > 0}
+          {@const groupedByModel = group.assistantMessages.reduce((acc, msg) => {
+            // Group messages by model configuration
+            // All retries of the same model should be in the same group
+            const baseKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
 
-        {#if group.assistantMessages.length > 0}
+            if (!acc[baseKey]) {
+              acc[baseKey] = [];
+            }
+            acc[baseKey].push(msg);
+            return acc;
+          }, {} as Record<string, typeof group.assistantMessages>)}
+
           <div class="assistant-messages-grid">
-            {#each group.assistantMessages as assistantMessage}
-              {@const isStreaming = `${assistantMessage.provider_name}-${assistantMessage.api_format}-${assistantMessage.model}` in streamingMessages}
-              {#if !isStreaming}
+            {#if group.assistantMessages.length > 0}
+              {#each Object.entries(groupedByModel) as [modelKey, modelGroupMessages]}
+                {@const groupKey = `${group.userMessage?.id}-${modelKey}`}
+                {@const currentMessageId = currentViewingMessageIds[groupKey]}
+                {@const currentIndex = currentMessageId !== null && currentMessageId !== undefined
+                  ? modelGroupMessages.findIndex(m => m.id === currentMessageId)
+                  : modelGroupMessages.length - 1}
+                {@const validIndex = currentIndex >= 0 ? currentIndex : modelGroupMessages.length - 1}
+                {@const currentMessage = modelGroupMessages[validIndex]}
+                {@const modelName = currentMessage?.model}
+                {@const providerName = currentMessage?.provider_name}
+                {@const apiFormat = currentMessage?.api_format}
+                {@const isStreaming = currentMessage ? (currentMessage.isStreaming || `${providerName}-${apiFormat}-${modelName}` in streamingMessages) : false}
+
+                {#if currentMessage}
+                  <!-- Calculate correct resultIndex and totalResults for this model group -->
+                  {@const resultIndex = validIndex}
+                  <!-- Each model should have independent navigation showing its own retry count -->
+                  {@const totalResults = modelGroupMessages.length}
+                  <!-- DEBUG: Log navigation calculation -->
+                  {console.log('Navigation Debug:', {
+                    userMessageId: group.userMessage?.id,
+                    modelKey,
+                    modelGroupMessagesCount: modelGroupMessages.length,
+                    modelGroupMessagesIds: modelGroupMessages.map(m => m.id),
+                    totalResults,
+                    validIndex,
+                    currentMessageId: currentMessage?.id
+                  })}
+                  <!-- Always show navigation for assistant messages, especially for retry functionality -->
+                  {@const shouldShowNav = true}
+
+                  <div class="assistant-message-column">
+                    <MessageBubble
+                      message={currentMessage}
+                      isStreaming={isStreaming}
+                      showModel={true}
+                      showTokens={!isStreaming}
+                      providerName={providerName ?? selectedProviderName ?? (conversation?.provider_name ?? null)}
+                      apiFormat={apiFormat ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
+                      onretryModel={handleRetryModel}
+                      onedit={handleEditMessage}
+                      resultIndex={resultIndex}
+                      totalResults={totalResults}
+                      showResultNavigation={shouldShowNav}
+                      onNavigatePrev={() => navigateResult(groupKey, 'prev', modelGroupMessages)}
+                      onNavigateNext={() => navigateResult(groupKey, 'next', modelGroupMessages)}
+                    />
+                  </div>
+                {/if}
+              {/each}
+            {:else if Object.keys(streamingMessages).length > 0}
+              <!-- Render streaming messages when no finalized messages yet -->
+              {#each Object.entries(streamingMessages) as [index, content]}
+                {@const model = _currentStreamingModels[Number(index)]}
+                {@const providerName = model.providerName}
+                {@const apiFormat = model.apiFormat}
+                {@const modelName = model.model}
+
+                <!-- Calculate correct resultIndex and totalResults for streaming messages -->
+                <!-- For streaming messages, we need to find the model group and calculate the correct index -->
+                {@const baseModelKey = `${providerName}-${apiFormat}-${modelName}`}
+                <!-- Find all assistant messages for THIS user message that match this model -->
+                <!-- Use the current group's userMessage, not all messages -->
+                {@const userMessage = group.userMessage}
+                {@const modelGroupMessagesForStreaming = messages.filter(msg =>
+                  msg.role === "assistant" &&
+                  msg.parent_message_id === userMessage?.id &&
+                  msg.provider_name === providerName &&
+                  msg.api_format === apiFormat &&
+                  msg.model === modelName
+                )}
+                <!-- Generate model key consistent with grouping logic (no instance suffix) -->
+                {@const modelKey = baseModelKey}
+                {@const groupKey = `${userMessage?.id}-${modelKey}`}
+                <!-- For streaming messages, show only the existing count (streaming message not saved yet) -->
+                <!-- If there are 0 existing messages, show 0/1 (0 saved, 1 total after save) -->
+                <!-- If there is 1 existing message, show 1/2 (1 saved, 2 total after save) -->
+                {@const currentStreamingIndex = modelGroupMessagesForStreaming.length}
+                {@const totalResultsForStreaming = modelGroupMessagesForStreaming.length + 1}
+                <!-- Always show navigation for streaming messages -->
+                {@const showResultNavigation = true}
+                <!-- DEBUG: Log streaming navigation calculation -->
+                {console.log('Streaming Navigation Debug:', {
+                  index,
+                  modelName,
+                  providerName,
+                  apiFormat,
+                  currentStreamingIndex,
+                  totalResultsForStreaming,
+                  userMessageId: userMessage?.id,
+                  existingMessagesCount: modelGroupMessagesForStreaming.length,
+                  modelKey,
+                  modelGroupMessagesIds: modelGroupMessagesForStreaming.map(m => m.id)
+                })}
                 <div class="assistant-message-column">
                   <MessageBubble
-                    message={assistantMessage}
+                    message={{
+                      id: Date.now() + Number(index),
+                      role: "assistant",
+                      content: content,
+                      thinking: streamingThinkings[Number(index)] || undefined,
+                      model: modelName,
+                      input_tokens: null,
+                      output_tokens: null,
+                      created_at: new Date().toISOString(),
+                      provider_name: providerName,
+                      api_format: apiFormat,
+                    } as any}
+                    isStreaming={!streamingFinished[Number(index)]}
                     showModel={true}
-                    showTokens={true}
-                    providerName={assistantMessage.provider_name ?? selectedProviderName ?? (conversation?.provider_name ?? null)}
-                    apiFormat={assistantMessage.api_format ?? selectedApiFormat ?? (conversation?.api_format ?? null)}
-                    onretry={handleRetry}
-                    onedit={handleEditMessage}
+                    showTokens={false}
+                    providerName={providerName}
+                    apiFormat={apiFormat}
+                    onretryModel={handleRetryModel}
+                    resultIndex={currentStreamingIndex}
+                    totalResults={totalResultsForStreaming}
+                    showResultNavigation={showResultNavigation}
+                    onNavigatePrev={() => navigateResult(groupKey, 'prev', modelGroupMessagesForStreaming)}
+                    onNavigateNext={() => navigateResult(groupKey, 'next', modelGroupMessagesForStreaming)}
                   />
                 </div>
-              {/if}
-            {/each}
+              {/each}
+            {/if}
           </div>
         {/if}
       {/each}
+
     {/if}
   </div>
 
@@ -1125,7 +1922,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 2rem;
-    padding-bottom: 2rem;
+    padding-bottom: 3rem; /* 增加底部间距，避免消息贴着底部 */
     background: linear-gradient(
       to bottom,
       var(--bg-secondary) 0%,

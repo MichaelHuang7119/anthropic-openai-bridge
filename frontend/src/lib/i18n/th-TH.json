@@ -92,6 +92,8 @@
     "modelConfig": "การตั้งค่าโมเดล",
     "modelConfigHelp": "กำหนดค่าโมเดลอย่างน้อยหนึ่งตัว แนะนำให้กำหนดค่าทั้งสามหมวดหมู่",
     "addModel": "เพิ่มโมเดล",
+    "updateModel": "อัปเดตโมเดล",
+    "editModel": "แก้ไขโมเดล",
     "addBigModel": "เพิ่มโมเดลใหญ่",
     "addMiddleModel": "เพิ่มโมเดลกลาง",
     "addSmallModel": "เพิ่มโมเดลเล็ก",
@@ -142,7 +144,13 @@
     "smallModel": "โมเดลเล็ก",
     "loadingModels": "กำลังโหลดการตั้งค่าโมเดล...",
     "placeholderSelectProvider": "กรุณาเลือกผู้ให้บริการ",
-    "selectedModels": "Selected Models"
+    "selectedModels": "โมเดลที่เลือก",
+    "updateModel": "อัปเดตโมเดล",
+    "editModel": "แก้ไขโมเดล",
+    "removeModel": "ลบโมเดล",
+    "modelsSelected": "เลือกโมเดลแล้ว",
+    "modelName": "ชื่อโมเดล",
+    "addModel": "เพิ่มโมเดล"
   },
   "messageInput": {
     "placeholder": "พิมพ์ข้อความ...",

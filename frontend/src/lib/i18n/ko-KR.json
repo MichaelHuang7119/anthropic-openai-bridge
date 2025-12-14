@@ -92,6 +92,8 @@
     "modelConfig": "모델 구성",
     "modelConfigHelp": "최소 하나 이상의 모델을 구성하고, 세 가지 카테고리 모두를 구성하는 것을 권장합니다",
     "addModel": "모델 추가",
+    "updateModel": "모델 업데이트",
+    "editModel": "모델 편집",
     "addBigModel": "대형 모델 추가",
     "addMiddleModel": "중형 모델 추가",
     "addSmallModel": "소형 모델 추가",
@@ -142,7 +144,13 @@
     "smallModel": "소형 모델",
     "loadingModels": "모델 구성 로딩 중...",
     "placeholderSelectProvider": "프로바이더를 선택하세요",
-    "selectedModels": "Selected Models"
+    "selectedModels": "선택된 모델",
+    "updateModel": "모델 업데이트",
+    "editModel": "모델 편집",
+    "removeModel": "모델 삭제",
+    "modelsSelected": "모델 선택됨",
+    "modelName": "모델 이름",
+    "addModel": "모델 추가"
   },
   "messageInput": {
     "placeholder": "메시지 입력...",

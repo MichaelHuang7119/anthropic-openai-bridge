@@ -92,6 +92,8 @@
     "modelConfig": "إعدادات النموذج",
     "modelConfigHelp": "قم بتهيئة نموذج واحد على الأقل، يوصى بتهيئة الفئات الثلاث",
     "addModel": "إضافة نموذج",
+    "updateModel": "تحديث النموذج",
+    "editModel": "تحرير النموذج",
     "addBigModel": "إضافة نموذج كبير",
     "addMiddleModel": "إضافة نموذج متوسط",
     "addSmallModel": "إضافة نموذج صغير",
@@ -142,7 +144,13 @@
     "smallModel": "النماذج الصغيرة",
     "loadingModels": "جاري تحميل إعدادات النماذج...",
     "placeholderSelectProvider": "يرجى اختيار مزود خدمة",
-    "selectedModels": "Selected Models"
+    "selectedModels": "النماذج المحددة",
+    "updateModel": "تحديث النموذج",
+    "editModel": "تحرير النموذج",
+    "removeModel": "حذف النموذج",
+    "modelsSelected": "النماذج المحددة",
+    "modelName": "اسم النموذج",
+    "addModel": "إضافة نموذج"
   },
   "messageInput": {
     "placeholder": "اكتب رسالة...",

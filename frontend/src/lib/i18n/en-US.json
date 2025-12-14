@@ -143,6 +143,8 @@
     "loadingModels": "Loading model configuration...",
     "placeholderSelectProvider": "Please select a provider",
     "addModel": "Add Model",
+    "updateModel": "Update Model",
+    "editModel": "Edit Model",
     "removeModel": "Remove Model",
     "selectedModels": "Selected Models",
     "modelsSelected": "Selected Models",

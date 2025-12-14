@@ -59,6 +59,7 @@ class MessageCreate(BaseModel):
     output_tokens: Optional[int] = None
     provider_name: Optional[str] = None
     api_format: Optional[str] = None
+    parent_message_id: Optional[int] = None
 
 class ConversationResponse(BaseModel):
     """Conversation response model."""
@@ -83,6 +84,7 @@ class MessageResponse(BaseModel):
     created_at: str = Field(..., description="ISO 8601 Beijing time (UTC+8)")
     provider_name: Optional[str]
     api_format: Optional[str]
+    parent_message_id: Optional[int] = None
 
 class ConversationDetailResponse(BaseModel):
     """Detailed conversation response with messages."""
@@ -378,6 +380,7 @@ async def add_message(
             output_tokens=message_data.output_tokens,
             provider_name=message_data.provider_name,
             api_format=message_data.api_format,
+            parent_message_id=message_data.parent_message_id,
         )
 
         if not message_id:

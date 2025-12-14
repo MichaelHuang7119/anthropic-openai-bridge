@@ -92,6 +92,8 @@
     "modelConfig": "Konfigurasi Model",
     "modelConfigHelp": "Konfigurasi minimal satu model, direkomendasikan untuk mengkonfigurasi ketiga kategori",
     "addModel": "Tambah Model",
+    "updateModel": "Perbarui Model",
+    "editModel": "Sunting Model",
     "addBigModel": "Tambah Model Besar",
     "addMiddleModel": "Tambah Model Menengah",
     "addSmallModel": "Tambah Model Kecil",
@@ -142,7 +144,13 @@
     "smallModel": "Model Kecil",
     "loadingModels": "Memuat konfigurasi model...",
     "placeholderSelectProvider": "Silakan pilih penyedia",
-    "selectedModels": "Selected Models"
+    "selectedModels": "Model Terpilih",
+    "updateModel": "Perbarui Model",
+    "editModel": "Sunting Model",
+    "removeModel": "Hapus Model",
+    "modelsSelected": "Model Dipilih",
+    "modelName": "Nama Model",
+    "addModel": "Tambah Model"
   },
   "messageInput": {
     "placeholder": "Ketik pesan...",

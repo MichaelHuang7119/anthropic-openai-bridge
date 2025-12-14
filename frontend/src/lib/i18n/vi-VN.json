@@ -92,6 +92,8 @@
     "modelConfig": "Cấu hình mô hình",
     "modelConfigHelp": "Cấu hình ít nhất một mô hình, khuyến nghị cấu hình cả ba danh mục",
     "addModel": "Thêm mô hình",
+    "updateModel": "Cập nhật mô hình",
+    "editModel": "Chỉnh sửa mô hình",
     "addBigModel": "Thêm mô hình lớn",
     "addMiddleModel": "Thêm mô hình trung bình",
     "addSmallModel": "Thêm mô hình nhỏ",
@@ -142,7 +144,13 @@
     "smallModel": "Mô hình nhỏ",
     "loadingModels": "Đang tải cấu hình mô hình...",
     "placeholderSelectProvider": "Vui lòng chọn một nhà cung cấp",
-    "selectedModels": "Selected Models"
+    "selectedModels": "Mô hình đã chọn",
+    "updateModel": "Cập nhật mô hình",
+    "editModel": "Chỉnh sửa mô hình",
+    "removeModel": "Xóa mô hình",
+    "modelsSelected": "Đã chọn mô hình",
+    "modelName": "Tên mô hình",
+    "addModel": "Thêm mô hình"
   },
   "messageInput": {
     "placeholder": "Nhập tin nhắn...",

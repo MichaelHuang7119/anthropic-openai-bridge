@@ -92,6 +92,8 @@
     "modelConfig": "モデル設定",
     "modelConfigHelp": "少なくとも1つのモデルを設定し、3つのカテゴリすべてを設定することを推奨します",
     "addModel": "モデル追加",
+    "updateModel": "モデル更新",
+    "editModel": "モデル編集",
     "addBigModel": "大規模モデル追加",
     "addMiddleModel": "中規模モデル追加",
     "addSmallModel": "小規模モデル追加",
@@ -142,7 +144,13 @@
     "smallModel": "小規模モデル",
     "loadingModels": "モデル設定を読み込み中...",
     "placeholderSelectProvider": "プロバイダーを選択してください",
-    "selectedModels": "Selected Models"
+    "addModel": "モデル追加",
+    "updateModel": "モデル更新",
+    "editModel": "モデル編集",
+    "removeModel": "モデル削除",
+    "selectedModels": "選択済みモデル",
+    "modelsSelected": "選択済みモデル",
+    "modelName": "モデル名"
   },
   "messageInput": {
     "placeholder": "メッセージを入力...",
