@@ -30,9 +30,51 @@
     onModelsSelected: _onModelsSelected,
   }: Props = $props();
 
+  // 检测是否为移动端 - 必须在模块作用域中定义
+  function isMobile(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 768;
+  }
+
+  // 初始状态始终为折叠
   let isExpanded = $state(false);
   let selectorElement: HTMLDivElement;
   let editingIndex = $state<number | null>(null);
+
+  // 检查是否在客户端
+  let isClient = $state(false);
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      isClient = true;
+    }
+  });
+
+  // 在移动端也允许展开状态切换
+  // 但移动端有特殊的展示方式（底部弹出）
+
+  // 创建一个受控的展开状态
+  let controlledIsExpanded = $derived(isExpanded);
+
+  // 更新展开状态的函数
+  function setExpanded(value: boolean) {
+    isExpanded = value;
+  }
+
+  // 监听窗口大小变化
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      // 窗口大小变化时，触发更新
+      // 通过读取 controlledIsExpanded 来触发响应式更新
+      void controlledIsExpanded;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  });
 
   interface ProviderConfig {
     name: string;
@@ -196,7 +238,8 @@
     }
 
     editingIndex = index;
-    isExpanded = true; // Auto-expand when editing
+    // 在移动端不自动展开，桌面端才自动展开
+    setExpanded(true);
     console.log("Editing model at index", index, ":", model);
   }
 
@@ -346,35 +389,32 @@
     }
   });
 
-  // Handle click outside to collapse
-  function handleDocumentClick(event: MouseEvent) {
-    if (isExpanded && selectorElement) {
-      // Check if click is outside the selector element
-      if (!selectorElement.contains(event.target as Node)) {
-        // If currently editing, cancel edit and reset to default state before closing
-        if (editingIndex !== null) {
-          cancelEdit(); // Reset to add model state
-        }
-        isExpanded = false;
-      }
-    }
-  }
-
-  // Add click outside handler when component mounts
+  // 点击外部关闭弹窗
   $effect(() => {
-    if (isExpanded) {
-      document.addEventListener('click', handleDocumentClick);
-      return () => {
-        document.removeEventListener('click', handleDocumentClick);
-      };
-    }
+    if (!isExpanded) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectorElement && !selectorElement.contains(event.target as Node)) {
+        setExpanded(false);
+      }
+    };
+
+    // 延迟添加监听器，避免立即触发
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
   });
 
-  function toggleExpanded(event?: MouseEvent) {
+  function toggleExpanded(event?: Event) {
     if (event) {
       event.stopPropagation();
     }
-    isExpanded = !isExpanded;
+    setExpanded(!isExpanded);
   }
 
   // Handle provider selection
@@ -436,16 +476,22 @@
       <span class="header-value">
         {#if selectedModels.length > 0}
           <div class="selected-models-preview">
-            {#each selectedModels.slice(0, 2) as model, i}
+            {#if selectedModels.length === 1}
               <span class="selected-model-tag">
-                {formatModelDisplay(model)}
-                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(i); }} title={t('modelSelector.removeModel')}>
+                {formatModelDisplay(selectedModels[0])}
+                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(0); }} title={t('modelSelector.removeModel')}>
                   ×
                 </button>
               </span>
-            {/each}
-            {#if selectedModels.length > 2}
-              <span class="more-models">+{selectedModels.length - 2}</span>
+            {:else}
+              <!-- 显示第一个模型，其余显示为 +n -->
+              <span class="selected-model-tag">
+                {formatModelDisplay(selectedModels[0])}
+                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(0); }} title={t('modelSelector.removeModel')}>
+                  ×
+                </button>
+              </span>
+              <span class="more-models">+{selectedModels.length - 1}</span>
             {/if}
           </div>
         {:else}
@@ -453,13 +499,13 @@
         {/if}
       </span>
     </div>
-    <div class="expand-icon" class:expanded={isExpanded}>
+    <div class="expand-icon" class:expanded={controlledIsExpanded}>
       ▼
     </div>
   </div>
 
   <!-- Expanded Content -->
-  {#if isExpanded}
+  {#if controlledIsExpanded}
     <div class="expanded-content">
       {#if loading}
         <div class="loading">{t('modelSelector.loadingModels')}</div>
@@ -490,7 +536,7 @@
 
         <!-- Model Selection Form -->
         <div class="selector-row">
-          <div class="selector-group">
+          <div class="selector-group provider-group">
             <label for="provider-select">{t('modelSelector.provider')}</label>
             <SlidingList
               options={providerOptions}
@@ -499,20 +545,24 @@
               onChange={handleProviderChange}
               searchable={true}
               searchPlaceholder={t('common.searchProvider')}
+              maxHeight="40vh"
+              isInBottomSheet={isMobile() && isExpanded}
             />
           </div>
 
-          <div class="selector-group">
+          <div class="selector-group category-group">
             <label for="category-select">{t('modelSelector.category')}</label>
             <SlidingList
               options={categoryOptions}
               value={selectedCategory}
               placeholder={t('modelSelector.selectCategory')}
               onChange={handleCategoryChange}
+              maxHeight="30vh"
+              isInBottomSheet={isMobile() && isExpanded}
             />
           </div>
 
-          <div class="selector-group">
+          <div class="selector-group model-group">
             <label for="model-select">{t('modelSelector.model')}</label>
             <SlidingList
               options={modelOptions}
@@ -521,6 +571,8 @@
               onChange={handleModelChange}
               searchable={true}
               searchPlaceholder={t('common.searchModel')}
+              maxHeight="40vh"
+              isInBottomSheet={isMobile() && isExpanded}
             />
           </div>
         </div>
@@ -558,11 +610,11 @@
   .selector-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.1875rem 1rem 0.1875rem 0.5rem;
     cursor: pointer;
     user-select: none;
-    border-radius: 0.5rem;
+    border-radius: 0.375rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -570,6 +622,7 @@
     width: fit-content;
     max-width: calc(100vw - 4rem);
     position: relative;
+    line-height: 1.2;
   }
 
   .selector-header:hover {
@@ -594,37 +647,30 @@
   }
 
   .header-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     color: var(--text-tertiary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
     flex-shrink: 0;
+    line-height: 1.2;
   }
 
   .header-value {
-    font-size: 0.85rem;
+    font-size: 0.8125rem;
     color: var(--text-primary);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: calc(100vw - 10rem);
+    line-height: 1.2;
   }
 
   .placeholder {
     color: var(--text-tertiary);
     font-style: italic;
-  }
-
-  .expand-icon {
-    position: absolute;
-    right: 0.75rem;
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    flex-shrink: 0;
   }
 
   .expand-icon.expanded {
@@ -642,11 +688,16 @@
     border-radius: 0.75rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
     animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    padding: 1rem 2.5rem 1rem 1rem;
+    padding: 1rem 2.5rem 0.25rem 1rem;
     min-width: 600px;
     width: max-content;
     max-width: calc(100vw - 2rem);
-    z-index: 100;
+    z-index: 9999;
+    /* 确保弹窗内容不会溢出 */
+    overflow: visible;
+    /* 增强滚动体验 */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 
   @keyframes slideDown {
@@ -660,19 +711,47 @@
     }
   }
 
+  /* 桌面端滚动条样式 */
+  .expanded-content::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .expanded-content::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 5px;
+  }
+
+  .expanded-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 5px;
+    border: 2px solid var(--bg-tertiary);
+  }
+
+  .expanded-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+  }
+
   .selector-row {
     display: flex;
     gap: 1rem;
     align-items: flex-end;
-    flex-wrap: wrap;
+    /* 移除内部滚动，由弹窗容器处理滚动 */
+    flex-wrap: nowrap;
+    overflow: visible;
+    padding: 0.5rem 0;
+    position: relative;
+    /* 为滚动优化 - 防止收缩，确保内容可见 */
+    min-width: max-content;
   }
 
   .selector-group {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    min-width: 220px;
-    flex: 1;
+    min-width: 240px; /* 桌面端稍微缩小 */
+    flex: 0 0 auto; /* 防止收缩，保持固定宽度 */
+    width: 240px; /* 设置固定宽度 */
+    scroll-snap-align: start;
   }
 
   .selector-group label {
@@ -790,7 +869,8 @@
   .action-buttons {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0;
   }
 
   .add-model-btn {
@@ -837,8 +917,12 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* 防止换行 */
     margin-top: 0.25rem;
+    /* 添加水平滚动以防溢出 */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
 
   .selected-model-tag {
@@ -855,6 +939,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex-shrink: 0; /* 防止收缩 */
   }
 
   .remove-tag-btn {
@@ -882,6 +967,8 @@
     border-radius: 0.375rem;
     font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap; /* 防止换行 */
+    flex-shrink: 0;
   }
 
   .loading,
@@ -903,32 +990,344 @@
 
   @media (max-width: 768px) {
     .selector-header {
-      padding: 0.5rem 0.625rem;
-      max-width: calc(100vw - 2rem);
+      padding: 0.1875rem 0.5rem;
+      padding-right: 1.75rem; /* 为右侧图标留出更多空间 */
+      width: 100%; /* 让header占据全部可用宽度，而不是fit-content */
+      max-width: calc(100vw - 3rem); /* 显著增加右边界间距（48px） */
+      /* 移动端自适应高度，不设置固定最小高度 */
+      min-height: 0;
+      height: auto;
+      /* 增加与顶部导航栏的间距 */
+      margin-top: 1.5rem;
+      /* 确保内容不会超出边界 */
+      box-sizing: border-box;
+      line-height: 1.2;
     }
 
-    .header-value {
-      font-size: 0.8rem;
-      max-width: 150px;
+    .model-selector {
+      /* 确保容器也不会超出边界 */
+      max-width: calc(100vw - 0.75rem); /* 右侧留出边距 */
+      padding-right: 0.75rem; /* 增加右侧内边距 */
+      box-sizing: border-box;
+    }
+
+    .header-content {
+      max-width: calc(100vw - 5rem); /* 调整右侧间距，与header保持一致 */
     }
 
     .header-label {
-      font-size: 0.65rem;
+      font-size: 0.625rem;
+      line-height: 1.2;
     }
 
+    .header-value {
+      font-size: 0.8125rem;
+      max-width: calc(100vw - 5rem); /* 调整右侧间距，与header保持一致 */
+      line-height: 1.2;
+      /* 确保已选模型预览区域突破父容器限制 */
+    }
+
+    .selected-models-preview {
+      /* 在移动端使用更灵活的显示策略 */
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: nowrap; /* 防止换行 */
+      margin-top: 0.25rem;
+      /* 允许水平滚动，避免被父容器截断 */
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* 保持与header一致的右边界间距 */
+      max-width: calc(100vw - 3rem);
+      width: 100%;
+      /* 确保标签不会被隐藏 */
+      flex-shrink: 0;
+    }
+
+    .selected-model-tag {
+      /* 确保模型标签在移动端也不会被压缩 */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0; /* 防止收缩 */
+    }
+
+    .more-models {
+      /* 确保 "+n" 标签在移动端可见 */
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap; /* 防止换行 */
+      flex-shrink: 0;
+    }
+
+    .header-label {
+      font-size: 0.6875rem; /* 恢复默认标签字体大小 */
+      line-height: normal; /* 恢复默认行高 */
+    }
+
+    .expand-icon {
+      right: 0.75rem; /* 保持原右侧间距 */
+    }
+
+    /* 移动端展开内容 - 改为底部弹出式 */
     .expanded-content {
-      min-width: calc(100vw - 2rem);
-      max-width: calc(100vw - 2rem);
-      width: calc(100vw - 2rem);
+      position: fixed;
+      top: 8rem; /* 进一步增大与导航栏的间距：Header(56px) + 模型选择器(56px) + 额外176px */
+      left: 0;
+      right: 0;
+      margin: 0;
+      border-radius: 1rem 1rem 0 0;
+      /* 限制弹窗宽度，保持与其他区域一致的边界 */
+      width: 100vw;
+      max-width: 100vw;
+      min-width: 100vw;
+      padding: 1.5rem 1rem 0.5rem;
+      padding-left: max(1rem, env(safe-area-inset-left)); /* 考虑安全区域 */
+      padding-right: max(1rem, env(safe-area-inset-right)); /* 考虑安全区域 */
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); /* 考虑安全区域 */
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+      z-index: 9999; /* 最高层级，确保在最上层 */
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      /* 移动端内部内容滚动，弹窗本身不滚动 */
+      overflow-x: visible;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+      touch-action: auto; /* 改为auto，允许页面滚动 */
+      /* 确保内容不会超出边界 */
+      box-sizing: border-box;
+      /* 让弹窗高度根据内容自适应，而不是延伸到屏幕底部 */
+      max-height: calc(100vh - 8rem);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .selector-row {
-      flex-direction: column;
-      gap: 0.75rem;
+      /* 移动端移除内部滚动，由弹窗容器处理 */
+      flex-wrap: nowrap;
+      overflow: visible;
+      gap: 0.625rem; /* 稍微减少间距 */
+      padding: 0.75rem 0.5rem 0.75rem 0.5rem;
+      margin: 0;
+      /* 确保内容宽度与弹窗内容区域一致，考虑安全区域 */
+      width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      max-width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      /* 移除scroll-snap-align，防止干扰滚动 */
     }
 
     .selector-group {
-      min-width: 100%;
+      /* 移动端选择器自适应宽度，平分容器空间 */
+      flex: 1 1 0; /* flex-grow: 1, flex-shrink: 1, flex-basis: 0% */
+      min-width: 120px; /* 最小宽度，确保可读性 */
+      width: 0; /* 让flex分配空间 */
+      /* 确保选择器组不会超出边界 */
+      max-width: 100%;
+    }
+
+    /* 确保选择器组内的SlidingList也被限制宽度 */
+    .selector-group :global(.sliding-list) {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* 确保已选模型列表区域与选择器行宽度一致 */
+    .selected-models-section {
+      width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      max-width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      overflow-x: hidden; /* 防止内容超出 */
+    }
+
+    /* 确保按钮区域与选择器行宽度一致 */
+    .action-buttons {
+      width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      max-width: calc(100vw - 2rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      overflow-x: hidden; /* 防止内容超出 */
+    }
+
+    /* 确保选择器行内的内容也不会超出边界 */
+    .selector-row * {
+      box-sizing: border-box;
+    }
+
+    /* 移动端滚动条样式 */
+    .expanded-content::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .expanded-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .expanded-content::-webkit-scrollbar-thumb {
+      background: var(--primary-color);
+      border-radius: 3px;
+      opacity: 0.5;
+    }
+
+    /* 移动端按钮优化 */
+    .add-model-btn,
+    .cancel-edit-btn {
+      min-height: 40px;
+      font-size: 0.875rem;
+    }
+
+    /* 移动端模型列表优化 */
+    .selected-models-list {
+      max-height: 150px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .selector-header {
+      padding: 0.1875rem 0.5rem;
+      padding-right: 1.75rem; /* 为右侧图标留出更多空间 */
+      width: 100%; /* 让header占据全部可用宽度，而不是fit-content */
+      max-width: calc(100vw - 5rem); /* 显著增加右边界间距（80px） */
+      min-height: 0;
+      height: auto;
+      /* 确保内容不会超出边界 */
+      box-sizing: border-box;
+      line-height: 1.2;
+    }
+
+    .model-selector {
+      /* 确保容器也不会超出边界 */
+      max-width: calc(100vw - 0.75rem); /* 右侧留出边距 */
+      padding-right: 0.75rem; /* 增加右侧内边距 */
+      box-sizing: border-box;
+    }
+
+    .header-content {
+      max-width: calc(100vw - 5rem); /* 调整右侧间距，与header保持一致 */
+    }
+
+    .header-value {
+      font-size: 0.8125rem;
+      max-width: calc(100vw - 5rem); /* 调整右侧间距，与header保持一致 */
+    }
+
+    .selected-models-preview {
+      /* 在超小屏幕也使用灵活的显示策略 */
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: nowrap; /* 防止换行 */
+      margin-top: 0.25rem;
+      /* 允许水平滚动，避免被父容器截断 */
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* 保持与header一致的右边界间距 */
+      max-width: calc(100vw - 3rem);
+      width: 100%;
+      /* 确保标签不会被隐藏 */
+      flex-shrink: 0;
+    }
+
+    .selected-model-tag {
+      /* 确保模型标签在超小屏幕也不会被压缩 */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0; /* 防止收缩 */
+    }
+
+    .more-models {
+      /* 确保 "+n" 标签在超小屏幕可见 */
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap; /* 防止换行 */
+      flex-shrink: 0;
+    }
+
+    .expand-icon {
+      right: 0.375rem; /* 调整右侧图标位置 */
+    }
+
+    /* 超小屏幕保持底部弹出式 */
+    .expanded-content {
+      border-radius: 0.75rem 0.75rem 0 0;
+      max-height: calc(100vh - 10rem);
+      padding: 1rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+      padding-left: max(0.75rem, env(safe-area-inset-left));
+      padding-right: max(0.75rem, env(safe-area-inset-right));
+      /* 进一步增大与导航栏的间距 */
+      top: 10rem;
+      margin-top: 1rem;
+    }
+
+    .selector-row {
+      /* 超小屏幕移除内部滚动，进一步缩小间距 */
+      gap: 0.5rem;
+      padding: 0.5rem 0.25rem 0.5rem 0.25rem;
+      min-width: max-content;
+      /* 修正宽度计算，考虑安全区域 */
+      width: calc(100vw - 1.5rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+      max-width: calc(100vw - 1.5rem - max(0, env(safe-area-inset-left)) - max(0, env(safe-area-inset-right)));
+    }
+
+    .selector-group {
+      /* 超小屏幕选择器也使用自适应宽度 */
+      flex: 1 1 0; /* flex-grow: 1, flex-shrink: 1, flex-basis: 0% */
+      min-width: 120px; /* 最小宽度 */
+      width: 0; /* 让flex分配空间 */
+      /* 确保选择器组不会超出边界 */
+      max-width: 100%;
+    }
+
+    /* 超小屏幕按钮优化 */
+    .action-buttons {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .add-model-btn,
+    .cancel-edit-btn {
+      width: 100%;
+      min-height: 40px;
+      font-size: 0.875rem;
     }
   }
 </style>

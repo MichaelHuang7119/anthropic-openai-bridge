@@ -1820,13 +1820,17 @@
   {/if}
 
   <div class="input-container">
-    {#if conversation}
+    {#if conversation && selectedModels.length > 0}
       <MessageInput
         disabled={isLoading}
         placeholder={t('messageInput.placeholder')}
         hasMessages={messages.length > 0}
         onsend={handleSendMessage}
       />
+    {:else if conversation && selectedModels.length === 0}
+      <div class="no-model-prompt">
+        <p>{t('chatArea.selectModelFirst')}</p>
+      </div>
     {:else}
       <div class="no-conversation-prompt">
         <p>{t('chatArea.startConversation')}</p>
@@ -1853,6 +1857,8 @@
     gap: 0.75rem;
     padding: 1rem;
     padding-left: 1rem;
+    position: relative;
+    z-index: 9998;
   }
 
   .expand-sidebar-btn {
@@ -1937,6 +1943,17 @@
     background: var(--bg-primary);
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .no-model-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100px;
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
   }
 
   /* Custom scrollbar */
@@ -2289,9 +2306,50 @@
 
   /* Mobile styles */
   @media (max-width: 768px) {
+    /* 移动端布局调整：模型选择器固定在顶部 */
+    .chat-area {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 10; /* 确保在背景之上 */
+    }
+
+    /* 模型选择器固定在顶部，不随滚动移动 */
+    .model-selector-container {
+      position: sticky;
+      top: 3.5rem; /* 距离顶部56px，给Header留出空间 */
+      z-index: 20;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem; /* 恢复默认内边距 */
+      gap: 0.5rem; /* 恢复默认间距 */
+      flex-shrink: 0;
+    }
+
+    /* 消息列表区域可滚动 */
     .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
       padding: 1rem;
       background: var(--bg-secondary);
+      min-height: 0; /* 重要：让flex子项可以收缩 */
+    }
+
+    .messages-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    /* 输入框固定在底部 */
+    .input-container {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      flex-shrink: 0;
     }
 
     .welcome h2 {
@@ -2300,15 +2358,6 @@
 
     .welcome p {
       font-size: 0.9rem;
-    }
-
-    .messages-container::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .model-selector-container {
-      padding: 0.75rem;
-      gap: 0.5rem;
     }
 
     .expand-sidebar-btn {

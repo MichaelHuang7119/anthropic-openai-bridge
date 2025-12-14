@@ -96,7 +96,7 @@
   <main class="main">
     {@render children()}
   </main>
-  {#if $page.url.pathname !== '/login'}
+  {#if $page.url.pathname !== '/login' && $page.url.pathname !== '/chat'}
     <footer class="footer">
       <p>© 2025 Anthropic OpenAI Bridge.</p>
     </footer>
@@ -129,9 +129,24 @@
     flex-direction: column;
   }
 
+  /* 移动端聊天布局优化 - 确保Header可见 */
+  @media (max-width: 768px) {
+    :global(.chat-layout) .app {
+      height: 100dvh;
+      overflow: auto; /* 允许页面滚动 */
+    }
+
+    :global(.chat-layout) .main {
+      flex: 1;
+      overflow: auto; /* 允许main区域滚动 */
+      padding: 0;
+      min-height: 0;
+    }
+  }
+
   @media (max-width: 768px) {
     .main {
-      padding: 1rem 0;
+      padding: 1rem 0 3rem; /* 增加底部padding为footer留出空间 */
     }
   }
 
@@ -141,12 +156,27 @@
     padding: 0.5rem 0;
     text-align: center;
     color: var(--text-secondary);
+    /* 确保footer始终可见 */
+    position: relative;
+    z-index: 5;
   }
 
   .footer p {
     margin: 0;
     font-size: 0.875rem;
     color: rgba(66, 153, 225, 0.6);
+  }
+
+  /* 移动端footer优化 */
+  @media (max-width: 768px) {
+    .footer {
+      padding: 0.75rem 0;
+      margin-bottom: env(safe-area-inset-bottom); /* 考虑安全区域 */
+    }
+
+    .footer p {
+      font-size: 0.8125rem;
+    }
   }
 
   .nav-link {

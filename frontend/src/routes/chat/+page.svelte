@@ -47,7 +47,34 @@
   let sidebar: ConversationSidebar;
   let chatArea: ChatArea;
 
+  // 检测是否为移动端
+  function isMobile(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 768;
+  }
+
   let sidebarCollapsed = $state(false);
+
+  // 在移动端默认折叠侧边栏
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      sidebarCollapsed = isMobile();
+    }
+  });
+
+  // 监听窗口大小变化，保持移动端折叠状态
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      sidebarCollapsed = isMobile();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  });
 
   // 获取翻译函数
   const t = $derived($tStore);
@@ -530,33 +557,106 @@
   /* Mobile styles */
   @media (max-width: 768px) {
     .chat-page {
-      height: 100dvh; /* Use dynamic viewport height for mobile */
+      /* 移动端布局优化 - 移除固定高度，使用自适应高度 */
+      height: auto;
+      min-height: calc(100dvh - 120px); /* 减去Header高度（约80px）和footer高度（约40px） */
+      position: relative;
+      overflow: visible; /* 改为visible */
+      /* 移动端安全区域适配 */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     .chat-container {
       flex-direction: column;
+      height: 100%;
+      position: relative;
     }
 
     .sidebar {
       width: 100%;
-      height: 40vh;
-      max-height: 400px;
+      height: 45vh;
+      max-height: 50vh;
+      min-height: 200px;
       border-right: none;
       border-bottom: 2px solid var(--border-color);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 20;
+      /* 移动端侧边栏优化 */
+      padding-bottom: env(safe-area-inset-bottom);
+      /* 移动端滑动优化 */
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
 
     .main-content {
       flex: 1;
       min-height: 0;
+      margin-left: 0; /* 移动端不需要偏移 */
+      /* 移动端主内容区优化 */
+      display: flex;
+      flex-direction: column;
+      height: calc(100% - 45vh);
+      overflow: hidden;
+      /* 移动端滚动优化 */
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* 移动端侧边栏展开状态 */
+    .sidebar.collapsed {
+      transform: translateY(-100%);
+      height: 0;
+      min-height: 0;
+      border-bottom: none;
+      box-shadow: none;
+    }
+
+    .sidebar.collapsed + .main-content {
+      height: 100%;
     }
   }
 
   /* Small mobile styles */
   @media (max-width: 480px) {
     .sidebar {
-      height: 35vh;
-      max-height: 300px;
+      height: 40vh;
+      max-height: 45vh;
+      min-height: 180px;
+    }
+
+    .main-content {
+      height: calc(100% - 40vh);
+    }
+
+    /* 小屏幕优化 */
+    .chat-page {
+      padding: 0;
+    }
+  }
+
+  /* 超小屏幕优化 */
+  @media (max-width: 360px) {
+    .sidebar {
+      height: 38vh;
+      max-height: 42vh;
+      min-height: 160px;
+    }
+
+    .main-content {
+      height: calc(100% - 38vh);
+    }
+  }
+
+  /* 移动端横屏优化 */
+  @media (max-width: 768px) and (orientation: landscape) {
+    .sidebar {
+      height: 65vh;
+      max-height: 70vh;
+      min-height: 150px;
+    }
+
+    .main-content {
+      height: calc(100% - 65vh);
     }
   }
 </style>
