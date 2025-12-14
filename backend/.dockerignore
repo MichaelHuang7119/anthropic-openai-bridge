@@ -23,14 +23,11 @@ MANIFEST
 venv/
 ENV/
 env/
-
-# Node.js
-node_modules/
-dist/
-build/
-*.log
-.npm
-.pnpm-debug.log*
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
 
 # IDE
 .vscode/
@@ -49,18 +46,17 @@ Thumbs.db
 
 # Documentation
 *.md
-!package.json
 !README.md
 
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
+# Environment files
+.env
+.env.local
+.env.*.local
+provider.json
 
-# Backend specific
-backend/venv/
-backend/.pytest_cache/
-backend/tests/
-
-# Frontend specific
-frontend/.svelte-kit/
+# Data files
+data/
+!data/.gitkeep
+logs/
+!logs/.gitkeep
+encryption_key

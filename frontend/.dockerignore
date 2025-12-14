@@ -1,0 +1,30 @@
+# Node.js
+node_modules/
+dist/
+build/
+*.log
+.npm
+.pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!package.json
+!README.md
+
+# SvelteKit
+.svelte-kit/
