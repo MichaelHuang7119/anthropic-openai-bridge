@@ -1445,12 +1445,22 @@
     }
   }
 
-  async function handleEditMessage(event: { message: any; newContent: string }) {
+  async function handleEditMessage(event: { message: any; newContent: string; saveOnly?: boolean }) {
     if (!conversation) return;
 
-    const { message, newContent } = event;
+    const { message, newContent, saveOnly = false } = event;
 
     try {
+      console.log("ChatArea: handleEditMessage called:", { messageId: message.id, newContent, saveOnly });
+
+      // Check if currently streaming - if so, don't allow editing
+      const hasActiveStreaming = Object.keys(streamingMessages).length > 0;
+      if (hasActiveStreaming) {
+        console.warn("ChatArea: Cannot edit message while streaming is active");
+        dispatch("error", { message: "Please wait for the current response to finish before editing messages" });
+        return;
+      }
+
       // Update the message in the local state
       messages = messages.map((msg) =>
         msg.id === message.id ? { ...msg, content: newContent } : msg
@@ -1466,20 +1476,35 @@
         dispatch("conversationUpdate", { conversation: updatedConversation });
       }
 
-      // Retry the message (send it again with the new content)
-      // Remove the old assistant message if it exists
+      // If saveOnly is true, only save and don't send request
+      if (saveOnly) {
+        console.log("ChatArea: Save only mode - not sending request");
+        return;
+      }
+
+      // If saveOnly is false, proceed with sending the request
+      // Remove all assistant messages that came after this user message
+      // because the conversation history has changed
       const messageIndex = messages.findIndex((msg) => msg.id === message.id);
-      if (messageIndex !== -1 && messageIndex < messages.length - 1) {
-        // Check if next message is an assistant message that was a response to this message
-        const nextMessage = messages[messageIndex + 1];
-        if (nextMessage && nextMessage.role === "assistant") {
-          // Remove the assistant message that followed this user message
-          messages = messages.filter((msg) => msg.id !== nextMessage.id);
+      if (messageIndex !== -1) {
+        // Find all assistant messages after this user message
+        const assistantMessagesToRemove = messages
+          .slice(messageIndex + 1)
+          .filter(msg => msg.role === "assistant");
+
+        console.log("ChatArea: Removing assistant messages:", assistantMessagesToRemove.map(m => m.id));
+
+        // Remove them from the local state
+        if (assistantMessagesToRemove.length > 0) {
+          const messagesToKeep = messages.slice(0, messageIndex + 1);
+          messages = messagesToKeep;
         }
       }
 
       // Now resend with new content
+      console.log("ChatArea: Resending edited message");
       await handleSendMessage({ message: newContent });
+      console.log("ChatArea: Edit and resend completed");
     } catch (err) {
       error = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to edit message:", err);

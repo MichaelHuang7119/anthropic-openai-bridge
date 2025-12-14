@@ -35,7 +35,7 @@
     providerName?: string | null;
     apiFormat?: string | null;
     onretryModel?: (event: { providerName: string; apiFormat: string; model: string }) => void;
-    onedit?: (event: { message: Message; newContent: string }) => void;
+    onedit?: (event: { message: Message; newContent: string; saveOnly?: boolean }) => void;
     resultIndex?: number;
     totalResults?: number;
     showResultNavigation?: boolean;
@@ -247,11 +247,38 @@
     editContent = message.content;
   }
 
-  function handleSendEdit() {
-    if (editContent.trim() && editContent !== message.content) {
-      onedit?.({ message, newContent: editContent });
+  function handleSaveEdit() {
+    const trimmedContent = editContent.trim();
+    if (!trimmedContent) {
+      // If empty, just cancel editing
       isEditing = false;
+      editContent = message.content;
+      return;
     }
+
+    // Close edit mode immediately to prevent double-clicks
+    isEditing = false;
+
+    if (trimmedContent !== message.content) {
+      // Save and close edit mode - don't send request
+      onedit?.({ message, newContent: trimmedContent, saveOnly: true });
+    }
+  }
+
+  function handleSendEdit() {
+    const trimmedContent = editContent.trim();
+    if (!trimmedContent) {
+      // If empty, just cancel editing
+      isEditing = false;
+      editContent = message.content;
+      return;
+    }
+
+    // Close edit mode immediately to prevent double-clicks
+    isEditing = false;
+
+    // Always save and send - close edit mode and send request (even if content unchanged)
+    onedit?.({ message, newContent: trimmedContent, saveOnly: false });
   }
 
   function handleCancelEdit() {
@@ -392,6 +419,7 @@
             class="edit-textarea"
             rows="3"
             placeholder={t('messageInput.placeholder')}
+            disabled={isStreaming}
             onkeydown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -404,15 +432,15 @@
           ></textarea>
           <div class="edit-actions">
             <div class="edit-actions-left">
-              <button class="edit-btn-primary" onclick={handleSendEdit}>
+              <button class="edit-btn-primary" onclick={handleSaveEdit} disabled={isStreaming}>
                 {t('common.save')}
               </button>
             </div>
             <div class="edit-actions-right">
-              <button class="edit-btn-primary" onclick={handleSendEdit}>
-                {t('messageInput.send')}
+              <button class="edit-btn-primary" onclick={handleSendEdit} disabled={isStreaming} title={isStreaming ? t('messageBubble.generating') : ''}>
+                {isStreaming ? t('messageBubble.generating') : t('messageInput.send')}
               </button>
-              <button class="edit-btn-secondary" onclick={handleCancelEdit}>
+              <button class="edit-btn-secondary" onclick={handleCancelEdit} disabled={isStreaming}>
                 {t('messageBubble.cancel')}
               </button>
             </div>
@@ -1289,6 +1317,25 @@
   .edit-btn-secondary:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+  }
+
+  .edit-btn-primary:disabled,
+  .edit-btn-secondary:disabled,
+  .edit-textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .edit-textarea:disabled {
+    background: var(--bg-tertiary);
+  }
+
+  .edit-btn-primary:disabled:hover,
+  .edit-btn-secondary:disabled:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
   @media (max-width: 768px) {
