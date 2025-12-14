@@ -99,10 +99,8 @@
 
     const models =
       provider.models[selectedCategory as keyof ProviderConfig["models"]];
-    // Sort models alphabetically - create a copy to avoid mutating the original array
-    return [...(models || [])].sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase())
-    );
+    // Return models in the order stored in the backend (no sorting)
+    return [...(models || [])];
   }
 
   // Compute available models reactively
