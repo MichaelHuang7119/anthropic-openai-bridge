@@ -763,9 +763,15 @@ pre code {
   }
 
   /* 横屏时减少垂直间距 */
-  h1 { font-size: 1.375rem; }
-  h2 { font-size: 1.25rem; }
-  h3 { font-size: 1.125rem; }
+  h1 {
+    font-size: 1.375rem;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
+  h3 {
+    font-size: 1.125rem;
+  }
 
   /* 横屏时按钮可小一些 */
   button,
@@ -782,9 +788,15 @@ pre code {
   }
 
   /* 超小屏幕文本优化 */
-  h1 { font-size: 1.25rem; }
-  h2 { font-size: 1.125rem; }
-  h3 { font-size: 1rem; }
+  h1 {
+    font-size: 1.25rem;
+  }
+  h2 {
+    font-size: 1.125rem;
+  }
+  h3 {
+    font-size: 1rem;
+  }
 
   /* 超小屏幕按钮优化 */
   button,

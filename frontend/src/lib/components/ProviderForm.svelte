@@ -34,27 +34,32 @@
     api_format: 'openai' // Default to 'openai' for backward compatibility
   });
 
+  // Create a reactive reference to provider to avoid stale values
+  let currentProvider = $derived(provider);
+
   // Initialize form data if editing
-  if (provider) {
-    formData = {
-      name: provider.name,
-      enabled: provider.enabled,
-      priority: provider.priority,
-      api_key: provider.api_key,
-      base_url: provider.base_url,
-      api_version: provider.api_version || null,
-      timeout: provider.timeout,
-      max_retries: provider.max_retries,
-      custom_headers: { ...provider.custom_headers },
-      models: {
-        big: [...(provider.models.big || [])],
-        middle: [...(provider.models.middle || [])],
-        small: [...(provider.models.small || [])]
-      },
-      // Use the provided api_format or the provider's api_format, default to 'openai' if neither
-      api_format: (provider.api_format || apiFormat || 'openai') as 'openai' | 'anthropic'
-    };
-  }
+  $effect(() => {
+    if (currentProvider) {
+      formData = {
+        name: currentProvider.name,
+        enabled: currentProvider.enabled,
+        priority: currentProvider.priority,
+        api_key: currentProvider.api_key,
+        base_url: currentProvider.base_url,
+        api_version: currentProvider.api_version || null,
+        timeout: currentProvider.timeout,
+        max_retries: currentProvider.max_retries,
+        custom_headers: { ...currentProvider.custom_headers },
+        models: {
+          big: [...(currentProvider.models.big || [])],
+          middle: [...(currentProvider.models.middle || [])],
+          small: [...(currentProvider.models.small || [])]
+        },
+        // Use the provided api_format or the provider's api_format, default to 'openai' if neither
+        api_format: (currentProvider.api_format || apiFormat || 'openai') as 'openai' | 'anthropic'
+      };
+    }
+  });
 
   let errors: Record<string, string> = $state({});
   let showApiKey = $state(false);
@@ -78,7 +83,7 @@
 
   // Update api_format when apiFormat prop changes (for new providers)
   $effect(() => {
-    if (!provider && apiFormat) {
+    if (!currentProvider && apiFormat) {
       formData.api_format = apiFormat as 'openai' | 'anthropic';
     }
   });

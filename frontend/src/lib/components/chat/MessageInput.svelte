@@ -11,9 +11,12 @@
   // 获取翻译函数
   const t = $derived($tStore);
 
+  // Create a reactive reference to hasMessages to avoid stale values
+  let currentHasMessages = $derived(hasMessages);
+
   let message = $state("");
   let textarea: HTMLTextAreaElement | undefined = $state(undefined);
-  let showPrompts = $state(!hasMessages);
+  let showPrompts = $state(true);
   let selectedPromptIndex = $state<number | null>(null);
 
   let promptsScrollContainer: HTMLDivElement | undefined = $state(undefined);
@@ -27,6 +30,11 @@
     { icon: "📚", text: t('messageInput.prompts.summarize'), prompt: t('messageInput.prompts.summarizePrompt') },
     { icon: "🤔", text: t('messageInput.prompts.brainstorm'), prompt: t('messageInput.prompts.brainstormPrompt') },
   ]);
+
+  // Initialize showPrompts based on hasMessages
+  $effect(() => {
+    showPrompts = !currentHasMessages;
+  });
 
   // Auto-resize textarea
   $effect(() => {
@@ -142,10 +150,10 @@
   // Show prompts when input is empty and reset selection
   $effect(() => {
     // Only show prompts if no messages exist and input is empty
-    if (message.trim() === "" && !hasMessages) {
+    if (message.trim() === "" && !currentHasMessages) {
       showPrompts = true;
       selectedPromptIndex = null;
-    } else if (hasMessages) {
+    } else if (currentHasMessages) {
       // Hide prompts if there are messages
       showPrompts = false;
     }

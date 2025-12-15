@@ -32,11 +32,22 @@
     isInBottomSheet = false
   }: Props = $props();
 
+  interface FloatingStyles {
+    top?: string;
+    bottom?: string;
+    left?: string;
+    right?: string;
+    width?: string;
+    maxWidth?: string;
+    minWidth?: string;
+    maxHeight?: string;
+  }
+
   let isOpen = $state(false);
   let listElement: HTMLDivElement;
   let searchQuery = $state("");
   let floatingPosition = $state<'below' | 'above'>('below');
-  let floatingStyles = $state({});
+  let floatingStyles = $state<FloatingStyles>({});
 
   // 计算悬浮位置
   $effect(() => {
@@ -77,10 +88,18 @@
         const spaceBelowInMessages = messagesBottom - triggerBottom;
         const spaceAboveInMessages = triggerTop - messagesTop;
 
+        // 计算下拉菜单在messages-container内的边界限制
+        const menuTopLimit = messagesTop + 8; // 距离顶部最小距离
+        const menuBottomLimit = messagesBottom - 8; // 距离底部最小距离
+
         // 检查在触发器下方是否有足够空间（在 messages-container 内）
         if (spaceBelowInMessages > estimatedHeight) {
           // 在下方展开
           floatingPosition = 'below';
+          const maxHeight = Math.min(
+            messagesBottom - triggerBottom - 16,
+            menuBottomLimit - triggerBottom - 8
+          );
           floatingStyles = {
             top: `${triggerBottom + 8}px`,
             left: `${Math.max(maxLeft, triggerRect.left)}px`,
@@ -88,11 +107,15 @@
             bottom: 'auto',
             maxWidth: `${dropdownWidth}px`,
             minWidth: `${dropdownWidth}px`,
-            maxHeight: `${messagesBottom - triggerBottom - 16}px`
+            maxHeight: `${Math.max(150, maxHeight)}px`
           };
         } else if (spaceAboveInMessages > estimatedHeight) {
           // 在上方展开（在 messages-container 内）
           floatingPosition = 'above';
+          const maxHeight = Math.min(
+            triggerTop - messagesTop - 16,
+            triggerTop - menuTopLimit - 8
+          );
           floatingStyles = {
             bottom: `${viewportHeight - triggerTop + 8}px`,
             left: `${Math.max(maxLeft, triggerRect.left)}px`,
@@ -100,13 +123,14 @@
             top: 'auto',
             maxWidth: `${dropdownWidth}px`,
             minWidth: `${dropdownWidth}px`,
-            maxHeight: `${triggerTop - messagesTop - 16}px`
+            maxHeight: `${Math.max(150, maxHeight)}px`
           };
         } else {
-          // 在 messages-container 内空间都不够，选择空间较大的位置
+          // 在 messages-container 内空间都不够，选择空间较大的位置并限制高度
           if (spaceBelowInMessages > spaceAboveInMessages) {
             // 下方空间更大
             floatingPosition = 'below';
+            const maxHeight = Math.max(150, Math.min(spaceBelowInMessages - 16, menuBottomLimit - triggerBottom - 8));
             floatingStyles = {
               top: `${triggerBottom + 8}px`,
               left: `${Math.max(maxLeft, triggerRect.left)}px`,
@@ -114,11 +138,12 @@
               bottom: 'auto',
               maxWidth: `${dropdownWidth}px`,
               minWidth: `${dropdownWidth}px`,
-              maxHeight: `${Math.max(150, spaceBelowInMessages - 16)}px`
+              maxHeight: `${maxHeight}px`
             };
           } else {
             // 上方空间更大
             floatingPosition = 'above';
+            const maxHeight = Math.max(150, Math.min(spaceAboveInMessages - 16, triggerTop - menuTopLimit - 8));
             floatingStyles = {
               bottom: `${viewportHeight - triggerTop + 8}px`,
               left: `${Math.max(maxLeft, triggerRect.left)}px`,
@@ -126,7 +151,7 @@
               top: 'auto',
               maxWidth: `${dropdownWidth}px`,
               minWidth: `${dropdownWidth}px`,
-              maxHeight: `${Math.max(150, spaceAboveInMessages - 16)}px`
+              maxHeight: `${maxHeight}px`
             };
           }
         }
@@ -253,6 +278,7 @@
       style:max-width={isInBottomSheet && floatingStyles.maxWidth ? floatingStyles.maxWidth : undefined}
       style:min-width={isInBottomSheet && floatingStyles.minWidth ? floatingStyles.minWidth : undefined}
       onclick={(e) => e.stopPropagation()}
+      role="presentation"
     >
       <!-- Search box -->
       {#if searchable}
@@ -463,9 +489,9 @@
     bottom: auto;
     border-radius: 0.75rem;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 10001;
-    /* 确保容器不产生任何滚动条 */
-    overflow: visible !important;
+    z-index: 99999;
+    /* 确保内容不会溢出容器 */
+    overflow: hidden !important;
     -webkit-overflow-scrolling: touch;
     padding: 0;
   }
@@ -481,12 +507,14 @@
 
   /* 悬浮模式下 options-list 独立滚动容器 */
   .options-container.floating .options-wrapper {
-    /* 这是真正的滚动容器 */
+    /* 这是真正的滚动容器 - 确保内容不会溢出 */
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--text-tertiary) transparent;
     /* 动态高度在模板中设置 */
+    /* 防止内容溢出到容器外部 */
+    max-width: 100%;
   }
 
   .options-container.floating .options-wrapper::-webkit-scrollbar {
@@ -510,8 +538,11 @@
   /* options-list 只是内容容器，不处理滚动 */
   .options-container.floating .options-list {
     max-height: none;
-    overflow: visible;
+    overflow: hidden;
     padding: 0.5rem 0;
+    /* 确保选项不会溢出容器 */
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* 超小屏幕悬浮调整 */
@@ -602,6 +633,15 @@
     transition: all 0.15s;
     min-height: 48px;
     position: relative;
+    /* 确保选项内容不会溢出 */
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  /* 悬浮模式下选项样式调整 */
+  .options-container.floating .option {
+    /* 保持一致的宽度约束 */
+    max-width: 100%;
   }
 
   .option-label,

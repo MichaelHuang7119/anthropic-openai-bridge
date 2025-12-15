@@ -42,10 +42,10 @@
   let editingIndex = $state<number | null>(null);
 
   // 检查是否在客户端
-  let isClient = $state(false);
+  let _isClient = $state(false);
   $effect(() => {
     if (typeof window !== 'undefined') {
-      isClient = true;
+      _isClient = true;
     }
   });
 
@@ -479,17 +479,11 @@
             {#if selectedModels.length === 1}
               <span class="selected-model-tag">
                 {formatModelDisplay(selectedModels[0])}
-                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(0); }} title={t('modelSelector.removeModel')}>
-                  ×
-                </button>
               </span>
             {:else}
               <!-- 显示第一个模型，其余显示为 +n -->
               <span class="selected-model-tag">
                 {formatModelDisplay(selectedModels[0])}
-                <button class="remove-tag-btn" onclick={(e) => { e.stopPropagation(); removeModelFromSelection(0); }} title={t('modelSelector.removeModel')}>
-                  ×
-                </button>
               </span>
               <span class="more-models">+{selectedModels.length - 1}</span>
             {/if}
@@ -498,9 +492,6 @@
           <span class="placeholder">{t('modelSelector.placeholderSelectProvider')}</span>
         {/if}
       </span>
-    </div>
-    <div class="expand-icon" class:expanded={controlledIsExpanded}>
-      ▼
     </div>
   </div>
 
@@ -671,10 +662,6 @@
   .placeholder {
     color: var(--text-tertiary);
     font-style: italic;
-  }
-
-  .expand-icon.expanded {
-    transform: rotate(180deg);
   }
 
   /* Expanded Content */
@@ -918,7 +905,6 @@
     gap: 0.5rem;
     align-items: center;
     flex-wrap: nowrap; /* 防止换行 */
-    margin-top: 0.25rem;
     /* 添加水平滚动以防溢出 */
     overflow-x: auto;
     overflow-y: hidden;
@@ -929,37 +915,23 @@
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.25rem;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex-shrink: 0; /* 防止收缩 */
-  }
-
-  .remove-tag-btn {
-    background: none;
-    border: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    padding: 0;
-    font-size: 0.875rem;
     line-height: 1;
-    border-radius: 0.25rem;
-    transition: all 0.2s;
-  }
-
-  .remove-tag-btn:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
   }
 
   .more-models {
+    display: inline-flex;
+    align-items: center;
     padding: 0.25rem 0.5rem;
     background: var(--bg-tertiary);
     color: var(--text-secondary);
@@ -969,6 +941,7 @@
     font-weight: 600;
     white-space: nowrap; /* 防止换行 */
     flex-shrink: 0;
+    line-height: 1;
   }
 
   .loading,
@@ -997,8 +970,6 @@
       /* 移动端自适应高度，不设置固定最小高度 */
       min-height: 0;
       height: auto;
-      /* 增加与顶部导航栏的间距 */
-      margin-top: 1.5rem;
       /* 确保内容不会超出边界 */
       box-sizing: border-box;
       line-height: 1.2;
@@ -1027,63 +998,9 @@
       /* 确保已选模型预览区域突破父容器限制 */
     }
 
-    .selected-models-preview {
-      /* 在移动端使用更灵活的显示策略 */
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      flex-wrap: nowrap; /* 防止换行 */
-      margin-top: 0.25rem;
-      /* 允许水平滚动，避免被父容器截断 */
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      /* 保持与header一致的右边界间距 */
-      max-width: calc(100vw - 3rem);
-      width: 100%;
-      /* 确保标签不会被隐藏 */
-      flex-shrink: 0;
-    }
-
-    .selected-model-tag {
-      /* 确保模型标签在移动端也不会被压缩 */
-      display: inline-flex;
-      align-items: center;
-      gap: 0.375rem;
-      padding: 0.25rem 0.5rem;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex-shrink: 0; /* 防止收缩 */
-    }
-
-    .more-models {
-      /* 确保 "+n" 标签在移动端可见 */
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      white-space: nowrap; /* 防止换行 */
-      flex-shrink: 0;
-    }
-
     .header-label {
       font-size: 0.6875rem; /* 恢复默认标签字体大小 */
       line-height: normal; /* 恢复默认行高 */
-    }
-
-    .expand-icon {
-      right: 0.75rem; /* 保持原右侧间距 */
     }
 
     /* 移动端展开内容 - 改为底部弹出式 */
@@ -1233,12 +1150,12 @@
     }
 
     .selected-models-preview {
-      /* 在超小屏幕也使用灵活的显示策略 */
+      /* 在移动端使用更灵活的显示策略 */
       display: flex;
-      gap: 0.5rem;
+      gap: 0.25rem;
       align-items: center;
       flex-wrap: nowrap; /* 防止换行 */
-      margin-top: 0.25rem;
+      margin-top: 0;
       /* 允许水平滚动，避免被父容器截断 */
       overflow-x: auto;
       overflow-y: hidden;
@@ -1251,26 +1168,28 @@
     }
 
     .selected-model-tag {
-      /* 确保模型标签在超小屏幕也不会被压缩 */
+      /* 确保模型标签在移动端也不会被压缩 */
       display: inline-flex;
       align-items: center;
-      gap: 0.375rem;
-      padding: 0.25rem 0.5rem;
+      gap: 0.25rem;
+      padding: 0.0625rem 0.375rem;
       background: var(--bg-tertiary);
       border: 1px solid var(--border-color);
       border-radius: 0.375rem;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       color: var(--text-secondary);
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       flex-shrink: 0; /* 防止收缩 */
+      line-height: 1;
     }
 
     .more-models {
-      /* 确保 "+n" 标签在超小屏幕可见 */
-      display: inline-block;
+      /* 确保 "+n" 标签在移动端可见 */
+      display: inline-flex;
+      align-items: center;
       padding: 0.25rem 0.5rem;
       background: var(--bg-tertiary);
       color: var(--text-secondary);
@@ -1280,10 +1199,7 @@
       font-weight: 600;
       white-space: nowrap; /* 防止换行 */
       flex-shrink: 0;
-    }
-
-    .expand-icon {
-      right: 0.375rem; /* 调整右侧图标位置 */
+      line-height: 1;
     }
 
     /* 超小屏幕保持底部弹出式 */

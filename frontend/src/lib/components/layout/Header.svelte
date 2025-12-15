@@ -20,8 +20,40 @@
   // 移动端导航菜单状态
   let showMobileNav = $state(false);
 
+  // 检测标题是否被截断
+  let marqueeContainerRef = $state<HTMLElement | null>(null);
+  let isTitleTruncated = $state(false);
+
   // 获取翻译函数（响应式）
   const t = $derived($tStore);
+
+  // 检测文本是否被截断
+  onMount(() => {
+    const checkTruncation = () => {
+      if (marqueeContainerRef) {
+        // 检测h1元素本身是否被截断
+        const h1Element = marqueeContainerRef.querySelector('h1') as HTMLElement;
+        if (h1Element) {
+          const scrollWidth = h1Element.scrollWidth;
+          const clientWidth = h1Element.clientWidth;
+          isTitleTruncated = scrollWidth > clientWidth;
+        }
+      }
+    };
+
+    // 初始检测
+    checkTruncation();
+
+    // 延迟检测，等待DOM渲染完成
+    setTimeout(checkTruncation, 100);
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', checkTruncation);
+
+    return () => {
+      window.removeEventListener('resize', checkTruncation);
+    };
+  });
 
   function handleLogout() {
     const message = t('common.logoutConfirm');
@@ -64,8 +96,17 @@
   <div class="container">
     <div class="brand">
       <img src="/favicon.svg" alt="Anthropic OpenAI Bridge Logo" class="brand-icon" />
-      <div class="brand-text">
-        <h1>{title}</h1>
+      <div class="brand-text" bind:this={marqueeContainerRef}>
+        <h1>
+          {#if isTitleTruncated}
+            <span class="marquee-container">
+              <span class="marquee-text">{title}</span>
+              <span class="marquee-text">{title}</span>
+            </span>
+          {:else}
+            <span class="title-text">{title}</span>
+          {/if}
+        </h1>
         {#if subtitle}
           <p class="subtitle">{subtitle}</p>
         {/if}
@@ -79,64 +120,65 @@
         </nav>
       {/if}
 
-      <!-- 移动端汉堡菜单按钮 -->
-      <button
-        class="mobile-menu-button"
-        onclick={(e) => {
-          e.stopPropagation();
-          showMobileNav = !showMobileNav;
-        }}
-        aria-label={t('header.toggleMenu')}
-        aria-expanded={showMobileNav}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6" class="line-1"></line>
-          <line x1="3" y1="12" x2="21" y2="12" class="line-2"></line>
-          <line x1="3" y1="18" x2="21" y2="18" class="line-3"></line>
-        </svg>
-      </button>
+      <div class="mobile-actions">
+        <!-- 移动端用户中心 -->
+        <div class="user-menu" bind:this={userMenuRef}>
+          <button
+            class="user-menu-button"
+            onclick={() => showUserMenu = !showUserMenu}
+            aria-label={t('header.userCenter')}
+            aria-expanded={showUserMenu}
+            aria-haspopup="true"
+          >
+            <span class="user-avatar">👤</span>
+          </button>
 
-      <div class="user-menu" bind:this={userMenuRef}>
+          {#if showUserMenu}
+            <div class="user-menu-dropdown" role="menu">
+              <button
+                class="menu-item"
+                onclick={openSettings}
+                role="menuitem"
+              >
+                <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>{t('header.settings')}</span>
+              </button>
+              <div class="menu-separator"></div>
+              <button
+                class="menu-item logout-item"
+                onclick={handleLogout}
+                role="menuitem"
+              >
+                <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>{t('header.logout')}</span>
+              </button>
+            </div>
+          {/if}
+        </div>
+
+        <!-- 移动端汉堡菜单按钮 -->
         <button
-          class="user-menu-button"
-          onclick={() => showUserMenu = !showUserMenu}
-          aria-label={t('header.userCenter')}
-          aria-expanded={showUserMenu}
-          aria-haspopup="true"
+          class="mobile-menu-button"
+          onclick={(e) => {
+            e.stopPropagation();
+            showMobileNav = !showMobileNav;
+          }}
+          aria-label={t('header.toggleMenu')}
+          aria-expanded={showMobileNav}
         >
-          <span class="user-avatar">👤</span>
-          <span class="user-name">{t('header.userCenter')}</span>
-          <span class="dropdown-arrow" class:rotated={showUserMenu}>▼</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" class="line-1"></line>
+            <line x1="3" y1="12" x2="21" y2="12" class="line-2"></line>
+            <line x1="3" y1="18" x2="21" y2="18" class="line-3"></line>
+          </svg>
         </button>
-
-        {#if showUserMenu}
-          <div class="user-menu-dropdown" role="menu">
-            <button
-              class="menu-item"
-              onclick={openSettings}
-              role="menuitem"
-            >
-              <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <span>{t('header.settings')}</span>
-            </button>
-            <div class="menu-separator"></div>
-            <button
-              class="menu-item logout-item"
-              onclick={handleLogout}
-              role="menuitem"
-            >
-              <svg class="menu-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              <span>{t('header.logout')}</span>
-            </button>
-          </div>
-        {/if}
       </div>
     </div>
   </div>
@@ -204,6 +246,42 @@
     max-width: 350px;
   }
 
+  /* 非截断状态的标题 */
+  .title-text {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  /* 滚动容器 - 只有在截断时使用 */
+  .marquee-container {
+    display: inline-flex;
+    white-space: nowrap;
+    /* 超慢滚动 - 让重置不可察觉 */
+    animation: marquee-slide 6s linear infinite;
+  }
+
+  /* 滚动文本 */
+  .marquee-text {
+    display: inline-block;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* 第一个文本后添加间距 */
+  .marquee-text:first-child {
+    padding-right: 5rem;
+  }
+
+  /* 简单线性滚动 - 从0%到-50% */
+  @keyframes marquee-slide {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
   @media (max-width: 1200px) {
     .brand-text h1 {
       max-width: 250px;
@@ -260,8 +338,8 @@
   .user-menu-button {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    justify-content: center;
+    padding: 0.5rem;
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     background: var(--bg-primary);
@@ -269,7 +347,6 @@
     cursor: pointer;
     font-size: 0.875rem;
     transition: all 0.2s;
-    white-space: nowrap;
   }
 
   .user-menu-button:hover {
@@ -278,21 +355,8 @@
   }
 
   .user-avatar {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     line-height: 1;
-  }
-
-  .user-name {
-    font-weight: 500;
-  }
-
-  .dropdown-arrow {
-    font-size: 0.625rem;
-    transition: transform 0.2s;
-  }
-
-  .dropdown-arrow.rotated {
-    transform: rotate(180deg);
   }
 
   .user-menu-dropdown {
@@ -304,7 +368,9 @@
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     box-shadow: 0 4px 12px var(--card-shadow);
-    min-width: 12rem;
+    /* 宽度由内容决定，不再设置最小宽度 */
+    width: max-content;
+    min-width: max-content;
     z-index: 1000;
     overflow: hidden;
   }
@@ -382,39 +448,58 @@
   .mobile-nav {
     position: fixed;
     top: 4.5rem; /* Header高度约4.5rem */
-    left: 0;
-    right: 0;
+    right: 1rem;
     background: var(--bg-primary);
-    border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px var(--card-shadow);
-    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 0.75rem;
     z-index: 9999;
     animation: slideDown 0.3s ease-out;
+    /* 宽度由内容决定，但不超过屏幕宽度 */
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
-  .mobile-nav a {
-    display: block;
-    padding: 0.875rem 1rem;
+  /* 移动端导航链接样式 */
+  .mobile-nav :global(.nav-link) {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
     color: var(--text-primary);
     text-decoration: none;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
     transition: all 0.2s;
-    margin-bottom: 0.25rem;
-    border-bottom: 2px solid transparent;
-    background: var(--bg-secondary); /* 添加背景色以便调试 */
+    background: transparent;
+    text-align: left;
+    font-weight: 500;
+    /* 允许水平滚动长文本 */
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    /* 隐藏滚动条但保持可滚动 */
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(to right, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%);
   }
 
-  .mobile-nav a:hover {
+  /* Webkit浏览器隐藏滚动条 */
+  .mobile-nav :global(.nav-link)::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-nav :global(.nav-link:hover) {
     background: var(--bg-tertiary);
     color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
   }
 
-  .mobile-nav a.active {
+  .mobile-nav :global(.nav-link.active) {
     background: var(--bg-tertiary);
     color: var(--primary-color);
     font-weight: 600;
-    border-bottom-color: var(--primary-color);
   }
 
   @keyframes slideDown {
@@ -432,6 +517,24 @@
     .container {
       padding: 0 1rem;
       flex-wrap: nowrap; /* 不换行，保持品牌和按钮在一行 */
+    }
+
+    .header-actions {
+      gap: 0.5rem;
+    }
+
+    .mobile-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .user-menu-button {
+      padding: 0.5rem;
+    }
+
+    .user-avatar {
+      font-size: 1.125rem;
     }
 
     .mobile-menu-button {
@@ -454,16 +557,6 @@
 
     .subtitle {
       font-size: 0.8125rem;
-    }
-
-    .header-actions {
-      order: 2;
-      margin-left: auto;
-      gap: 0.5rem; /* 按钮之间的间距 */
-    }
-
-    .user-name {
-      display: none;
     }
 
     .user-menu-button {
@@ -492,7 +585,7 @@
       padding: 0.75rem;
     }
 
-    .mobile-nav a {
+    .mobile-nav :global(.nav-link) {
       padding: 0.75rem 0.875rem;
       font-size: 0.9375rem;
     }

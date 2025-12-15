@@ -2346,7 +2346,7 @@
     /* 模型选择器固定在顶部，不随滚动移动 */
     .model-selector-container {
       position: sticky;
-      top: 3.5rem; /* 距离顶部56px，给Header留出空间 */
+      top: 4.5rem; /* 距离顶部56px，给Header留出空间 */
       z-index: 20;
       background: var(--bg-primary);
       border-bottom: 1px solid var(--border-color);
