@@ -36,3 +36,4 @@ docker-compose.override.yml
 *.pid.lock
 CLAUDE.md
 .env
+logs

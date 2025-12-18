@@ -19,6 +19,7 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from openai import RateLimitError, APIError, APIConnectionError
 import httpx
+import unicodedata  # For calculating display width
 
 from ..config import config
 from ..core import MessagesRequest, Message, ModelManager
@@ -28,6 +29,22 @@ from ..converters import (
     convert_openai_stream_to_anthropic_async
 )
 from ..infrastructure import OpenAIClient, AnthropicClient, retry_with_backoff, is_retryable_error, CacheKey, get_cache_manager
+
+
+def calculate_display_width(text):
+    """Calculate the actual display width of text considering Unicode characters."""
+    width = 0
+    for char in str(text):
+        # East Asian Width property: F (Fullwidth), W (Wide), H (Halfwidth), Na (Narrow)
+        eaw = unicodedata.east_asian_width(char)
+        if eaw in ('F', 'W'):
+            width += 2  # Full-width or wide characters
+        elif eaw in ('H', 'Na', 'N'):
+            width += 1  # Half-width, narrow, or not applicable
+        else:
+            width += 1  # Default for other categories
+    return width
+
 from ..utils import openai_response_to_dict
 from ..database import get_database
 from .token_counter import count_tokens_estimate
@@ -795,14 +812,30 @@ class MessageService:
                             f"model={actual_model}"
                         )
 
+                        # Track actual_provider from the converted stream metadata
+                        actual_provider = None
+
+                        # Create an async iterator for the converter
+                        async def stream_iterator():
+                            async for chunk in openai_stream:
+                                yield chunk
+
                         # Stream converted chunks
                         # Optimize: Use faster JSON serialization with minimal separators
                         chunk_count = 0
                         try:
                             async for chunk in convert_openai_stream_to_anthropic_async(
-                                openai_stream, req.model, initial_input_tokens
+                                stream_iterator(), req.model, initial_input_tokens
                             ):
                                 chunk_count += 1
+
+                                # Extract actual_provider from message_metadata event
+                                if chunk.get("type") == "message_metadata" and not actual_provider:
+                                    actual_provider = chunk.get("actual_provider")
+                                    logger.debug(f"Received actual_provider from metadata: {actual_provider}")
+                                    # Don't yield metadata events to client
+                                    continue
+
                                 # Track output tokens from streaming chunks
                                 if chunk.get("type") == "content_block_delta":
                                     chunk_output = chunk.get("delta", {}).get("text", "")
@@ -840,9 +873,20 @@ class MessageService:
 
                         # Log successful streaming completion
                         response_time_ms = (time.time() - start_time) * 1000
+                        # Calculate display width for proper alignment
+                        provider_width = calculate_display_width(actual_provider)
+                        total_width = 35  # Total display width of the box
+                        # Formula: │ + space + text + padding + space + │
+                        # Visual width: 1 + 1 + provider_width + padding + 1 + 1 = 35
+                        # So: padding = 35 - provider_width - 4
+                        padding_needed = total_width - provider_width - 4
+                        padding = " " * padding_needed
                         logger.info(
                             f"[Request {request_id}] Streaming completed:\n"
                             f"  Provider: {provider_config.name}\n"
+                            f"  \033[92m┌──────── Actual Provider ────────┐\033[0m\n"
+                            f"  \033[92m│ {actual_provider}{padding} │\033[0m\n"
+                            f"  \033[92m└─────────────────────────────────┘\033[0m\n"
                             f"  Model: {actual_model}\n"
                             f"  Input Tokens: {initial_input_tokens}\n"
                             f"  Output Tokens: {total_output_tokens}\n"
