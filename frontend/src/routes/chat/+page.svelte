@@ -147,8 +147,27 @@
 
     // Load last conversation if exists
     if (conversationsData.length > 0) {
+      // Try to load the last conversation, but handle if it doesn't exist
       const lastConversation = conversationsData[0];
-      await selectConversation(lastConversation);
+      try {
+        await selectConversation(lastConversation);
+      } catch (err) {
+        console.warn("Failed to load last conversation, trying next one:", err);
+        // If the last conversation doesn't exist, try the next one
+        if (conversationsData.length > 1) {
+          const nextConversation = conversationsData[1];
+          try {
+            await selectConversation(nextConversation);
+          } catch (err2) {
+            console.warn("Failed to load next conversation:", err2);
+            // Clear current conversation if none can be loaded
+            sessionStore.update(state => ({ ...state, currentConversation: null }));
+          }
+        } else {
+          // Clear current conversation if none can be loaded
+          sessionStore.update(state => ({ ...state, currentConversation: null }));
+        }
+      }
     }
   }
 
@@ -323,10 +342,32 @@
         selectedModelName,
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('common.error');
+      // Handle 404 errors (conversation doesn't exist or was deleted)
+      const errorMessage = err instanceof Error ? err.message : "";
+      if (errorMessage.includes("not found") || errorMessage.includes("404")) {
+        console.warn(`Conversation ${conversation.id} not found, removing from list`);
+        // Remove the conversation from the list
+        const updatedConversations = conversations.filter(c => c.id !== conversation.id);
+        sessionStore.update(state => ({
+          ...state,
+          conversations: updatedConversations,
+          currentConversation: null,
+          isLoading: false,
+          error: null
+        }));
+        // Try to load another conversation if available
+        if (updatedConversations.length > 0) {
+          console.log("Loading next available conversation:", updatedConversations[0].id);
+          const nextConversation = updatedConversations[0];
+          await selectConversation(nextConversation);
+        }
+        return;
+      }
+      // Handle other errors
+      const errorMsg = err instanceof Error ? err.message : t('common.error');
       console.error("Failed to select conversation:", err);
       showToast(t('common.error'), "error");
-      sessionStore.update(state => ({ ...state, currentConversation: null, error: errorMessage, isLoading: false }));
+      sessionStore.update(state => ({ ...state, currentConversation: null, error: errorMsg, isLoading: false }));
     }
   }
 

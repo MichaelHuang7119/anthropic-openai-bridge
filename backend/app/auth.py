@@ -167,10 +167,23 @@ async def get_current_admin_user(
     """
     Get current authenticated admin user (for management panel).
     Only accepts JWT tokens from email/password login.
-    
+
+    In development mode (DEV_MODE=true), allows access without authentication.
+
     Raises:
         HTTPException: If authentication fails or user is not admin
     """
+    # Development mode: allow access without validation
+    if DEV_MODE:
+        logger.info("Development mode: Allowing admin access without authentication")
+        return {
+            "user_id": 1,  # Default to admin user ID 1
+            "email": "admin@example.com",
+            "name": "Administrator",
+            "is_admin": True,
+            "type": "dev"
+        }
+
     # Try Bearer token (JWT)
     if credentials:
         token = credentials.credentials

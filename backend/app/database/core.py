@@ -283,6 +283,11 @@ class DatabaseCore:
             await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN api_format TEXT")
             logger.info("Added api_format column to conversation_messages table")
 
+        # Add parent_message_id column if it doesn't exist (migration)
+        if 'parent_message_id' not in columns:
+            await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN parent_message_id INTEGER")
+            logger.info("Added parent_message_id column to conversation_messages table")
+
         await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
             ON conversation_messages(conversation_id)
