@@ -121,6 +121,8 @@
     "copied": "تم النسخ",
     "retry": "إعادة المحاولة",
     "thinking": "يفكر",
+    "thinkingInProgress": "جارٍ التفكير...",
+    "thinkingComplete": "اكتمل التفكير",
     "showThinking": "إظهار التفكير",
     "hideThinking": "إخفاء التفكير",
     "inputTokens": "الإدخال",

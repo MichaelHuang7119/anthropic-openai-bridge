@@ -71,6 +71,7 @@
   // Rendered markdown content
   let renderedContent = $state('');
   let renderedThinking = $state('');
+  let renderedStreamingContent = $state('');
 
   // Escape HTML to prevent inline HTML rendering
   function escapeHtml(text: string): string {
@@ -89,10 +90,10 @@
       const escapedCode = text;
 
       return `
-        <div class="code-block-container">
-          <div class="code-block-header" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
-            <span class="code-language" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-right: auto; flex-shrink: 0;">${language}</span>
-            <button class="copy-code-btn" data-code-id="${id}" data-code="${encodeURIComponent(escapedCode)}" title="${t('messageBubble.copy')}" onclick="handleCodeCopy(event)" style="display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.625rem; background: rgba(79, 70, 229, 0.1); border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 0.375rem; color: var(--primary-color); cursor: pointer; font-size: 0.75rem; transition: all 0.2s ease; line-height: 1; opacity: 0.95; font-weight: 500; flex-shrink: 0;">
+        <div class="code-block-container streaming-code-block">
+          <div class="code-block-header">
+            <span class="code-language">${language}</span>
+            <button class="copy-code-btn" data-code-id="${id}" data-code="${encodeURIComponent(escapedCode)}" title="${t('messageBubble.copy')}" onclick="handleCodeCopy(event)">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -130,6 +131,43 @@
       }
     };
     renderMarkdown();
+  });
+
+  // Real-time render streaming content as markdown
+  $effect(() => {
+    const renderStreamingMarkdown = async () => {
+      if (isStreaming && message.content) {
+        const renderer = createRenderer();
+        const safeContent = escapeHtml(message.content);
+        renderedStreamingContent = await marked.parse(safeContent, {
+          renderer,
+          breaks: false,
+          gfm: true
+        });
+      } else {
+        renderedStreamingContent = "";
+      }
+    };
+    renderStreamingMarkdown();
+  });
+
+  // Real-time render streaming thinking content as markdown
+  let renderedStreamingThinking = $state('');
+  $effect(() => {
+    const renderStreamingThinkingMarkdown = async () => {
+      if (isStreaming && message.thinking) {
+        const renderer = createRenderer();
+        const safeThinking = escapeHtml(message.thinking);
+        renderedStreamingThinking = await marked.parse(safeThinking, {
+          renderer,
+          breaks: false,
+          gfm: true
+        });
+      } else {
+        renderedStreamingThinking = "";
+      }
+    };
+    renderStreamingThinkingMarkdown();
   });
 
   $effect(() => {
@@ -382,6 +420,21 @@
 
   {#if message.thinking}
     <div class="thinking-section">
+      <!-- Thinking status indicator - always visible -->
+      {#if isStreaming}
+        <div class="thinking-status-inline">
+          <div class="thinking-spinner-small"></div>
+          <span class="thinking-status-text">{t('messageBubble.thinkingInProgress')}</span>
+        </div>
+      {:else}
+        <div class="thinking-status-inline completed">
+          <svg class="thinking-complete-icon-small" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+          <span class="thinking-complete-text-small">{t('messageBubble.thinkingComplete')}</span>
+        </div>
+      {/if}
+
       <button
         class="thinking-toggle"
         onclick={() => (thinkingExpanded = !thinkingExpanded)}
@@ -396,13 +449,17 @@
 
       {#if thinkingExpanded}
         <div class="thinking-content">
+          <!-- Render appropriate thinking content based on streaming state -->
           {#if isStreaming}
-            <div class="typing-animation">{message.thinking}</div>
-            <span class="cursor"></span>
-          {:else}
-            <!-- Marked.parse() sanitizes the markdown content -->
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html renderedThinking}
+            <div class="streaming-thinking-wrapper">
+              {@html renderedStreamingThinking}
+            </div>
+          {:else}
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            <div class="thinking-wrapper">
+              {@html renderedThinking}
+            </div>
           {/if}
         </div>
       {/if}
@@ -447,8 +504,11 @@
           </div>
         </div>
       {:else if isStreaming}
-        <div class="typing-animation">{message.content}</div>
-        <span class="cursor"></span>
+        <!-- Render streaming markdown content in real-time -->
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+        <div class="streaming-content-wrapper">
+          {@html renderedStreamingContent}
+        </div>
       {:else}
         <!-- Marked.parse() sanitizes the markdown content -->
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -767,6 +827,48 @@
     box-sizing: border-box;
   }
 
+  .thinking-status-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: rgba(79, 70, 229, 0.08);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .thinking-status-inline.completed {
+    background: rgba(16, 185, 129, 0.08);
+  }
+
+  .thinking-spinner-small {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(79, 70, 229, 0.2);
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .thinking-status-text {
+    font-size: 0.8125rem;
+    color: var(--primary-color);
+    font-weight: 500;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .thinking-complete-icon-small {
+    color: var(--success-color, #10b981);
+    animation: checkmark 0.3s ease-out;
+    flex-shrink: 0;
+  }
+
+  .thinking-complete-text-small {
+    font-size: 0.8125rem;
+    color: var(--success-color, #10b981);
+    font-weight: 600;
+  }
+
   .thinking-toggle {
     width: 100%;
     display: flex;
@@ -826,6 +928,110 @@
     word-wrap: break-word;
   }
 
+  .thinking-wrapper :global(pre) {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    padding-top: 3rem;
+  }
+
+  .thinking-wrapper :global(pre code) {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    background: none;
+    color: inherit;
+    padding: 0;
+  }
+
+  .thinking-wrapper :global(code) {
+    background: rgba(90, 156, 255, 0.15);
+    color: #5a9cff;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-family: "Courier New", monospace;
+    font-size: 0.8rem;
+  }
+
+  .thinking-wrapper :global(.code-block-container) {
+    position: relative;
+    margin: 0.75rem 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .thinking-wrapper :global(.code-block-header) {
+    position: relative;
+    padding: 0.5rem 4rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .thinking-wrapper :global(.code-language) {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  .thinking-wrapper :global(.copy-code-btn) {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 0.375rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+    opacity: 0.95;
+    font-weight: 500;
+  }
+
+  .thinking-wrapper :global(.copy-code-btn:hover) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 1;
+  }
+
+  .thinking-wrapper :global(.copy-code-btn.copied) {
+    background: var(--success-color, #10b981);
+    color: white;
+    border-color: var(--success-color, #10b981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    font-weight: 600;
+  }
+
   @keyframes slideDown {
     from {
       opacity: 0;
@@ -834,6 +1040,38 @@
     to {
       opacity: 1;
       max-height: 1000px;
+    }
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes checkmark {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
     }
   }
 
@@ -1060,6 +1298,262 @@
 
   .typing-animation {
     white-space: pre-wrap;
+  }
+
+  .streaming-content-wrapper {
+    position: relative;
+    display: block;
+  }
+
+  .streaming-content-wrapper :global(*) {
+    display: inline;
+  }
+
+  .streaming-content-wrapper :global(pre) {
+    display: block !important;
+    white-space: pre !important;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+  }
+
+  .streaming-content-wrapper :global(pre code) {
+    white-space: pre !important;
+  }
+
+  .streaming-content-wrapper :global(code) {
+    background: rgba(90, 156, 255, 0.15);
+    color: #5a9cff;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-family: "Courier New", monospace;
+    font-size: 0.875rem;
+  }
+
+  .streaming-content-wrapper :global(blockquote) {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .streaming-content-wrapper :global(ul),
+  .streaming-content-wrapper :global(ol) {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+    max-width: 100%;
+  }
+
+  .streaming-content-wrapper :global(li) {
+    margin: 0.25rem 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .streaming-content-wrapper :global(.code-block-container) {
+    position: relative;
+    margin: 0.75rem 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .streaming-content-wrapper :global(.code-block-header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .streaming-content-wrapper :global(.code-language) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: auto;
+    flex-shrink: 0;
+  }
+
+  .streaming-content-wrapper :global(.copy-code-btn) {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 0.375rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+    opacity: 0.95;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .streaming-content-wrapper :global(.copy-code-btn:hover) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 1;
+  }
+
+  .streaming-content-wrapper :global(.copy-code-btn.copied) {
+    background: var(--success-color, #10b981);
+    color: white;
+    border-color: var(--success-color, #10b981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    font-weight: 600;
+  }
+
+  .streaming-content-wrapper :global(.copy-code-btn.copied:hover) {
+    background: var(--success-color, #0ea371);
+    border-color: var(--success-color, #0ea371);
+  }
+
+  .streaming-thinking-wrapper {
+    position: relative;
+    display: block;
+  }
+
+  .streaming-thinking-wrapper :global(*) {
+    display: inline;
+  }
+
+  .streaming-thinking-wrapper :global(pre) {
+    display: block !important;
+    white-space: pre !important;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+  }
+
+  .streaming-thinking-wrapper :global(pre code) {
+    white-space: pre !important;
+  }
+
+  .streaming-thinking-wrapper :global(code) {
+    background: rgba(90, 156, 255, 0.15);
+    color: #5a9cff;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-family: "Courier New", monospace;
+    font-size: 0.8rem;
+  }
+
+  .streaming-thinking-wrapper :global(blockquote) {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .streaming-thinking-wrapper :global(ul),
+  .streaming-thinking-wrapper :global(ol) {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+    max-width: 100%;
+  }
+
+  .streaming-thinking-wrapper :global(li) {
+    margin: 0.25rem 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .streaming-thinking-wrapper :global(.code-block-container) {
+    position: relative;
+    margin: 0.75rem 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .streaming-thinking-wrapper :global(.code-block-header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .streaming-thinking-wrapper :global(.code-language) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: auto;
+    flex-shrink: 0;
+  }
+
+  .streaming-thinking-wrapper :global(.copy-code-btn) {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 0.375rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+    opacity: 0.95;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .streaming-thinking-wrapper :global(.copy-code-btn:hover) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 1;
+  }
+
+  .streaming-thinking-wrapper :global(.copy-code-btn.copied) {
+    background: var(--success-color, #10b981);
+    color: white;
+    border-color: var(--success-color, #10b981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    font-weight: 600;
+  }
+
+  .streaming-thinking-wrapper :global(.copy-code-btn.copied:hover) {
+    background: var(--success-color, #0ea371);
+    border-color: var(--success-color, #0ea371);
   }
 
   .cursor {

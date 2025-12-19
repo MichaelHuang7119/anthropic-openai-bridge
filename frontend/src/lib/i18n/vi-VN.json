@@ -121,6 +121,8 @@
     "copied": "Đã sao chép",
     "retry": "Thử lại",
     "thinking": "Đang suy nghĩ",
+    "thinkingInProgress": "Đang suy nghĩ...",
+    "thinkingComplete": "Suy nghĩ hoàn thành",
     "showThinking": "Hiện suy nghĩ",
     "hideThinking": "Ẩn suy nghĩ",
     "inputTokens": "Đầu vào",

@@ -121,6 +121,8 @@
     "copied": "คัดลอกแล้ว",
     "retry": "ลองใหม่",
     "thinking": "กำลังคิด",
+    "thinkingInProgress": "กำลังคิด...",
+    "thinkingComplete": "คิดเสร็จแล้ว",
     "showThinking": "แสดงการคิด",
     "hideThinking": "ซ่อนการคิด",
     "inputTokens": "อินพุต",

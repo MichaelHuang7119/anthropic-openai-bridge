@@ -121,6 +121,8 @@
     "copied": "Gekopieerd",
     "retry": "Opnieuw proberen",
     "thinking": "Denken",
+    "thinkingInProgress": "Denkend...",
+    "thinkingComplete": "Denken voltooid",
     "showThinking": "Denken weergeven",
     "hideThinking": "Denken verbergen",
     "inputTokens": "Invoer",

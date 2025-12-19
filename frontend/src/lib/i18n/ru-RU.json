@@ -121,6 +121,8 @@
     "copied": "Скопировано",
     "retry": "Повторить",
     "thinking": "Думает",
+    "thinkingInProgress": "Думаю...",
+    "thinkingComplete": "Размышление завершено",
     "showThinking": "Показать размышления",
     "hideThinking": "Скрыть размышления",
     "inputTokens": "Входные",

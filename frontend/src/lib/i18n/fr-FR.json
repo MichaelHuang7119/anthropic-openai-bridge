@@ -121,6 +121,8 @@
     "copied": "Copié",
     "retry": "Réessayer",
     "thinking": "Réflexion",
+    "thinkingInProgress": "Réflexion en cours...",
+    "thinkingComplete": "Réflexion terminée",
     "showThinking": "Afficher la réflexion",
     "hideThinking": "Masquer la réflexion",
     "inputTokens": "Entrée",

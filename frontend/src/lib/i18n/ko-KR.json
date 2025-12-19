@@ -121,6 +121,8 @@
     "copied": "복사됨",
     "retry": "다시 시도",
     "thinking": "생각 중",
+    "thinkingInProgress": "생각 중...",
+    "thinkingComplete": "생각 완료",
     "showThinking": "생각 표시",
     "hideThinking": "생각 숨기기",
     "inputTokens": "입력",

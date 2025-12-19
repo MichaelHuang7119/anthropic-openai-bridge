@@ -121,6 +121,8 @@
     "copied": "कॉपी किया गया",
     "retry": "पुनः प्रयास करें",
     "thinking": "सोच रहा है",
+    "thinkingInProgress": "सोच रहे हैं...",
+    "thinkingComplete": "विचार पूर्ण",
     "showThinking": "सोच दिखाएं",
     "hideThinking": "सोच छुपाएं",
     "inputTokens": "इनपुट",

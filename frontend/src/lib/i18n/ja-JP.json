@@ -121,6 +121,8 @@
     "copied": "コピーしました",
     "retry": "再試行",
     "thinking": "思考中",
+    "thinkingInProgress": "考ています...",
+    "thinkingComplete": "考察完了",
     "showThinking": "思考を表示",
     "hideThinking": "思考を非表示",
     "inputTokens": "入力",

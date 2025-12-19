@@ -121,6 +121,8 @@
     "copied": "Disalin",
     "retry": "Coba Lagi",
     "thinking": "Berpikir",
+    "thinkingInProgress": "Berpikir...",
+    "thinkingComplete": "Pemikiran selesai",
     "showThinking": "Tampilkan Pemikiran",
     "hideThinking": "Sembunyikan Pemikiran",
     "inputTokens": "Input",

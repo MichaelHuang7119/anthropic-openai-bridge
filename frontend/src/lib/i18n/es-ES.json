@@ -121,6 +121,8 @@
     "copied": "Copiado",
     "retry": "Reintentar",
     "thinking": "Pensando",
+    "thinkingInProgress": "Pensando...",
+    "thinkingComplete": "Pensamiento completado",
     "showThinking": "Mostrar pensamiento",
     "hideThinking": "Ocultar pensamiento",
     "inputTokens": "Entrada",
