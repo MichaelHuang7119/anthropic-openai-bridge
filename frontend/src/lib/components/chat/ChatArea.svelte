@@ -44,7 +44,11 @@
 
   // Group messages into user-assistant pairs for display
   function getMessageGroups() {
-    const groups = [];
+    type MessageGroup = {
+      userMessage: Message;
+      assistantMessages: Message[];
+    };
+    const groups: MessageGroup[] = [];
 
     // Build a map of user messages by ID for quick lookup
     const userMessagesMap = new Map<number, Message>();
@@ -115,10 +119,10 @@
     });
 
     console.log("ChatArea: getMessageGroups - All messages:", $state.snapshot(messages));
-    console.log("ChatArea: getMessageGroups - Groups created:", $state.snapshot(groups.map(g => ({
+    console.log("ChatArea: getMessageGroups - Groups created:", $state.snapshot(groups.map((g: { userMessage: Message; assistantMessages: Message[] }) => ({
       userMessageId: g.userMessage?.id,
       assistantMessagesCount: g.assistantMessages.length,
-      assistantMessageIds: g.assistantMessages.map(m => m.id),
+      assistantMessageIds: g.assistantMessages.map((m: Message) => m.id),
       assistantMessages: g.assistantMessages
     }))));
 
@@ -157,14 +161,14 @@
               if (parts.length === 5) {
                 // Old format: add -0 for model_instance_index
                 const newKey = `${key}-0`;
-                migrated[newKey] = value;
+                migrated[newKey] = value as number | null;
                 console.log('Migrated viewing message ID key:', { oldKey: key, newKey, value });
               } else if (parts.length === 6) {
                 // Already has model_instance_index
-                migrated[key] = value;
+                migrated[key] = value as number | null;
               } else {
                 // Unexpected format, keep as is
-                migrated[key] = value;
+                migrated[key] = value as number | null;
               }
             }
             currentViewingMessageIds = migrated;
@@ -243,7 +247,7 @@
   });
 
   // Manage AbortControllers per conversation for strict isolation
-  const conversationAbortControllers = new Map<number, AbortController>();
+  const conversationAbortControllers = new Map<string, AbortController>();
   let error: string | null = $state(null);
   let errorDetails: any = $state(null); // Store detailed error information
   let showErrorDetails = $state(false); // Toggle to show/hide error details
@@ -1813,7 +1817,7 @@
 
         <!-- Render all assistant messages for this user message, grouped by model -->
         {#if group.assistantMessages.length > 0 || Object.keys(streamingMessages).length > 0}
-          {@const groupedByModel = group.assistantMessages.reduce((acc, msg) => {
+          {@const groupedByModel = group.assistantMessages.reduce((acc: Record<string, Message[]>, msg: Message) => {
             // Group messages by model configuration AND instance index
             // Each model instance (even same model selected multiple times) gets its own card
             const baseKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
@@ -1823,7 +1827,7 @@
             }
             acc[baseKey].push(msg);
             return acc;
-          }, {} as Record<string, typeof group.assistantMessages>)}
+          }, {})}
 
           <div class="assistant-messages-grid">
             {#if group.assistantMessages.length > 0}
@@ -1831,7 +1835,7 @@
                 {@const groupKey = `${group.userMessage?.id}-${modelKey}`}
                 {@const currentMessageId = currentViewingMessageIds[groupKey]}
                 {@const currentIndex = currentMessageId !== null && currentMessageId !== undefined
-                  ? modelGroupMessages.findIndex(m => m.id === currentMessageId)
+                  ? modelGroupMessages.findIndex((m: Message) => m.id === currentMessageId)
                   : modelGroupMessages.length - 1}
                 {@const validIndex = currentIndex >= 0 ? currentIndex : modelGroupMessages.length - 1}
                 {@const currentMessage = modelGroupMessages[validIndex]}
@@ -1850,7 +1854,7 @@
                     userMessageId: group.userMessage?.id,
                     modelKey,
                     modelGroupMessagesCount: modelGroupMessages.length,
-                    modelGroupMessagesIds: modelGroupMessages.map(m => m.id),
+                    modelGroupMessagesIds: modelGroupMessages.map((m: Message) => m.id),
                     totalResults,
                     validIndex,
                     currentMessageId: currentMessage?.id

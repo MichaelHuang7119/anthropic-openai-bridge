@@ -160,7 +160,7 @@
           <div class="modal-actions">
             <Button
               variant="primary"
-              on:click={closeModal}
+              onclick={closeModal}
             >
               {t('welcome.getStarted')}
             </Button>

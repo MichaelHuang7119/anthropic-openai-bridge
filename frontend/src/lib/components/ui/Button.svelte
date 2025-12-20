@@ -1,15 +1,25 @@
 <script lang="ts">
-  export let variant: 'primary' | 'secondary' | 'danger' = 'primary';
-  export let size: 'sm' | 'md' | 'lg' = 'md';
-  export let disabled: boolean = false;
-  export let type: 'button' | 'submit' | 'reset' = 'button';
-  export let title: string | undefined = undefined;
-  
-  // 支持自定义 class
-  let className = '';
-  export { className as class };
-  
-  $: classes = `btn btn-${variant} btn-${size} ${className}`.trim();
+  let {
+    variant = 'primary',
+    size = 'md',
+    disabled = false,
+    type = 'button',
+    title = undefined,
+    class: className = '',
+    onclick,
+    children
+  }: {
+    variant?: 'primary' | 'secondary' | 'danger';
+    size?: 'sm' | 'md' | 'lg';
+    disabled?: boolean;
+    type?: 'button' | 'submit' | 'reset';
+    title?: string | undefined;
+    class?: string;
+    onclick?: (event: MouseEvent) => void;
+    children?: () => any;
+  } = $props();
+
+  let classes = $derived(`btn btn-${variant} btn-${size} ${className}`.trim());
 </script>
 
 <button
@@ -17,9 +27,9 @@
   class={classes}
   {disabled}
   {title}
-  on:click
+  {onclick}
 >
-  <slot />
+  {@render children?.()}
 </button>
 
 <style>

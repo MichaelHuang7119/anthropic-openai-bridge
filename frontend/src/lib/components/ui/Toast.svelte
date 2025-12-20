@@ -53,8 +53,8 @@
             class="toast-message clickable" 
             role="button"
             tabindex="0"
-            on:click={() => showFullErrorMessage(toastItem.message, '错误信息')}
-            on:keydown={(e) => {
+            onclick={() => showFullErrorMessage(toastItem.message, '错误信息')}
+            onkeydown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 showFullErrorMessage(toastItem.message, '错误信息');
@@ -68,7 +68,7 @@
           <span class="toast-message">{displayMessage}</span>
         {/if}
       </div>
-      <button class="toast-close" on:click={() => handleClose(toastItem.id)} aria-label="关闭">
+      <button class="toast-close" onclick={() => handleClose(toastItem.id)} aria-label="关闭">
         ×
       </button>
     </div>

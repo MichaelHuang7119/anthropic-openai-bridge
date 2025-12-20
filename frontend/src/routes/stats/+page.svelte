@@ -684,7 +684,7 @@
         <option value="30d">{t('stats.last30Days')}</option>
         <option value="all">{t('stats.allRecords')}</option>
       </select>
-      <Button variant="primary" on:click={loadData} disabled={loading} title={loading ? t('stats.loading') : t('stats.refresh')} class="icon-button {loading ? 'spinning' : ''}">
+      <Button variant="primary" onclick={loadData} disabled={loading} title={loading ? t('stats.loading') : t('stats.refresh')} class="icon-button {loading ? 'spinning' : ''}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"></polyline>
           <polyline points="1 20 1 14 7 14"></polyline>
@@ -796,12 +796,12 @@
                 <Input
                   type="text"
                   bind:value={providerStatsSearch}
-                  on:input={handleProviderStatsSearchChange}
+                  oninput={handleProviderStatsSearchChange}
                   placeholder={t('stats.searchProviderName')}
                 />
               </div>
 
-              <Button variant="secondary" size="sm" on:click={clearProviderStatsFilters} title={t('stats.clearFilters')} class="clear-button">
+              <Button variant="secondary" size="sm" onclick={clearProviderStatsFilters} title={t('stats.clearFilters')} class="clear-button">
                 {t('stats.clear')}
               </Button>
             </div>
@@ -848,7 +848,7 @@
                     variant="secondary"
                     size="sm"
                     disabled={providerStatsPage === 1}
-                    on:click={() => handleProviderStatsPageChange(providerStatsPage - 1)}
+                    onclick={() => handleProviderStatsPageChange(providerStatsPage - 1)}
                     title={t('stats.previousPage')}
                     class="icon-button"
                   >
@@ -861,7 +861,7 @@
                     variant="secondary"
                     size="sm"
                     disabled={providerStatsPage === providerStatsTotalPages}
-                    on:click={() => handleProviderStatsPageChange(providerStatsPage + 1)}
+                    onclick={() => handleProviderStatsPageChange(providerStatsPage + 1)}
                     title={t('stats.nextPage')}
                     class="icon-button"
                   >
@@ -1018,7 +1018,7 @@
                   type="text"
                   placeholder={t('stats.searchProvider')}
                   bind:value={tokenUsageProviderFilter}
-                  on:input={handleTokenUsageFilterChange}
+                  oninput={handleTokenUsageFilterChange}
                 />
               </div>
 
@@ -1029,11 +1029,11 @@
                   type="text"
                   placeholder={t('stats.searchModel')}
                   bind:value={tokenUsageModelFilter}
-                  on:input={handleTokenUsageFilterChange}
+                  oninput={handleTokenUsageFilterChange}
                 />
               </div>
 
-              <Button variant="secondary" size="sm" on:click={clearTokenUsageFilters} title={t('stats.clearFilters')} class="clear-button">
+              <Button variant="secondary" size="sm" onclick={clearTokenUsageFilters} title={t('stats.clearFilters')} class="clear-button">
                 {t('stats.clear')}
               </Button>
             </div>
@@ -1082,7 +1082,7 @@
                     variant="secondary"
                     size="sm"
                     disabled={tokenUsagePage === 1}
-                    on:click={() => handleTokenUsagePageChange(tokenUsagePage - 1)}
+                    onclick={() => handleTokenUsagePageChange(tokenUsagePage - 1)}
                     title={t('common.previousPage')}
                     class="icon-button"
                   >
@@ -1095,7 +1095,7 @@
                     variant="secondary"
                     size="sm"
                     disabled={tokenUsagePage === tokenUsageTotalPages}
-                    on:click={() => handleTokenUsagePageChange(tokenUsagePage + 1)}
+                    onclick={() => handleTokenUsagePageChange(tokenUsagePage + 1)}
                     title={t('common.nextPage')}
                     class="icon-button"
                   >
@@ -1126,7 +1126,7 @@
                 type="text"
                 placeholder={t('stats.searchProvider')}
                 bind:value={filterProvider}
-                on:input={handleFilterChange}
+                oninput={handleFilterChange}
               />
             </div>
 
@@ -1137,7 +1137,7 @@
                 type="text"
                 placeholder={t('stats.searchModel')}
                 bind:value={filterModel}
-                on:input={handleFilterChange}
+                oninput={handleFilterChange}
               />
             </div>
 
@@ -1150,7 +1150,7 @@
               </select>
             </div>
 
-            <Button variant="secondary" size="sm" on:click={clearFilters} title={t('stats.clearFilters')} class="clear-button">
+            <Button variant="secondary" size="sm" onclick={clearFilters} title={t('stats.clearFilters')} class="clear-button">
               {t('stats.clear')}
             </Button>
           </div>
@@ -1221,7 +1221,7 @@
                 variant="secondary"
                 size="sm"
                 disabled={currentPage === 1 || loadingRequests}
-                on:click={() => handlePageChange(currentPage - 1)}
+                onclick={() => handlePageChange(currentPage - 1)}
                 title={t('common.previousPage')}
                 class="icon-button"
               >
@@ -1234,7 +1234,7 @@
                 variant="secondary"
                 size="sm"
                 disabled={currentPage === totalPages || loadingRequests}
-                on:click={() => handlePageChange(currentPage + 1)}
+                onclick={() => handlePageChange(currentPage + 1)}
                 title={t('common.nextPage')}
                 class="icon-button"
               >
@@ -1250,7 +1250,7 @@
             <div class="load-more-container">
               <Button
                 variant="secondary"
-                on:click={loadMore}
+                onclick={loadMore}
                 disabled={loadingRequests}
                 class="load-more-button"
                 title={t('stats.loadMoreRecords')}

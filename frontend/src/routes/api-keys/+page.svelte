@@ -499,7 +499,7 @@
 
 <div class="container">
   <div class="page-header">
-    <Button on:click={handleCreate} title={t('apiKeys.createApiKey')} class="icon-button">
+    <Button onclick={handleCreate} title={t('apiKeys.createApiKey')} class="icon-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="20"
@@ -530,7 +530,7 @@
             <Input
               type="text"
               bind:value={searchQuery}
-              on:input={handleSearch}
+              oninput={handleSearch}
               placeholder={t('apiKeys.searchPlaceholder')}
             />
           </div>
@@ -552,7 +552,7 @@
           <Button
             variant="secondary"
             size="sm"
-            on:click={clearFilters}
+            onclick={clearFilters}
             title={t('apiKeys.clear')}
             class="clear-button"
           >
@@ -618,7 +618,7 @@
                         <Button
                           variant="secondary"
                           size="sm"
-                          on:click={() => toggleExpanded(key.id.toString())}
+                          onclick={() => toggleExpanded(key.id.toString())}
                           title={expandedKeyIds.has(key.id.toString())
                             ? t('apiKeys.collapse')
                             : t('apiKeys.viewFullKey')}
@@ -663,7 +663,7 @@
                         <Button
                           variant="secondary"
                           size="sm"
-                          on:click={() => copyFullKey(key)}
+                          onclick={() => copyFullKey(key)}
                           title={t('apiKeys.copyFullKey')}
                           class="icon-button copy-button"
                         >
@@ -734,7 +734,7 @@
                           variant="primary"
                           size="sm"
                           disabled={saving}
-                          on:click={handleSaveEdit}
+                          onclick={handleSaveEdit}
                           title={saving ? t('apiKeys.saving') : t('apiKeys.save')}
                           class="icon-button"
                         >
@@ -760,7 +760,7 @@
                           variant="secondary"
                           size="sm"
                           disabled={saving}
-                          on:click={handleCancelEdit}
+                          onclick={handleCancelEdit}
                           title={t('apiKeys.cancel')}
                           class="icon-button"
                         >
@@ -785,7 +785,7 @@
                         <Button
                           variant="secondary"
                           size="sm"
-                          on:click={() => handleEdit(key)}
+                          onclick={() => handleEdit(key)}
                           title={t('apiKeys.editKey')}
                           class="icon-button"
                         >
@@ -811,7 +811,7 @@
                         <Button
                           variant="danger"
                           size="sm"
-                          on:click={() => handleDelete(key)}
+                          onclick={() => handleDelete(key)}
                           title={t('apiKeys.deleteKey')}
                           class="icon-button"
                         >
@@ -855,7 +855,7 @@
               variant="secondary"
               size="sm"
               disabled={currentPage === 1 || loadingKeys}
-              on:click={() => handlePageChange(currentPage - 1)}
+              onclick={() => handlePageChange(currentPage - 1)}
               title={t('apiKeys.previousPage')}
               class="icon-button"
             >
@@ -878,7 +878,7 @@
               variant="secondary"
               size="sm"
               disabled={currentPage === totalPages || loadingKeys}
-              on:click={() => handlePageChange(currentPage + 1)}
+              onclick={() => handlePageChange(currentPage + 1)}
               title={t('apiKeys.nextPage')}
               class="icon-button"
             >
@@ -971,7 +971,7 @@
             type="button"
             variant="secondary"
             disabled={saving}
-            on:click={handleCloseCreateForm}
+            onclick={handleCloseCreateForm}
             title={t('apiKeys.cancel')}
             class="icon-button"
           >

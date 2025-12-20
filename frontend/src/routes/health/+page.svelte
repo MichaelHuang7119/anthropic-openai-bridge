@@ -251,7 +251,7 @@
 <div class="container">
   <div class="page-header">
     <div class="actions">
-      <Button variant="primary" on:click={loadHealth} disabled={loading} title={t('health.checkNow')} class="icon-button {loading ? 'spinning' : ''}">
+      <Button variant="primary" onclick={loadHealth} disabled={loading} title={t('health.checkNow')} class="icon-button {loading ? 'spinning' : ''}">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
         </svg>
@@ -345,7 +345,7 @@
             </select>
           </div>
 
-          <Button variant="secondary" size="sm" on:click={clearFilters} title={t('health.clearFilters')} class="clear-button">
+          <Button variant="secondary" size="sm" onclick={clearFilters} title={t('health.clearFilters')} class="clear-button">
             {t('common.clear')}
           </Button>
         </div>
@@ -456,7 +456,7 @@
             variant="secondary"
             size="sm"
             disabled={currentPage === 1}
-            on:click={() => handlePageChange(currentPage - 1)}
+            onclick={() => handlePageChange(currentPage - 1)}
             title={t('common.previousPage')}
             class="icon-button"
           >
@@ -469,7 +469,7 @@
             variant="secondary"
             size="sm"
             disabled={currentPage === totalPages}
-            on:click={() => handlePageChange(currentPage + 1)}
+            onclick={() => handlePageChange(currentPage + 1)}
             title={t('common.nextPage')}
             class="icon-button"
           >

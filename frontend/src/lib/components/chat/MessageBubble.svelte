@@ -443,7 +443,7 @@
 
       <button
         class="thinking-toggle"
-        on:click={() => (thinkingExpanded = !thinkingExpanded)}
+        onclick={() => (thinkingExpanded = !thinkingExpanded)}
         title={thinkingExpanded ? t('messageBubble.hideThinking') : t('messageBubble.showThinking')}
       >
         <span class="toggle-icon {thinkingExpanded ? 'expanded' : ''}">▶</span>
@@ -457,13 +457,13 @@
         <div class="thinking-content">
           <!-- Render appropriate thinking content based on streaming state -->
           {#if isStreaming}
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <div class="streaming-thinking-wrapper">
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html renderedStreamingThinking}
             </div>
           {:else}
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             <div class="thinking-wrapper">
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html renderedThinking}
             </div>
           {/if}
@@ -483,7 +483,7 @@
             rows="3"
             placeholder={t('messageInput.placeholder')}
             disabled={isStreaming}
-            on:keydown={(e) => {
+            onkeydown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendEdit();
@@ -495,15 +495,15 @@
           ></textarea>
           <div class="edit-actions">
             <div class="edit-actions-left">
-              <button class="edit-btn-primary" on:click={handleSaveEdit} disabled={isStreaming}>
+              <button class="edit-btn-primary" onclick={handleSaveEdit} disabled={isStreaming}>
                 {t('common.save')}
               </button>
             </div>
             <div class="edit-actions-right">
-              <button class="edit-btn-primary" on:click={handleSendEdit} disabled={isStreaming} title={isStreaming ? t('messageBubble.generating') : ''}>
+              <button class="edit-btn-primary" onclick={handleSendEdit} disabled={isStreaming} title={isStreaming ? t('messageBubble.generating') : ''}>
                 {isStreaming ? t('messageBubble.generating') : t('messageInput.send')}
               </button>
-              <button class="edit-btn-secondary" on:click={handleCancelEdit} disabled={isStreaming}>
+              <button class="edit-btn-secondary" onclick={handleCancelEdit} disabled={isStreaming}>
                 {t('messageBubble.cancel')}
               </button>
             </div>
@@ -511,8 +511,8 @@
         </div>
       {:else if isStreaming}
         <!-- Render streaming markdown content in real-time -->
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <div class="streaming-content-wrapper">
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
           {@html renderedStreamingContent}
         </div>
       {:else}
@@ -526,9 +526,9 @@
   {#if message.role === "user"}
     <div class="message-actions-below">
       {#if !isEditing}
-        <button class="edit-btn" on:click={handleEdit} title={t('messageBubble.edit')}>
+        <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
         </button>
-        <button class="copy-btn-user {copied ? 'copied' : ''}" on:click={handleCopy} title={copied ? t('messageBubble.copied') : t('messageBubble.copy')}>
+        <button class="copy-btn-user {copied ? 'copied' : ''}" onclick={handleCopy} title={copied ? t('messageBubble.copied') : t('messageBubble.copy')}>
         </button>
       {/if}
     </div>
@@ -540,7 +540,7 @@
         <div class="result-navigation">
           <button
             class="nav-btn"
-            on:click={onNavigatePrev}
+            onclick={onNavigatePrev}
             title="Previous result"
             disabled={totalResults <= 1}
           >
@@ -551,7 +551,7 @@
           </span>
           <button
             class="nav-btn"
-            on:click={onNavigateNext}
+            onclick={onNavigateNext}
             title="Next result"
             disabled={totalResults <= 1}
           >
@@ -562,7 +562,7 @@
       {#if !isStreaming}
         <button
           class="retry-btn-assistant"
-          on:click={() => {
+          onclick={() => {
             console.log('MessageBubble: Retry button clicked', {
               messageId: message.id,
               model_instance_index: message.model_instance_index,
@@ -579,7 +579,7 @@
         <button
           class="copy-btn"
           class:copied
-          on:click={handleCopy}
+          onclick={handleCopy}
           title={t('messageBubble.copy')}
         >
           {#if !copied}

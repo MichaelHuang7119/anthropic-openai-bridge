@@ -66,12 +66,12 @@
 
 <div class="login-container">
   <div class="login-card">
-    <Card>
-      <div slot="title">
-        <h1 class="login-title">Anthropic OpenAI Bridge</h1>
-        <p class="login-subtitle">{t('login.subtitle')}</p>
-      </div>
+    {#snippet title()}
+      <h1 class="login-title">Anthropic OpenAI Bridge</h1>
+      <p class="login-subtitle">{t('login.subtitle')}</p>
+    {/snippet}
 
+    <Card titleSlot={title}>
       <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="login-form">
         <div class="form-group">
           <label for="email">{t('login.email')}</label>
@@ -95,7 +95,7 @@
               placeholder={t('login.placeholderPassword')}
               required
               disabled={loading}
-              on:input={() => {}}
+              oninput={() => {}}
             />
             <button
               type="button"

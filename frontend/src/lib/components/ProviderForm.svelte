@@ -386,7 +386,7 @@
         id="api_version"
         type="text"
         value={formData.api_version || ''}
-        on:input={(e) => {
+        oninput={(e) => {
           const target = e.currentTarget as HTMLInputElement;
           formData.api_version = target.value || null;
         }}
@@ -404,7 +404,7 @@
           id="timeout"
           type="number"
           bind:value={timeoutStr}
-          on:input={(e) => {
+          oninput={(e) => {
             const target = e.currentTarget as HTMLInputElement;
             timeoutStr = target.value;
             formData.timeout = parseInt(timeoutStr) || 60;
@@ -425,7 +425,7 @@
           id="max_retries"
           type="number"
           bind:value={maxRetriesStr}
-          on:input={(e) => {
+          oninput={(e) => {
             const target = e.currentTarget as HTMLInputElement;
             maxRetriesStr = target.value;
             formData.max_retries = parseInt(maxRetriesStr) || 1;
@@ -448,7 +448,7 @@
           id="priority"
           type="number"
           bind:value={priorityStr}
-          on:input={(e) => {
+          oninput={(e) => {
             const target = e.currentTarget as HTMLInputElement;
             priorityStr = target.value;
             formData.priority = parseInt(priorityStr) || 1;
@@ -487,7 +487,7 @@
     <div class="model-section">
       <div class="model-header">
         <h3>{t("providerForm.bigModels")}</h3>
-        <Button size="sm" on:click={() => addModel('big')} title={t("providerForm.addBigModel")} class="icon-button">
+        <Button size="sm" onclick={() => addModel('big')} title={t("providerForm.addBigModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -521,7 +521,7 @@
               <Button
                 variant="danger"
                 size="sm"
-                on:click={() => removeModel('big', index)}
+                onclick={() => removeModel('big', index)}
                 title={t("providerForm.delete")}
                 class="icon-button"
               >
@@ -545,7 +545,7 @@
     <div class="model-section">
       <div class="model-header">
         <h3>{t("providerForm.middleModels")}</h3>
-        <Button size="sm" on:click={() => addModel('middle')} title={t("providerForm.addMiddleModel")} class="icon-button">
+        <Button size="sm" onclick={() => addModel('middle')} title={t("providerForm.addMiddleModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -579,7 +579,7 @@
               <Button
                 variant="danger"
                 size="sm"
-                on:click={() => removeModel('middle', index)}
+                onclick={() => removeModel('middle', index)}
                 title={t("providerForm.delete")}
                 class="icon-button"
               >
@@ -603,7 +603,7 @@
     <div class="model-section">
       <div class="model-header">
         <h3>{t("providerForm.smallModels")}</h3>
-        <Button size="sm" on:click={() => addModel('small')} title={t("providerForm.addSmallModel")} class="icon-button">
+        <Button size="sm" onclick={() => addModel('small')} title={t("providerForm.addSmallModel")} class="icon-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -637,7 +637,7 @@
               <Button
                 variant="danger"
                 size="sm"
-                on:click={() => removeModel('small', index)}
+                onclick={() => removeModel('small', index)}
                 title={t("providerForm.delete")}
                 class="icon-button"
               >
@@ -675,7 +675,7 @@
         placeholder={t("providerForm.headerValue")}
         autocomplete="off"
       />
-      <Button size="sm" on:click={addHeader} title={t("providerForm.addHeader")} class="icon-button">
+      <Button size="sm" onclick={addHeader} title={t("providerForm.addHeader")} class="icon-button">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -708,7 +708,7 @@
                 <Button
                   variant="secondary"
                   size="sm"
-                  on:click={() => saveEditHeader(key)}
+                  onclick={() => saveEditHeader(key)}
                   title={t("providerForm.save")}
                   class="icon-button"
                 >
@@ -719,7 +719,7 @@
                 <Button
                   variant="secondary"
                   size="sm"
-                  on:click={cancelEditHeader}
+                  onclick={cancelEditHeader}
                   title={t("providerForm.cancel")}
                   class="icon-button"
                 >
@@ -737,7 +737,7 @@
                 <Button
                   variant="secondary"
                   size="sm"
-                  on:click={() => startEditHeader(key, value)}
+                  onclick={() => startEditHeader(key, value)}
                   title={t("providerForm.edit")}
                   class="icon-button"
                 >
@@ -749,7 +749,7 @@
                 <Button
                   variant="danger"
                   size="sm"
-                  on:click={() => removeHeader(key)}
+                  onclick={() => removeHeader(key)}
                   title={t("providerForm.delete")}
                   class="icon-button"
                 >
@@ -769,13 +769,13 @@
   </div>
 
   <div class="form-actions">
-    <Button variant="secondary" on:click={handleCancel} disabled={loading} title={t("providerForm.cancel")} class="icon-button">
+    <Button variant="secondary" onclick={handleCancel} disabled={loading} title={t("providerForm.cancel")} class="icon-button">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </Button>
-    <Button type="submit" on:click={handleSave} disabled={loading} title={loading ? t("providerForm.saving") : t("providerForm.save")} class="icon-button">
+    <Button type="submit" onclick={handleSave} disabled={loading} title={loading ? t("providerForm.saving") : t("providerForm.save")} class="icon-button">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
         <polyline points="17 21 17 13 7 13 7 21"></polyline>

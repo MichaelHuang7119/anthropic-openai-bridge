@@ -473,7 +473,7 @@
 
 <div class="container">
   <div class="page-header">
-    <Button on:click={handleAdd} title={t("providers.addProvider")} class="icon-button">
+    <Button onclick={handleAdd} title={t("providers.addProvider")} class="icon-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="20"
@@ -498,7 +498,7 @@
   {:else if $providers.length === 0}
     <div class="empty">
       <p>{t("providers.noProviders")}</p>
-      <Button on:click={handleAdd} title={t("providers.addFirstProvider")} class="icon-button">
+      <Button onclick={handleAdd} title={t("providers.addFirstProvider")} class="icon-button">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"
@@ -544,7 +544,7 @@
           <Button
             variant="secondary"
             size="sm"
-            on:click={clearFilters}
+            onclick={clearFilters}
             title={t("providers.clearFilters")}
             class="clear-button"
           >
@@ -685,7 +685,7 @@
                     <Button
                       variant="secondary"
                       size="sm"
-                      on:click={() => handleTest(provider)}
+                      onclick={() => handleTest(provider)}
                       title={t("providers.testConnection")}
                       class="icon-button"
                     >
@@ -706,7 +706,7 @@
                     <Button
                       variant="secondary"
                       size="sm"
-                      on:click={() => handleEdit(provider)}
+                      onclick={() => handleEdit(provider)}
                       title={t("providers.editProvider")}
                       class="icon-button"
                     >
@@ -732,7 +732,7 @@
                     <Button
                       variant="danger"
                       size="sm"
-                      on:click={() => handleDelete(provider)}
+                      onclick={() => handleDelete(provider)}
                       title={t("providers.deleteProvider")}
                       class="icon-button"
                     >
@@ -778,7 +778,7 @@
               variant="secondary"
               size="sm"
               disabled={currentPage === 1}
-              on:click={() => handlePageChange(currentPage - 1)}
+              onclick={() => handlePageChange(currentPage - 1)}
               title={t("common.previousPage")}
               class="icon-button"
             >
@@ -801,7 +801,7 @@
               variant="secondary"
               size="sm"
               disabled={currentPage === totalPages}
-              on:click={() => handlePageChange(currentPage + 1)}
+              onclick={() => handlePageChange(currentPage + 1)}
               title={t("common.nextPage")}
               class="icon-button"
             >
@@ -878,7 +878,7 @@
           <Button
             variant="secondary"
             size="sm"
-            on:click={copyTestResult}
+            onclick={copyTestResult}
             title={t("providers.copyResult")}
             class="icon-button"
           >
@@ -901,7 +901,7 @@
           <Button
             variant="secondary"
             size="sm"
-            on:click={closeTestResult}
+            onclick={closeTestResult}
             title={t("providers.close")}
             class="icon-button"
           >
@@ -1019,7 +1019,7 @@
       </div>
 
       <div class="test-result-actions">
-        <Button variant="primary" on:click={closeTestResult}>{t("providers.close")}</Button>
+        <Button variant="primary" onclick={closeTestResult}>{t("providers.close")}</Button>
       </div>
     </div>
   </div>

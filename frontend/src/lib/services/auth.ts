@@ -4,6 +4,7 @@
  */
 import { goto } from "$app/navigation";
 import { browser } from "$app/environment";
+import { toast } from "$stores/toast";
 
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
@@ -96,7 +97,6 @@ class AuthService {
 
     // 通知用户
     if (browser) {
-      const { toast } = await import("$stores/toast");
       toast.error("Session expired. Please login again.");
 
       // 重定向到登录页

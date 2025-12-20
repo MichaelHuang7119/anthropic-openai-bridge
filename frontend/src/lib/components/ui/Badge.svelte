@@ -1,9 +1,15 @@
 <script lang="ts">
-  export let type: 'success' | 'danger' | 'warning' | 'info' | 'secondary' = 'secondary';
+  let {
+    type = 'secondary',
+    children
+  }: {
+    type?: 'success' | 'danger' | 'warning' | 'info' | 'secondary';
+    children?: () => any;
+  } = $props();
 </script>
 
 <span class="badge badge-{type}">
-  <slot />
+  {@render children?.()}
 </span>
 
 <style>

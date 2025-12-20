@@ -5,6 +5,7 @@ export interface ModelChoice {
   providerName: string;
   apiFormat: string;
   model: string;
+  modelInstanceIndex?: number;
 }
 
 export interface Conversation {

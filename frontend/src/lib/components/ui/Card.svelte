@@ -6,6 +6,10 @@
     role?: string;
     id?: string;
     overflow?: 'hidden' | 'visible' | 'auto';
+    titleSlot?: () => any;
+    titleActionsSlot?: () => any;
+    footerSlot?: () => any;
+    children?: () => any;
   }
 
   let {
@@ -14,12 +18,19 @@
     'aria-labelledby': ariaLabelledby,
     role,
     id,
-    overflow = 'hidden'
+    overflow = 'hidden',
+    titleSlot,
+    titleActionsSlot,
+    footerSlot,
+    children
   }: Props = $props();
+
+  // Get default slot content - use $derived to ensure reactivity
+  const defaultSlot = $derived(children);
 </script>
 
 <div class="card" style="overflow: {overflow};" {...(role ? { role } : {})} {...(ariaLabelledby ? { 'aria-labelledby': ariaLabelledby } : {})} {...(id ? { id } : {})}>
-  {#if title || $$slots.title || $$slots.titleActions}
+  {#if title || titleSlot || titleActionsSlot}
     <div class="card-header">
       <div class="title-section">
         {#if title}
@@ -28,23 +39,21 @@
         {#if subtitle}
           <p class="card-subtitle">{subtitle}</p>
         {/if}
-        {#if $$slots.title}
-          <slot name="title" />
-        {/if}
+        {@render titleSlot?.()}
       </div>
-      {#if $$slots.titleActions}
+      {#if titleActionsSlot}
         <div class="title-actions">
-          <slot name="titleActions" />
+          {@render titleActionsSlot()}
         </div>
       {/if}
     </div>
   {/if}
   <div class="card-body">
-    <slot />
+    {@render defaultSlot?.()}
   </div>
-  {#if $$slots.footer}
+  {#if footerSlot}
     <div class="card-footer">
-      <slot name="footer" />
+      {@render footerSlot()}
     </div>
   {/if}
 </div>

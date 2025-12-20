@@ -335,21 +335,6 @@
                               >
                                 <span class="language-name">{language.getLanguageName(code as Language)}</span>
                                 <span class="language-code">{code}</span>
-                                {#if selectedLanguage === code}
-                                  <svg
-                                    class="check-icon"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="16" height="16"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                  >
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                  </svg>
-                                {/if}
                               </button>
                             {/each}
                           {/if}
@@ -506,7 +491,7 @@
 
               <Button
                 variant="primary"
-                on:click={handlePasswordChange}
+                onclick={handlePasswordChange}
                 disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
               >
                 {changingPassword ? t('common.loading') : t('settings.changePassword')}
@@ -668,7 +653,7 @@
     background: var(--bg-secondary, #f9fafb);
   }
 
-  .language-button:focus {
+  .language-buttonfocus {
     outline: none;
     border-color: var(--primary-color, #3b82f6);
     box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);

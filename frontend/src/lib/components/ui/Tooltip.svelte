@@ -1,15 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { onDestroy } from 'svelte';
-  
-  export let content: string = '';
-  export let placement: 'top' | 'bottom' | 'left' | 'right' = 'top';
-  export let maxWidth: string = '500px';
-  
+
+  let {
+    content = '',
+    placement = 'top',
+    maxWidth = '500px',
+    children
+  }: {
+    content?: string;
+    placement?: 'top' | 'bottom' | 'left' | 'right';
+    maxWidth?: string;
+    children?: () => any;
+  } = $props();
+
   let tooltipElement: HTMLElement;
-  let tooltipBox: HTMLElement;
-  let showTooltip = false;
-  let tooltipStyle = '';
+  let tooltipBox = $state<HTMLElement>();
+  let showTooltip = $state(false);
+  let tooltipStyle = $state('');
   
   function updateTooltipPosition() {
     if (!tooltipElement || !tooltipBox || !showTooltip) return;
@@ -88,24 +96,26 @@
     window.removeEventListener('scroll', handleScroll, true);
     window.removeEventListener('resize', handleResize);
   });
-  
+
   // 当 tooltip 显示且元素已绑定后，更新位置
-  $: if (showTooltip && tooltipBox) {
-    // 使用 setTimeout 确保 tooltip 已经渲染并有了尺寸
-    setTimeout(() => {
-      updateTooltipPosition();
-    }, 0);
-  }
+  $effect(() => {
+    if (showTooltip && tooltipBox) {
+      // 使用 setTimeout 确保 tooltip 已经渲染并有了尺寸
+      setTimeout(() => {
+        updateTooltipPosition();
+      }, 0);
+    }
+  });
 </script>
 
-<div 
+<div
   class="tooltip-wrapper"
-  on:mouseenter={handleMouseEnter}
-  on:mouseleave={handleMouseLeave}
+  onmouseenter={handleMouseEnter}
+  onmouseleave={handleMouseLeave}
   bind:this={tooltipElement}
   role="presentation"
 >
-  <slot />
+  {@render children?.()}
 </div>
 
 {#if showTooltip && content}

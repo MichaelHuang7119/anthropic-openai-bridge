@@ -51,18 +51,18 @@
 </script>
 
 {#if show && errorMessage}
-  <div class="modal-overlay" role="button" tabindex="0" on:click={handleOverlayClick} on:keydown={(e) => e.key === 'Escape' && handleOverlayClick(e)}>
-    <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="modal-overlay" role="button" tabindex="0" onclick={handleOverlayClick} onkeydown={(e) => e.key === 'Escape' && handleOverlayClick(e)}>
+    <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       <div class="modal-header">
         <h2>{title}</h2>
         <div class="header-actions">
-          <Button variant="secondary" size="sm" on:click={copyToClipboard} title="复制错误信息" class="icon-button">
+          <Button variant="secondary" size="sm" onclick={copyToClipboard} title="复制错误信息" class="icon-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
           </Button>
-          <Button variant="secondary" size="sm" on:click={handleClose} title="关闭" class="icon-button">
+          <Button variant="secondary" size="sm" onclick={handleClose} title="关闭" class="icon-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -76,8 +76,8 @@
       </div>
 
       <div class="modal-actions">
-        <Button variant="primary" on:click={copyToClipboard}>复制错误信息</Button>
-        <Button variant="secondary" on:click={handleClose}>关闭</Button>
+        <Button variant="primary" onclick={copyToClipboard}>复制错误信息</Button>
+        <Button variant="secondary" onclick={handleClose}>关闭</Button>
       </div>
     </div>
   </div>

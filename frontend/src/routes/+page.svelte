@@ -235,9 +235,9 @@
   {:else}
     <div class="stats-grid">
       <Card title={t('home.providerStats.title')} subtitle={t('home.providerStats.subtitle')}>
-        <div slot="title">
+        {#snippet titleSlot()}
           <Badge type="info">{t('home.providerStats.total')} {$providerStats.total}</Badge>
-        </div>
+        {/snippet}
         <div class="stat-items">
           <div class="stat-item">
             <span class="label">{t('home.providerStats.enabled')}</span>
@@ -251,13 +251,13 @@
       </Card>
 
       <Card title={t('home.healthStatus.title')} subtitle={hasHealthData ? t('home.healthStatus.subtitle') : t('home.healthStatus.subtitleNoData')}>
-        <div slot="title">
+        {#snippet titleSlot()}
           {#if hasHealthData}
             <Badge type={statusBadgeType}>{statusBadgeText}</Badge>
           {:else}
             <Badge type="info">{t('health.notChecked')}</Badge>
           {/if}
-        </div>
+        {/snippet}
         <div class="stat-items">
           <div class="stat-item">
             <span class="label">{t('health.healthy')}</span>
@@ -319,7 +319,7 @@
           <div class="config-code">
             <div class="code-header">
               <span class="code-label">{t('home.config.envVarsConfig')}</span>
-              <Button variant="secondary" size="sm" on:click={() => copyToClipboard(configCommand)} title={copySuccess ? t('home.config.copied') : t('home.config.copy')} class="icon-button">
+              <Button variant="secondary" size="sm" onclick={() => copyToClipboard(configCommand)} title={copySuccess ? t('home.config.copied') : t('home.config.copy')} class="icon-button">
                 {#if copySuccess}
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -354,11 +354,11 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
 
     <div class="providers-preview">
       <Card title={t('home.providersPreview.title')} subtitle={$providers.length > 0 ? translateWithParams('home.providersPreview.subtitle', { count: $providers.length }) : t('home.providersPreview.subtitleEmpty')}>
-        <div slot="titleActions">
+        {#snippet titleActionsSlot()}
           {#if $providers.length > 0}
             <a href="/providers" class="view-all">{t('home.providersPreview.viewAll')}</a>
           {/if}
-        </div>
+        {/snippet}
 
         {#if $providers.length === 0}
           <div class="empty-state">
