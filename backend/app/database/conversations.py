@@ -274,7 +274,7 @@ class ConversationsManager:
             # Get messages
             await cursor.execute(
                 """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id, model_instance_index
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -313,6 +313,7 @@ class ConversationsManager:
                         "provider_name": msg_row["provider_name"],
                         "api_format": msg_row["api_format"],
                         "parent_message_id": msg_row["parent_message_id"],
+                        "model_instance_index": msg_row["model_instance_index"] or 0,
                         "created_at": msg_created_at_beijing,
                     }
                 )
@@ -402,6 +403,7 @@ class ConversationsManager:
         provider_name: Optional[str] = None,
         api_format: Optional[str] = None,
         parent_message_id: Optional[int] = None,
+        model_instance_index: Optional[int] = None,
     ) -> Optional[int]:
         """
         Add a message to a conversation.
@@ -417,6 +419,7 @@ class ConversationsManager:
             provider_name: Provider used for this message
             api_format: API format for this message (optional)
             parent_message_id: ID of the parent message (optional)
+            model_instance_index: Index of the model instance for multi-model scenarios (optional)
 
         Returns:
             Message ID if successful, None otherwise
@@ -430,10 +433,10 @@ class ConversationsManager:
             await cursor.execute(
                 """
                 INSERT INTO conversation_messages
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id),
+                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index or 0),
             )
             message_id = cursor.lastrowid
             print(f"Conversation {conversation_id}: Inserted new {role} message ID {message_id}")
@@ -473,7 +476,7 @@ class ConversationsManager:
             cursor = await conn.cursor()
 
             query = """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id, model_instance_index
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
@@ -520,6 +523,7 @@ class ConversationsManager:
                         "provider_name": row["provider_name"],
                         "api_format": row["api_format"],
                         "parent_message_id": row["parent_message_id"],
+                        "model_instance_index": row["model_instance_index"] or 0,
                         "created_at": created_at_beijing,
                     }
                 )

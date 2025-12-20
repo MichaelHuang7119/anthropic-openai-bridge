@@ -11,6 +11,7 @@
     input_tokens?: number | null;
     output_tokens?: number | null;
     created_at?: string;
+    model_instance_index?: number;
   }
 
   let {
@@ -34,7 +35,7 @@
     showTokens?: boolean;
     providerName?: string | null;
     apiFormat?: string | null;
-    onretryModel?: (event: { providerName: string; apiFormat: string; model: string }) => void;
+    onretryModel?: (event: { providerName: string; apiFormat: string; model: string; modelInstanceIndex?: number }) => void;
     onedit?: (event: { message: Message; newContent: string; saveOnly?: boolean }) => void;
     resultIndex?: number;
     totalResults?: number;
@@ -270,6 +271,11 @@
     const cleanApiFormat = apiFormat?.trim() || '';
     const cleanModel = model?.trim() || '';
 
+    // Return empty string if all parameters are empty
+    if (!cleanProviderName && !cleanApiFormat && !cleanModel) {
+      return '';
+    }
+
     if (cleanProviderName && cleanApiFormat && cleanModel) {
       return `${cleanProviderName}(${cleanApiFormat})/${cleanModel}`;
     } else if (cleanModel) {
@@ -437,7 +443,7 @@
 
       <button
         class="thinking-toggle"
-        onclick={() => (thinkingExpanded = !thinkingExpanded)}
+        on:click={() => (thinkingExpanded = !thinkingExpanded)}
         title={thinkingExpanded ? t('messageBubble.hideThinking') : t('messageBubble.showThinking')}
       >
         <span class="toggle-icon {thinkingExpanded ? 'expanded' : ''}">▶</span>
@@ -477,7 +483,7 @@
             rows="3"
             placeholder={t('messageInput.placeholder')}
             disabled={isStreaming}
-            onkeydown={(e) => {
+            on:keydown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendEdit();
@@ -489,15 +495,15 @@
           ></textarea>
           <div class="edit-actions">
             <div class="edit-actions-left">
-              <button class="edit-btn-primary" onclick={handleSaveEdit} disabled={isStreaming}>
+              <button class="edit-btn-primary" on:click={handleSaveEdit} disabled={isStreaming}>
                 {t('common.save')}
               </button>
             </div>
             <div class="edit-actions-right">
-              <button class="edit-btn-primary" onclick={handleSendEdit} disabled={isStreaming} title={isStreaming ? t('messageBubble.generating') : ''}>
+              <button class="edit-btn-primary" on:click={handleSendEdit} disabled={isStreaming} title={isStreaming ? t('messageBubble.generating') : ''}>
                 {isStreaming ? t('messageBubble.generating') : t('messageInput.send')}
               </button>
-              <button class="edit-btn-secondary" onclick={handleCancelEdit} disabled={isStreaming}>
+              <button class="edit-btn-secondary" on:click={handleCancelEdit} disabled={isStreaming}>
                 {t('messageBubble.cancel')}
               </button>
             </div>
@@ -520,9 +526,9 @@
   {#if message.role === "user"}
     <div class="message-actions-below">
       {#if !isEditing}
-        <button class="edit-btn" onclick={handleEdit} title={t('messageBubble.edit')}>
+        <button class="edit-btn" on:click={handleEdit} title={t('messageBubble.edit')}>
         </button>
-        <button class="copy-btn-user {copied ? 'copied' : ''}" onclick={handleCopy} title={copied ? t('messageBubble.copied') : t('messageBubble.copy')}>
+        <button class="copy-btn-user {copied ? 'copied' : ''}" on:click={handleCopy} title={copied ? t('messageBubble.copied') : t('messageBubble.copy')}>
         </button>
       {/if}
     </div>
@@ -534,7 +540,7 @@
         <div class="result-navigation">
           <button
             class="nav-btn"
-            onclick={onNavigatePrev}
+            on:click={onNavigatePrev}
             title="Previous result"
             disabled={totalResults <= 1}
           >
@@ -545,7 +551,7 @@
           </span>
           <button
             class="nav-btn"
-            onclick={onNavigateNext}
+            on:click={onNavigateNext}
             title="Next result"
             disabled={totalResults <= 1}
           >
@@ -553,25 +559,36 @@
           </button>
         </div>
       {/if}
-      <button
-        class="retry-btn-assistant"
-        onclick={() => onretryModel?.({ providerName: providerName || '', apiFormat: apiFormat || '', model: message.model || '' })}
-        title={t('messageBubble.retry')}
-      >
-        ↻
-      </button>
-      <button
-        class="copy-btn"
-        class:copied
-        onclick={handleCopy}
-        title={t('messageBubble.copy')}
-      >
-        {#if !copied}
-          {t('messageBubble.copy')}
-        {:else}
-          {t('messageBubble.copied')}
-        {/if}
-      </button>
+      {#if !isStreaming}
+        <button
+          class="retry-btn-assistant"
+          on:click={() => {
+            console.log('MessageBubble: Retry button clicked', {
+              messageId: message.id,
+              model_instance_index: message.model_instance_index,
+              providerName,
+              apiFormat,
+              model: message.model
+            });
+            onretryModel?.({ providerName: providerName || '', apiFormat: apiFormat || '', model: message.model || '', modelInstanceIndex: message.model_instance_index });
+          }}
+          title={t('messageBubble.retry')}
+        >
+          ↻
+        </button>
+        <button
+          class="copy-btn"
+          class:copied
+          on:click={handleCopy}
+          title={t('messageBubble.copy')}
+        >
+          {#if !copied}
+            {t('messageBubble.copy')}
+          {:else}
+            {t('messageBubble.copied')}
+          {/if}
+        </button>
+      {/if}
     </div>
   {/if}
 </div>

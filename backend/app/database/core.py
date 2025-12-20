@@ -288,6 +288,11 @@ class DatabaseCore:
             await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN parent_message_id INTEGER")
             logger.info("Added parent_message_id column to conversation_messages table")
 
+        # Add model_instance_index column if it doesn't exist (migration)
+        if 'model_instance_index' not in columns:
+            await cursor.execute("ALTER TABLE conversation_messages ADD COLUMN model_instance_index INTEGER DEFAULT 0")
+            logger.info("Added model_instance_index column to conversation_messages table")
+
         await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
             ON conversation_messages(conversation_id)

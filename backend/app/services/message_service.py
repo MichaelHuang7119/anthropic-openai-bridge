@@ -885,7 +885,7 @@ class MessageService:
                             f"[Request {request_id}] Streaming completed:\n"
                             f"  Provider: {provider_config.name}\n"
                             f"  \033[92m┌──────── Actual Provider ────────┐\033[0m\n"
-                            f"  \033[92m│ {actual_provider}{padding} │\033[0m\n"
+                            f"  \033[92m│ {actual_provider or provider_config.name}{padding} │\033[0m\n"
                             f"  \033[92m└─────────────────────────────────┘\033[0m\n"
                             f"  Model: {actual_model}\n"
                             f"  Input Tokens: {initial_input_tokens}\n"

@@ -230,6 +230,7 @@
                 providerName: msg.provider_name,
                 apiFormat: msg.api_format,
                 model: msg.model,
+                modelInstanceIndex: msg.model_instance_index ?? 0,
               });
             }
           });
@@ -253,12 +254,12 @@
               selectedModelName = lastModel.model;
             } else {
               // Multi-model: keep all unique models
-              // Remove duplicates based on model+provider+api_format
+              // Remove duplicates based on model+provider+api_format+modelInstanceIndex
               const uniqueModels: ModelChoice[] = [];
               const seen = new Set<string>();
 
               modelsList.forEach(model => {
-                const key = `${model.providerName}-${model.apiFormat}-${model.model}`;
+                const key = `${model.providerName}-${model.apiFormat}-${model.model}-${model.modelInstanceIndex ?? 0}`;
                 if (!seen.has(key)) {
                   seen.add(key);
                   uniqueModels.push(model);

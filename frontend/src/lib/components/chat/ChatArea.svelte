@@ -46,38 +46,73 @@
   function getMessageGroups() {
     const groups = [];
 
-    // Simple chronological grouping - each user message followed by its assistant messages
-    let currentUserMessage: Message | null = null;
-    let currentAssistantMessages: Message[] = [];
+    // Build a map of user messages by ID for quick lookup
+    const userMessagesMap = new Map<number, Message>();
+    messages.filter(m => m.role === "user").forEach(msg => {
+      userMessagesMap.set(msg.id, msg);
+    });
 
-    for (const msg of messages) {
-      if (msg.role === "user") {
-        // Save previous group if exists
-        if (currentUserMessage) {
-          groups.push({
-            userMessage: currentUserMessage,
-            assistantMessages: [...currentAssistantMessages] // Clone array
-          });
+    // Group assistant messages by their parent_message_id
+    const assistantMessagesByParent = new Map<number, Message[]>();
+    messages.filter(m => m.role === "assistant").forEach(msg => {
+      const parentId = msg.parent_message_id;
+      if (parentId !== null && parentId !== undefined && userMessagesMap.has(parentId)) {
+        // This assistant message belongs to a user message
+        if (!assistantMessagesByParent.has(parentId)) {
+          assistantMessagesByParent.set(parentId, []);
+        }
+        assistantMessagesByParent.get(parentId)!.push(msg);
+      } else if (parentId === null || parentId === undefined) {
+        // Handle edge case where parent_message_id is missing
+        // Find the most recent user message before this assistant message
+        const currentIndex = messages.findIndex(m => m.id === msg.id);
+        let mostRecentUserMessage: Message | null = null;
+
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            mostRecentUserMessage = messages[i];
+            break;
+          }
         }
 
-        // Start new group
-        currentUserMessage = msg;
-        currentAssistantMessages = [];
-      } else if (msg.role === "assistant") {
-        // Add to current assistant messages
-        if (currentUserMessage) {
-          currentAssistantMessages.push(msg);
+        if (mostRecentUserMessage) {
+          if (!assistantMessagesByParent.has(mostRecentUserMessage.id)) {
+            assistantMessagesByParent.set(mostRecentUserMessage.id, []);
+          }
+          assistantMessagesByParent.get(mostRecentUserMessage.id)!.push(msg);
         }
       }
-    }
+    });
 
-    // Save last group if exists
-    if (currentUserMessage) {
-      groups.push({
-        userMessage: currentUserMessage,
-        assistantMessages: [...currentAssistantMessages] // Clone array
-      });
-    }
+    // Create groups using the assistant messages that were successfully grouped
+    const groupedParentIds = new Set<number>();
+    assistantMessagesByParent.forEach((_, parentId) => {
+      groupedParentIds.add(parentId);
+      const userMessage = userMessagesMap.get(parentId);
+      if (userMessage) {
+        groups.push({
+          userMessage,
+          assistantMessages: assistantMessagesByParent.get(parentId)!
+        });
+      }
+    });
+
+    // Add any user messages that don't have assistant messages
+    userMessagesMap.forEach((msg, id) => {
+      if (!groupedParentIds.has(id)) {
+        groups.push({
+          userMessage: msg,
+          assistantMessages: []
+        });
+      }
+    });
+
+    // Sort groups by the order of their user messages in the original messages array
+    groups.sort((a, b) => {
+      const aIndex = messages.findIndex(m => m.id === a.userMessage.id);
+      const bIndex = messages.findIndex(m => m.id === b.userMessage.id);
+      return aIndex - bIndex;
+    });
 
     console.log("ChatArea: getMessageGroups - All messages:", $state.snapshot(messages));
     console.log("ChatArea: getMessageGroups - Groups created:", $state.snapshot(groups.map(g => ({
@@ -113,8 +148,28 @@
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
-            currentViewingMessageIds = parsed;
+            // Migrate old keys that don't have model_instance_index to include it with default value 0
+            const migrated: Record<string, number | null> = {};
+            for (const [key, value] of Object.entries(parsed)) {
+              // New format: userMessageId-provider-apiFormat-model-instanceIndex (5 dashes, 6 parts total)
+              // Old format: userMessageId-provider-apiFormat-model (4 dashes, 5 parts total)
+              const parts = key.split('-');
+              if (parts.length === 5) {
+                // Old format: add -0 for model_instance_index
+                const newKey = `${key}-0`;
+                migrated[newKey] = value;
+                console.log('Migrated viewing message ID key:', { oldKey: key, newKey, value });
+              } else if (parts.length === 6) {
+                // Already has model_instance_index
+                migrated[key] = value;
+              } else {
+                // Unexpected format, keep as is
+                migrated[key] = value;
+              }
+            }
+            currentViewingMessageIds = migrated;
             hasLoadedMessageIds = true;
+            console.log('Initialized viewing message IDs with migration:', currentViewingMessageIds);
           }
         }
       } catch (e) {
@@ -383,14 +438,15 @@
             // For multi-model scenario: show latest model from each model subgroup
             const modelsList: ModelChoice[] = [];
 
-            // Check if this is a single-model scenario (all messages have same provider/api_format combination)
-            const uniqueProviderApiCombinations = new Set(
+            // Check if this is a single-model scenario
+            // We need to check if all messages have the same model configuration INCLUDING model_instance_index
+            const uniqueModelKeys = new Set(
               uniqueAssistantMessages
                 .filter(msg => msg.provider_name && msg.api_format && msg.model)
-                .map(msg => `${msg.provider_name}-${msg.api_format}`)
+                .map(msg => `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`)
             );
 
-            const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+            const isSingleModelScenario = uniqueModelKeys.size === 1;
 
             if (isSingleModelScenario) {
               // Single model scenario: show ONLY the last retry (latest message)
@@ -408,16 +464,18 @@
                   providerName: latestMessage.provider_name || '',
                   apiFormat: latestMessage.api_format || '',
                   model: latestMessage.model || '',
+                  modelInstanceIndex: latestMessage.model_instance_index ?? 0,
                 });
               }
             } else {
               // Multi-model scenario: group by model configuration and get latest from each group
               const groupedModels = new Map<string, Message[]>();
 
-              // First pass: group messages by model configuration
+              // First pass: group messages by model configuration AND instance index
               uniqueAssistantMessages.forEach(msg => {
                 if (msg.provider_name && msg.api_format && msg.model) {
-                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                  // Include model_instance_index to distinguish between same model selected multiple times
+                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
                   if (!groupedModels.has(modelKey)) {
                     groupedModels.set(modelKey, []);
                   }
@@ -426,7 +484,7 @@
               });
 
               // Second pass: for each group, get the latest message (by created_at)
-              groupedModels.forEach((messages) => {
+              groupedModels.forEach((messages, modelKey) => {
                 const sortedMessages = messages.sort((a, b) => {
                   const aTime = new Date(a.created_at || 0).getTime();
                   const bTime = new Date(b.created_at || 0).getTime();
@@ -434,10 +492,16 @@
                 });
                 const latestMessage = sortedMessages[0];
                 if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                  // Extract model_instance_index from the modelKey
+                  const modelKeyParts = modelKey.split('-');
+                  const modelInstanceIndexStr = modelKeyParts[3];
+                  const modelInstanceIndex = parseInt(modelInstanceIndexStr) || 0;
+
                   modelsList.push({
                     providerName: latestMessage.provider_name,
                     apiFormat: latestMessage.api_format,
                     model: latestMessage.model,
+                    modelInstanceIndex
                   });
                 }
               });
@@ -454,10 +518,11 @@
                 const modelGroupsOrdered = new Map<string, Message[]>();
                 const modelOrder: string[] = [];
 
-                // First pass: group messages by model configuration while maintaining order
+                // First pass: group messages by model configuration AND instance index while maintaining order
                 uniqueAssistantMessages.forEach(msg => {
                   if (msg.provider_name && msg.api_format && msg.model) {
-                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    // Include model_instance_index to distinguish between same model selected multiple times
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
                     if (!modelGroupsOrdered.has(modelKey)) {
                       modelGroupsOrdered.set(modelKey, []);
                       modelOrder.push(modelKey);
@@ -536,7 +601,8 @@
 
                 allAssistantMessages.forEach(msg => {
                   if (msg.provider_name && msg.api_format && msg.model) {
-                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    // Include model_instance_index to distinguish between same model selected multiple times
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
                     if (!groupedModels.has(modelKey)) {
                       groupedModels.set(modelKey, []);
                     }
@@ -651,7 +717,8 @@
 
                 allAssistantMessages.forEach(msg => {
                   if (msg.provider_name && msg.api_format && msg.model) {
-                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                    // Include model_instance_index to distinguish between same model selected multiple times
+                    const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
                     if (!groupedModels.has(modelKey)) {
                       groupedModels.set(modelKey, []);
                     }
@@ -735,14 +802,15 @@
             // For multi-model scenario: show latest model from each model subgroup
             const modelsList: ModelChoice[] = [];
 
-            // Check if this is a single-model scenario (all messages have same provider/api_format combination)
-            const uniqueProviderApiCombinations = new Set(
+            // Check if this is a single-model scenario
+            // We need to check if all messages have the same model configuration INCLUDING model_instance_index
+            const uniqueModelKeys = new Set(
               uniqueAssistantMessages
                 .filter(msg => msg.provider_name && msg.api_format && msg.model)
-                .map(msg => `${msg.provider_name}-${msg.api_format}`)
+                .map(msg => `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`)
             );
 
-            const isSingleModelScenario = uniqueProviderApiCombinations.size === 1;
+            const isSingleModelScenario = uniqueModelKeys.size === 1;
 
             if (isSingleModelScenario) {
               // Single model scenario: show ONLY the last retry (latest message)
@@ -760,16 +828,18 @@
                   providerName: latestMessage.provider_name || '',
                   apiFormat: latestMessage.api_format || '',
                   model: latestMessage.model || '',
+                  modelInstanceIndex: latestMessage.model_instance_index ?? 0,
                 });
               }
             } else {
               // Multi-model scenario: group by model configuration and get latest from each group
               const groupedModels = new Map<string, Message[]>();
 
-              // First pass: group messages by model configuration
+              // First pass: group messages by model configuration AND instance index
               uniqueAssistantMessages.forEach(msg => {
                 if (msg.provider_name && msg.api_format && msg.model) {
-                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+                  // Include model_instance_index to distinguish between same model selected multiple times
+                  const modelKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
                   if (!groupedModels.has(modelKey)) {
                     groupedModels.set(modelKey, []);
                   }
@@ -778,7 +848,7 @@
               });
 
               // Second pass: for each group, get the latest message (by created_at)
-              groupedModels.forEach((messages) => {
+              groupedModels.forEach((messages, modelKey) => {
                 const sortedMessages = messages.sort((a, b) => {
                   const aTime = new Date(a.created_at || 0).getTime();
                   const bTime = new Date(b.created_at || 0).getTime();
@@ -786,10 +856,16 @@
                 });
                 const latestMessage = sortedMessages[0];
                 if (latestMessage && latestMessage.provider_name && latestMessage.api_format && latestMessage.model) {
+                  // Extract model_instance_index from the modelKey
+                  const modelKeyParts = modelKey.split('-');
+                  const modelInstanceIndexStr = modelKeyParts[3];
+                  const modelInstanceIndex = parseInt(modelInstanceIndexStr) || 0;
+
                   modelsList.push({
                     providerName: latestMessage.provider_name,
                     apiFormat: latestMessage.api_format,
                     model: latestMessage.model,
+                    modelInstanceIndex
                   });
                 }
               });
@@ -917,7 +993,7 @@
     }
   }
 
-  async function handleSendMessage(event: { message: string; selectedModels?: ModelChoice[]; skipAddUserMessage?: boolean; appendToExisting?: boolean; userMessageId?: number; streamingMessageId?: number }) {
+  async function handleSendMessage(event: { message: string; selectedModels?: ModelChoice[]; skipAddUserMessage?: boolean; appendToExisting?: boolean; userMessageId?: number; streamingMessageId?: number; modelInstanceIndex?: number }) {
     console.log("========================================");
     console.log("handleSendMessage called with:", event);
 
@@ -936,17 +1012,22 @@
     const chatId = conversation.id;
     console.log("Chat ID:", chatId);
 
-    // Cancel any previous requests for this specific conversation
-    const existingController = conversationAbortControllers.get(chatId);
+    // Get the modelInstanceIndex from event (for retry scenarios) or use 0 for new messages
+    const modelInstanceIndex = event.modelInstanceIndex !== undefined ? event.modelInstanceIndex : 0;
+    const controllerKey = `${chatId}-${modelInstanceIndex}`;
+    console.log("Controller key:", controllerKey);
+
+    // Cancel any previous requests for this specific conversation and model instance
+    const existingController = conversationAbortControllers.get(controllerKey);
     if (existingController) {
-      console.log("Aborting existing controller for chat:", chatId);
+      console.log("Aborting existing controller for:", controllerKey);
       existingController.abort();
-      conversationAbortControllers.delete(chatId);
+      conversationAbortControllers.delete(controllerKey);
     }
 
-    // Create new AbortController for this conversation
+    // Create new AbortController for this conversation and model instance
     const abortController = new AbortController();
-    conversationAbortControllers.set(chatId, abortController);
+    conversationAbortControllers.set(controllerKey, abortController);
 
     // Check if we have selected models or conversation model
     // Use event.selectedModels if provided, otherwise use global selectedModels
@@ -991,21 +1072,22 @@
     console.log("========================================");
 
     try {
-      // Only add user message if not skipped (for retry scenarios)
-      if (!event.skipAddUserMessage) {
-        // Add user message to UI immediately for better UX
-        const userMsg: Message = {
-          id: Date.now(),
-          role: "user",
-          content: userMessage,
-          provider_name: modelsToUse[0].providerName || null,
-          api_format: modelsToUse[0].apiFormat || null,
-          model: null,
-          input_tokens: null,
-          output_tokens: null,
-          created_at: new Date().toISOString(),
-        };
+      // Prepare user message for UI (may not be added if skipAddUserMessage is true)
+      const userMsg: Message = {
+        id: Date.now(),
+        role: "user",
+        content: userMessage,
+        provider_name: modelsToUse[0].providerName || null,
+        api_format: modelsToUse[0].apiFormat || null,
+        model: null,
+        input_tokens: null,
+        output_tokens: null,
+        created_at: new Date().toISOString(),
+      };
 
+      // Only add user message if not skipped (for retry scenarios)
+      let userMessageId = event.userMessageId;
+      if (!event.skipAddUserMessage) {
         // Check if this is the first user message before adding to messages array
         const isFirstMessage = messages.filter(m => m.role === "user").length === 0;
         if (isFirstMessage) {
@@ -1023,19 +1105,13 @@
 
         messages = [...messages, userMsg];
 
-        // Scroll to user message immediately
-        await tick();
-        scrollToBottom();
-      }
-
-      // Save user message to database (skip for retries to avoid duplicates)
-      if (!event.skipAddUserMessage) {
+        // Save user message to database and get the real ID
         console.log("ChatArea: Adding message to database:", {
           conversationId: conversation.id,
           role: "user",
           content: userMessage,
         });
-        await chatService.addMessage(
+        const savedUserMessage = await chatService.addMessage(
           conversation.id,
           "user",
           userMessage,
@@ -1046,6 +1122,27 @@
           undefined, // provider
           undefined, // apiFormat
         );
+
+        // Update the user message ID in the messages array to match the database ID
+        // This ensures proper parent_message_id association for assistant messages
+        messages = messages.map(m => {
+          if (m.id === userMsg.id) {
+            return { ...m, id: savedUserMessage.id };
+          }
+          return m;
+        });
+
+        // Use the real database ID for subsequent assistant messages
+        userMessageId = savedUserMessage.id;
+
+        // Scroll to user message immediately
+        await tick();
+        scrollToBottom();
+      }
+
+      // For retry scenarios, use the provided userMessageId
+      if (!userMessageId) {
+        userMessageId = event.userMessageId;
       }
 
       // Initialize streaming state for all models
@@ -1150,6 +1247,15 @@
               };
               // Always save to database, including for retry messages
               // This ensures we have a complete history of all messages including retries
+              // Use the passed modelInstanceIndex for retries, otherwise use array index
+              const instanceIndex = event.modelInstanceIndex !== undefined ? event.modelInstanceIndex : index;
+              console.log('ChatArea: Saving assistant message', {
+                modelInstanceIndex: instanceIndex,
+                modelName: model.model,
+                providerName: model.providerName,
+                apiFormat: model.apiFormat,
+                userMessageId
+              });
               await chatService.addMessage(
                 conversation!.id,
                 "assistant",
@@ -1160,7 +1266,8 @@
                 usage?.output_tokens,
                 model.providerName || undefined,
                 model.apiFormat || undefined,
-                event.userMessageId,
+                userMessageId, // Use the real database userMessageId
+                instanceIndex, // model_instance_index
               ).catch(err => {
                 console.error("Failed to save assistant message:", err);
               });
@@ -1228,7 +1335,7 @@
               scrollToBottom();
 
               // Cleanup AbortController after successful completion
-              conversationAbortControllers.delete(chatId);
+              conversationAbortControllers.delete(controllerKey);
             }
           },
           (err) => {
@@ -1273,7 +1380,7 @@
               _currentStreamingModels = [];
 
               // Cleanup AbortController after completion (with or without errors)
-              conversationAbortControllers.delete(chatId);
+              conversationAbortControllers.delete(controllerKey);
             }
 
             dispatch("error", { message: extendedErr.message });
@@ -1294,14 +1401,14 @@
       dispatch("error", { message: error });
 
       // Cleanup AbortController on error
-      conversationAbortControllers.delete(chatId);
+      conversationAbortControllers.delete(controllerKey);
     }
   }
 
-  function handleRetryModel(event: { providerName: string; apiFormat: string; model: string }) {
-    const { providerName, apiFormat, model } = event;
+  function handleRetryModel(event: { providerName: string; apiFormat: string; model: string; modelInstanceIndex?: number }) {
+    const { providerName, apiFormat, model, modelInstanceIndex = 0 } = event;
     console.log("========================================");
-    console.log("Retrying model:", { providerName, apiFormat, model });
+    console.log("Retrying model:", { providerName, apiFormat, model, modelInstanceIndex });
     console.log("Current messages array:", messages.length, "messages");
     console.log("currentViewingMessageIds:", $state.snapshot(currentViewingMessageIds));
 
@@ -1312,34 +1419,39 @@
       provider_name: m.provider_name,
       api_format: m.api_format,
       model: m.model,
+      model_instance_index: m.model_instance_index,
       parent_message_id: (m as any).parent_message_id,
       content: m.content.substring(0, 50) + "..."
     })));
 
-    // Find the LAST assistant message that matches this model
-    // In multi-model scenarios, we want the most recent message for this model
+    // Find the LAST assistant message that matches this model AND instance index
+    // In multi-model scenarios, we want the most recent message for this specific model instance
     let retryingMessageIndex = -1;
     let retryingMessage = null;
 
     // Search backwards through messages to find the most recent matching message
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
+      const msgInstanceIndex = msg.model_instance_index ?? 0;
       console.log(`Checking message ${i}:`, {
         id: msg.id,
         role: msg.role,
         provider_name: msg.provider_name,
         api_format: msg.api_format,
         model: msg.model,
+        model_instance_index: msgInstanceIndex,
         matches: msg.role === "assistant" &&
           msg.provider_name?.toLowerCase() === providerName.toLowerCase() &&
           msg.api_format?.toLowerCase() === apiFormat.toLowerCase() &&
-          msg.model?.toLowerCase() === model.toLowerCase()
+          msg.model?.toLowerCase() === model.toLowerCase() &&
+          msgInstanceIndex === modelInstanceIndex
       });
 
       if (msg.role === "assistant" &&
           msg.provider_name?.toLowerCase() === providerName.toLowerCase() &&
           msg.api_format?.toLowerCase() === apiFormat.toLowerCase() &&
-          msg.model?.toLowerCase() === model.toLowerCase()) {
+          msg.model?.toLowerCase() === model.toLowerCase() &&
+          msgInstanceIndex === modelInstanceIndex) {
         retryingMessageIndex = i;
         retryingMessage = msg;
         console.log("✓ Found matching message at index", i);
@@ -1388,6 +1500,7 @@
         console.log("Creating new retry message with temp ID:", newRetryMessageId);
 
         // Add the new retry message to the messages array
+        // Keep the same model_instance_index as the original message being retried
         const newRetryMessage: Message = {
           id: newRetryMessageId,
           role: "assistant",
@@ -1398,15 +1511,25 @@
           provider_name: providerName,
           api_format: apiFormat,
           parent_message_id: userMessage.id,
+          model_instance_index: modelInstanceIndex,
           input_tokens: null,
           output_tokens: null,
           created_at: new Date().toISOString()
         };
 
+        console.log('ChatArea: New retry message created', {
+          id: newRetryMessageId,
+          model_instance_index: newRetryMessage.model_instance_index,
+          parent_message_id: newRetryMessage.parent_message_id,
+          provider_name: newRetryMessage.provider_name,
+          model: newRetryMessage.model
+        });
+
         messages = [...messages, newRetryMessage];
 
         // Update navigation index to show the latest message (new retry)
-        const groupKey = `${userMessage.id}-${providerName}-${apiFormat}-${model}`;
+        // Include model_instance_index in the groupKey
+        const groupKey = `${userMessage.id}-${providerName}-${apiFormat}-${model}-${modelInstanceIndex}`;
         currentViewingMessageIds = {
           ...currentViewingMessageIds,
           [groupKey]: newRetryMessageId
@@ -1423,7 +1546,8 @@
           selectedModels: [{ providerName, apiFormat, model }],
           skipAddUserMessage: true,
           appendToExisting: true,
-          streamingMessageId: newRetryMessageId
+          streamingMessageId: newRetryMessageId,
+          modelInstanceIndex: modelInstanceIndex // Pass the original model_instance_index
         });
 
         console.log("✓ Retry initiated with new message ID:", newRetryMessageId);
@@ -1690,9 +1814,9 @@
         <!-- Render all assistant messages for this user message, grouped by model -->
         {#if group.assistantMessages.length > 0 || Object.keys(streamingMessages).length > 0}
           {@const groupedByModel = group.assistantMessages.reduce((acc, msg) => {
-            // Group messages by model configuration
-            // All retries of the same model should be in the same group
-            const baseKey = `${msg.provider_name}-${msg.api_format}-${msg.model}`;
+            // Group messages by model configuration AND instance index
+            // Each model instance (even same model selected multiple times) gets its own card
+            const baseKey = `${msg.provider_name}-${msg.api_format}-${msg.model}-${msg.model_instance_index ?? 0}`;
 
             if (!acc[baseKey]) {
               acc[baseKey] = [];
@@ -1757,73 +1881,79 @@
               <!-- Render streaming messages when no finalized messages yet -->
               {#each Object.entries(streamingMessages) as [index, content]}
                 {@const model = _currentStreamingModels[Number(index)]}
-                {@const providerName = model.providerName}
-                {@const apiFormat = model.apiFormat}
-                {@const modelName = model.model}
+                {@const providerName = model?.providerName || ''}
+                {@const apiFormat = model?.apiFormat || ''}
+                {@const modelName = model?.model || ''}
+                {@const modelInstanceIndex = Number(index)}
 
-                <!-- Calculate correct resultIndex and totalResults for streaming messages -->
-                <!-- For streaming messages, we need to find the model group and calculate the correct index -->
-                {@const baseModelKey = `${providerName}-${apiFormat}-${modelName}`}
-                <!-- Find all assistant messages for THIS user message that match this model -->
-                <!-- Use the current group's userMessage, not all messages -->
-                {@const userMessage = group.userMessage}
-                {@const modelGroupMessagesForStreaming = messages.filter(msg =>
-                  msg.role === "assistant" &&
-                  msg.parent_message_id === userMessage?.id &&
-                  msg.provider_name === providerName &&
-                  msg.api_format === apiFormat &&
-                  msg.model === modelName
-                )}
-                <!-- Generate model key consistent with grouping logic (no instance suffix) -->
-                {@const modelKey = baseModelKey}
-                {@const groupKey = `${userMessage?.id}-${modelKey}`}
-                <!-- For streaming messages, show only the existing count (streaming message not saved yet) -->
-                <!-- If there are 0 existing messages, show 0/1 (0 saved, 1 total after save) -->
-                <!-- If there is 1 existing message, show 1/2 (1 saved, 2 total after save) -->
-                {@const currentStreamingIndex = modelGroupMessagesForStreaming.length}
-                {@const totalResultsForStreaming = modelGroupMessagesForStreaming.length + 1}
-                <!-- Always show navigation for streaming messages -->
-                {@const showResultNavigation = true}
-                <!-- DEBUG: Log streaming navigation calculation -->
-                {console.log('Streaming Navigation Debug:', {
-                  index,
-                  modelName,
-                  providerName,
-                  apiFormat,
-                  currentStreamingIndex,
-                  totalResultsForStreaming,
-                  userMessageId: userMessage?.id,
-                  existingMessagesCount: modelGroupMessagesForStreaming.length,
-                  modelKey,
-                  modelGroupMessagesIds: modelGroupMessagesForStreaming.map(m => m.id)
-                })}
-                <div class="assistant-message-column">
-                  <MessageBubble
-                    message={{
-                      id: Date.now() + Number(index),
-                      role: "assistant",
-                      content: content,
-                      thinking: streamingThinkings[Number(index)] || undefined,
-                      model: modelName,
-                      input_tokens: null,
-                      output_tokens: null,
-                      created_at: new Date().toISOString(),
-                      provider_name: providerName,
-                      api_format: apiFormat,
-                    } as any}
-                    isStreaming={!streamingFinished[Number(index)]}
-                    showModel={true}
-                    showTokens={false}
-                    providerName={providerName}
-                    apiFormat={apiFormat}
-                    onretryModel={handleRetryModel}
-                    resultIndex={currentStreamingIndex}
-                    totalResults={totalResultsForStreaming}
-                    showResultNavigation={showResultNavigation}
-                    onNavigatePrev={() => navigateResult(groupKey, 'prev', modelGroupMessagesForStreaming)}
-                    onNavigateNext={() => navigateResult(groupKey, 'next', modelGroupMessagesForStreaming)}
-                  />
-                </div>
+                <!-- Only render if we have valid model info -->
+                {#if providerName && apiFormat && modelName}
+                  <!-- Calculate correct resultIndex and totalResults for streaming messages -->
+                  <!-- For streaming messages, we need to find the model group and calculate the correct index -->
+                  {@const baseModelKey = `${providerName}-${apiFormat}-${modelName}-${modelInstanceIndex}`}
+                  <!-- Find all assistant messages for THIS user message that match this model instance -->
+                  <!-- Use the current group's userMessage, not all messages -->
+                  {@const userMessage = group.userMessage}
+                  {@const modelGroupMessagesForStreaming = messages.filter(msg =>
+                    msg.role === "assistant" &&
+                    msg.parent_message_id === userMessage?.id &&
+                    msg.provider_name === providerName &&
+                    msg.api_format === apiFormat &&
+                    msg.model === modelName &&
+                    (msg.model_instance_index ?? 0) === modelInstanceIndex
+                  )}
+                  <!-- Generate model key consistent with grouping logic (includes instance index) -->
+                  {@const modelKey = baseModelKey}
+                  {@const groupKey = `${userMessage?.id}-${modelKey}`}
+                  <!-- For streaming messages, show only the existing count (streaming message not saved yet) -->
+                  <!-- If there are 0 existing messages, show 0/1 (0 saved, 1 total after save) -->
+                  <!-- If there is 1 existing message, show 1/2 (1 saved, 2 total after save) -->
+                  {@const currentStreamingIndex = modelGroupMessagesForStreaming.length}
+                  {@const totalResultsForStreaming = modelGroupMessagesForStreaming.length + 1}
+                  <!-- Always show navigation for streaming messages -->
+                  {@const showResultNavigation = true}
+                  <!-- DEBUG: Log streaming navigation calculation -->
+                  {console.log('Streaming Navigation Debug:', {
+                    index,
+                    modelName,
+                    providerName,
+                    apiFormat,
+                    currentStreamingIndex,
+                    totalResultsForStreaming,
+                    userMessageId: userMessage?.id,
+                    existingMessagesCount: modelGroupMessagesForStreaming.length,
+                    modelKey,
+                    modelGroupMessagesIds: modelGroupMessagesForStreaming.map(m => m.id)
+                  })}
+                  <div class="assistant-message-column">
+                    <MessageBubble
+                      message={{
+                        id: Date.now() + Number(index),
+                        role: "assistant",
+                        content: content,
+                        thinking: streamingThinkings[Number(index)] || undefined,
+                        model: modelName,
+                        input_tokens: null,
+                        output_tokens: null,
+                        created_at: new Date().toISOString(),
+                        provider_name: providerName,
+                        api_format: apiFormat,
+                        model_instance_index: modelInstanceIndex,
+                      } as any}
+                      isStreaming={!streamingFinished[Number(index)]}
+                      showModel={true}
+                      showTokens={false}
+                      providerName={providerName}
+                      apiFormat={apiFormat}
+                      onretryModel={handleRetryModel}
+                      resultIndex={currentStreamingIndex}
+                      totalResults={totalResultsForStreaming}
+                      showResultNavigation={showResultNavigation}
+                      onNavigatePrev={() => navigateResult(groupKey, 'prev', modelGroupMessagesForStreaming)}
+                      onNavigateNext={() => navigateResult(groupKey, 'next', modelGroupMessagesForStreaming)}
+                    />
+                  </div>
+                {/if}
               {/each}
             {/if}
           </div>

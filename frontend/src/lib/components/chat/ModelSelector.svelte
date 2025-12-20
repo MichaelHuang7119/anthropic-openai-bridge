@@ -180,21 +180,35 @@
   // Function to add current selection to selectedModels
   function addOrUpdateModel() {
     if (selectedProviderName && selectedApiFormat && selectedModelName) {
-      const modelChoice: ModelChoice = {
-        providerName: selectedProviderName,
-        apiFormat: selectedApiFormat,
-        model: selectedModelName,
-      };
-
       if (editingIndex !== null) {
         // Update existing model
         const newModels = [...selectedModels];
-        newModels[editingIndex] = modelChoice;
+        newModels[editingIndex] = {
+          providerName: selectedProviderName,
+          apiFormat: selectedApiFormat,
+          model: selectedModelName,
+        };
         selectedModels = newModels;
         dispatch("modelsSelected", selectedModels);
-        console.log("Model updated at index", editingIndex, ":", modelChoice);
+        console.log("Model updated at index", editingIndex, ":", newModels[editingIndex]);
       } else {
         // Add new model (allow duplicates to support testing same model with different parameters)
+        // Assign modelInstanceIndex based on existing models with the same provider/apiFormat/model
+        const existingModelsWithSameConfig = selectedModels.filter(m =>
+          m.providerName === selectedProviderName &&
+          m.apiFormat === selectedApiFormat &&
+          m.model === selectedModelName
+        );
+
+        const modelInstanceIndex = existingModelsWithSameConfig.length;
+
+        const modelChoice: ModelChoice = {
+          providerName: selectedProviderName,
+          apiFormat: selectedApiFormat,
+          model: selectedModelName,
+          modelInstanceIndex
+        };
+
         selectedModels = [...selectedModels, modelChoice];
         dispatch("modelsSelected", selectedModels);
         console.log("Model added:", modelChoice, "Total models:", selectedModels.length);

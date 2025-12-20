@@ -60,6 +60,7 @@ class MessageCreate(BaseModel):
     provider_name: Optional[str] = None
     api_format: Optional[str] = None
     parent_message_id: Optional[int] = None
+    model_instance_index: Optional[int] = None
 
 class ConversationResponse(BaseModel):
     """Conversation response model."""
@@ -85,6 +86,7 @@ class MessageResponse(BaseModel):
     provider_name: Optional[str]
     api_format: Optional[str]
     parent_message_id: Optional[int] = None
+    model_instance_index: Optional[int] = None
 
 class ConversationDetailResponse(BaseModel):
     """Detailed conversation response with messages."""
@@ -381,6 +383,7 @@ async def add_message(
             provider_name=message_data.provider_name,
             api_format=message_data.api_format,
             parent_message_id=message_data.parent_message_id,
+            model_instance_index=message_data.model_instance_index,
         )
 
         if not message_id:

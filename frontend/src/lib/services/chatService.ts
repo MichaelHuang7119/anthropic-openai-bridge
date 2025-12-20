@@ -36,6 +36,7 @@ export interface Message {
   output_tokens: number | null;
   created_at: string;
   parent_message_id?: number | null; // ID of the parent user message for assistant messages
+  model_instance_index?: number; // Index of the model instance for multi-model scenarios
   isStreaming?: boolean; // Whether this message is currently streaming
 }
 
@@ -275,6 +276,7 @@ class ChatService {
     providerName?: string,
     apiFormat?: string,
     parentMessageId?: number,
+    modelInstanceIndex?: number,
   ): Promise<Message> {
     try {
       const token = authService.getToken();
@@ -292,6 +294,7 @@ class ChatService {
         provider_name?: string;
         api_format?: string;
         parent_message_id?: number;
+        model_instance_index?: number;
       } = {
         role,
         content,
@@ -305,6 +308,8 @@ class ChatService {
       if (apiFormat !== undefined) requestBody.api_format = apiFormat;
       if (parentMessageId !== undefined)
         requestBody.parent_message_id = parentMessageId;
+      if (modelInstanceIndex !== undefined)
+        requestBody.model_instance_index = modelInstanceIndex;
 
       const response = await fetch(
         `${this.baseUrl}/conversations/${conversationId}/messages`,
