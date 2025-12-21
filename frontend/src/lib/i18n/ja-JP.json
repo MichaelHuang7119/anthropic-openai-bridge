@@ -44,11 +44,20 @@
     "clear": "クリア",
     "previousPage": "前のページ",
     "nextPage": "次のページ",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "削除中...",
+    "searchProvider": "プロバイダーを検索...",
+    "searchModel": "モデルを検索...",
+    "modelsSelected": "モデルが選択されました",
+    "modelSelected": "モデルが選択されました",
+    "selectPlaceholder": "選択してください",
+    "searchPlaceholder": "検索...",
+    "noOptions": "オプションなし",
+    "errorMessageTitle": "エラーメッセージ",
+    "clickToViewFullError": "クリックして完全なエラーの詳細を表示",
+    "copiedToClipboard": "Clipboardにコピーされました",
+    "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
+    "copyErrorMessage": "エラーメッセージをコピー",
+    "close": "閉じる"
   },
   "header": {
     "logout": "ログアウト",
@@ -92,8 +101,6 @@
     "modelConfig": "モデル設定",
     "modelConfigHelp": "少なくとも1つのモデルを設定し、3つのカテゴリすべてを設定することを推奨します",
     "addModel": "モデル追加",
-    "updateModel": "モデル更新",
-    "editModel": "モデル編集",
     "addBigModel": "大規模モデル追加",
     "addMiddleModel": "中規模モデル追加",
     "addSmallModel": "小規模モデル追加",
@@ -335,7 +342,16 @@
     "clearFilter": "クリア",
     "close": "閉じる",
     "copyResult": "結果をコピー",
-    "viewFullError": "フルエラー詳細を表示をクリック"
+    "viewFullError": "フルエラー詳細を表示をクリック",
+    "cardView": "カードビュー",
+    "tableView": "テーブルビュー",
+    "loadEditDataFailed": "編集データの読み込みに失敗しました",
+    "test": "テスト",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "総プロバイダー数",
+    "edit": "編集",
+    "delete": "削除"
   },
   "health": {
     "title": "システムヘルスチェック",
@@ -364,7 +380,19 @@
     "noData": "ヘルスデータなし",
     "paginationInfo": "{totalCount}件、{currentPage}/{totalPages}ページ",
     "paginationPage": "ページ",
-    "paginationOf": "/"
+    "paginationOf": "/",
+    "systemHealth": "システムヘルス",
+    "allSystemsOperational": "すべてのシステム稼働中",
+    "partialOperational": "部分的な稼働",
+    "systemIssues": "システムの問題",
+    "healthScore": "ヘルススコア",
+    "systemOnline": "システムオンライン",
+    "systemOffline": "システムオフライン",
+    "systemWarning": "システム警告",
+    "totalProviders": "総プロバイダー数",
+    "responseTime": "応答時間",
+    "responseTimeTrend": "応答時間トレンド",
+    "healthDistribution": "ヘルス分布"
   },
   "config": {
     "title": "設定",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "ダッシュボード",
+    "systemStatus": {
+      "title": "システムステータス",
+      "subtitle": "リアルタイム監視",
+      "running": "実行中",
+      "normal": "システム正常"
+    },
     "providerStats": {
       "title": "プロバイダー統計",
       "subtitle": "全体プロバイダーステータス",
       "total": "合計",
       "enabled": "有効",
-      "disabled": "無効"
+      "disabled": "無効",
+      "totalProvidersConfigured": "設定済みプロバイダー総数"
     },
     "healthStatus": {
       "title": "ヘルスステータス",
@@ -553,6 +588,19 @@
       "loadingFailed": "データ読み込み失敗",
       "copiedToClipboard": " clipboard にコピーしました",
       "copyFailed": "コピー失敗。手動でコピーしてください"
+    },
+    "welcome": {
+      "title": "Anthropic OpenAI Bridgeへようこそ",
+      "subtitle": "開発効率を向上させるための複数のAIモデルプロバイダーの統一管理"
+    },
+    "welcomeActions": {
+      "addProvider": "プロバイダーを追加",
+      "viewHealthStatus": "健常性状態を表示"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "ヘルスチェック完了",
+      "providerAdded": "プロバイダー追加済み",
+      "configUpdated": "設定が更新されました"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "言語を検索...",
     "noLanguagesFound": "一致する言語が見つかりません",
     "languages": "言語",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "テーマショートカット",
+    "toggleThemeShortcut": "(テーマ切り替えショートカット: 複数の組み合わせに対応)"
   },
   "welcome": {
     "title": "Anthropic OpenAI Bridge へようこそ",

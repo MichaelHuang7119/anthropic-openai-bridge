@@ -2,11 +2,19 @@
   import { toast } from '$stores/toast';
   import type { Toast } from '$stores/toast';
   import ErrorMessageModal from '../ErrorMessageModal.svelte';
+  import { tStore } from '$stores/language';
 
-  let toasts: Toast[] = [];
-  
-  toast.subscribe((value) => {
-    toasts = value;
+  let toasts = $state<Toast[]>([]);
+
+  // 获取翻译函数
+  const t = $derived($tStore);
+
+  // 订阅toast变化
+  $effect(() => {
+    const unsubscribe = toast.subscribe((value) => {
+      toasts = value;
+    });
+    return unsubscribe;
   });
 
   function handleClose(id: string) {
@@ -14,13 +22,13 @@
   }
 
   // 错误信息模态框相关
-  let showErrorModal = false;
-  let selectedError: string = '';
-  let selectedErrorTitle: string = '';
+  let showErrorModal = $state(false);
+  let selectedError: string = $state('');
+  let selectedErrorTitle: string = $state('');
 
   function showFullErrorMessage(message: string, title: string = '错误信息') {
     selectedError = message;
-    selectedErrorTitle = title;
+    selectedErrorTitle = title || t('common.errorMessageTitle');
     showErrorModal = true;
   }
 
@@ -49,18 +57,18 @@
     <div class="toast toast-{toastItem.type}" role="alert">
       <div class="toast-content">
         {#if isLong && toastItem.type === 'error'}
-          <span 
-            class="toast-message clickable" 
+          <span
+            class="toast-message clickable"
             role="button"
             tabindex="0"
-            onclick={() => showFullErrorMessage(toastItem.message, '错误信息')}
+            onclick={() => showFullErrorMessage(toastItem.message, t('common.errorMessageTitle'))}
             onkeydown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                showFullErrorMessage(toastItem.message, '错误信息');
+                showFullErrorMessage(toastItem.message, t('common.errorMessageTitle'));
               }
             }}
-            title="点击查看完整错误信息"
+            title={t('common.clickToViewFullError')}
           >
             {displayMessage}
           </span>
@@ -68,7 +76,7 @@
           <span class="toast-message">{displayMessage}</span>
         {/if}
       </div>
-      <button class="toast-close" onclick={() => handleClose(toastItem.id)} aria-label="关闭">
+      <button class="toast-close" onclick={() => handleClose(toastItem.id)} aria-label={t('common.close')}>
         ×
       </button>
     </div>

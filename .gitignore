@@ -37,3 +37,4 @@ docker-compose.override.yml
 CLAUDE.md
 .env
 logs
+i18n_vali*

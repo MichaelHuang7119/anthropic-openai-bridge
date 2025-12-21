@@ -773,7 +773,7 @@
                     },
                     tooltip: {
                       callbacks: {
-                        label: (context) => {
+                        label: (context: any) => {
                           const label = context.label || '';
                           const value = formatNumber(context.parsed as number);
                           const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0);
@@ -911,7 +911,7 @@
                     },
                     tooltip: {
                       callbacks: {
-                        label: (context) => {
+                        label: (context: any) => {
                           const label = context.dataset.label || '';
                           const value = context.parsed.y || 0;
                           const formattedValue = label === t('stats.estimatedCost') ? formatCurrency(value) : formatNumber(value);
@@ -935,7 +935,7 @@
                       position: 'left',
                       ticks: {
                         color: 'var(--text-secondary)',
-                        callback: (value) => formatNumber(value as number)
+                        callback: (value: any) => formatNumber(value as number)
                       },
                       grid: {
                         color: 'var(--border-color)'
@@ -947,7 +947,7 @@
                       position: 'right',
                       ticks: {
                         color: 'var(--text-secondary)',
-                        callback: (value) => formatCurrency(value as number)
+                        callback: (value: any) => formatCurrency(value as number)
                       },
                       grid: {
                         drawOnChartArea: false
@@ -975,7 +975,7 @@
                     },
                     tooltip: {
                       callbacks: {
-                        label: (context) => {
+                        label: (context: any) => {
                           return `${t('stats.tokenUsage')}: ${formatNumber(context.parsed.y || 0)}`;
                         }
                       }
@@ -995,7 +995,7 @@
                     y: {
                       ticks: {
                         color: 'var(--text-secondary)',
-                        callback: (value) => formatNumber(value as number)
+                        callback: (value: any) => formatNumber(value as number)
                       },
                       grid: {
                         color: 'var(--border-color)'

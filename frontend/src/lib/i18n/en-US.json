@@ -48,7 +48,16 @@
     "searchProvider": "Search providers...",
     "searchModel": "Search models...",
     "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "modelSelected": "model selected",
+    "selectPlaceholder": "Please select",
+    "searchPlaceholder": "Search...",
+    "noOptions": "No options",
+    "errorMessageTitle": "Error Message",
+    "clickToViewFullError": "Click to view full error details",
+    "close": "Close",
+    "copiedToClipboard": "Copied to clipboard",
+    "copyFailed": "Copy failed, please copy manually",
+    "copyErrorMessage": "Copy Error Message"
   },
   "header": {
     "logout": "Logout",
@@ -290,6 +299,7 @@
     "editProvider": "Edit Provider",
     "deleteProvider": "Delete Provider",
     "testProvider": "Test Provider",
+    "test": "Test",
     "testConnection": "Test Connection",
     "name": "Name",
     "baseUrl": "Base URL",
@@ -302,11 +312,14 @@
     "smallModels": "S",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "edit": "Edit",
+    "delete": "Delete",
     "all": "All",
     "searchPlaceholder": "Search provider name or URL...",
     "loading": "Loading...",
     "noProviders": "No providers configured",
     "noMatch": "No matching providers",
+    "loadEditDataFailed": "Failed to load editing data",
     "page": "Page",
     "pageOf": "of",
     "pageUnits": "",
@@ -349,7 +362,12 @@
     "clearFilter": "Clear",
     "close": "Close",
     "copyResult": "Copy Result",
-    "viewFullError": "Click to view full error details"
+    "viewFullError": "Click to view full error details",
+    "cardView": "Card View",
+    "tableView": "Table View",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Total Providers"
   },
   "health": {
     "title": "System Health Check",
@@ -378,7 +396,19 @@
     "noData": "No health data",
     "paginationInfo": "{totalCount} records, page {currentPage} of {totalPages}",
     "paginationPage": "Page",
-    "paginationOf": "of"
+    "paginationOf": "of",
+    "systemHealth": "System Health",
+    "allSystemsOperational": "All Systems Operational",
+    "partialOperational": "Partial Operational",
+    "systemIssues": "System Issues",
+    "healthScore": "Health Score",
+    "systemOnline": "System Online",
+    "systemOffline": "System Offline",
+    "systemWarning": "System Warning",
+    "totalProviders": "Total Providers",
+    "responseTime": "Response Time",
+    "responseTimeTrend": "Response Time Trend",
+    "healthDistribution": "Health Distribution"
   },
   "config": {
     "title": "Configuration",
@@ -497,12 +527,32 @@
   },
   "home": {
     "title": "Dashboard",
+    "welcome": {
+      "title": "Welcome to Anthropic OpenAI Bridge",
+      "subtitle": "Unified management of multiple AI model providers to improve development efficiency"
+    },
+    "systemStatus": {
+      "title": "System Status",
+      "subtitle": "Real-time Monitoring",
+      "running": "Running",
+      "normal": "System Normal"
+    },
+    "welcomeActions": {
+      "addProvider": "Add Provider",
+      "viewHealthStatus": "View Health Status"
+    },
     "providerStats": {
       "title": "Provider Statistics",
       "subtitle": "Overall provider status",
       "total": "Total",
       "enabled": "Enabled",
-      "disabled": "Disabled"
+      "disabled": "Disabled",
+      "totalProvidersConfigured": "Total Configured Providers"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Health check completed",
+      "providerAdded": "Provider added",
+      "configUpdated": "Configuration updated"
     },
     "healthStatus": {
       "title": "Health Status",

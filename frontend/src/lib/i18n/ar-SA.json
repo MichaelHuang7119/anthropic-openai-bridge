@@ -44,11 +44,20 @@
     "clear": "مسح",
     "previousPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "جاري الحذف...",
+    "searchProvider": "البحث عن مقدمي الخدمة...",
+    "searchModel": "البحث عن النماذج...",
+    "modelsSelected": "تم تحديد النماذج",
+    "modelSelected": "تم تحديد النموذج",
+    "selectPlaceholder": "الرجاء الاختيار",
+    "searchPlaceholder": "بحث...",
+    "noOptions": "لا توجد خيارات",
+    "errorMessageTitle": "رسالة خطأ",
+    "clickToViewFullError": "انقر لعرض تفاصيل الخطأ الكاملة",
+    "copiedToClipboard": "تم النسخ إلى الحافظة",
+    "copyFailed": "فشل النسخ، يرجى النسخ يدوياً",
+    "copyErrorMessage": "نسخ رسالة الخطأ",
+    "close": "إغلاق"
   },
   "header": {
     "logout": "تسجيل الخروج",
@@ -92,8 +101,6 @@
     "modelConfig": "إعدادات النموذج",
     "modelConfigHelp": "قم بتهيئة نموذج واحد على الأقل، يوصى بتهيئة الفئات الثلاث",
     "addModel": "إضافة نموذج",
-    "updateModel": "تحديث النموذج",
-    "editModel": "تحرير النموذج",
     "addBigModel": "إضافة نموذج كبير",
     "addMiddleModel": "إضافة نموذج متوسط",
     "addSmallModel": "إضافة نموذج صغير",
@@ -335,7 +342,16 @@
     "clearFilter": "مسح",
     "close": "إغلاق",
     "copyResult": "نسخ النتيجة",
-    "viewFullError": "انقر لعرض تفاصيل الخطأ الكاملة"
+    "viewFullError": "انقر لعرض تفاصيل الخطأ الكاملة",
+    "cardView": "عرض البطاقة",
+    "tableView": "عرض الجدول",
+    "loadEditDataFailed": "فشل في تحميل بيانات التحرير",
+    "test": "اختبار",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "إجمالي مقدمي الخدمة",
+    "edit": "تعديل",
+    "delete": "حذف"
   },
   "health": {
     "title": "فحص صحة النظام",
@@ -364,7 +380,19 @@
     "noData": "لا توجد بيانات صحية",
     "paginationInfo": "{totalCount} سجل، صفحة {currentPage} من {totalPages}",
     "paginationPage": "صفحة",
-    "paginationOf": "من"
+    "paginationOf": "من",
+    "systemHealth": "صحة النظام",
+    "allSystemsOperational": "جميع الأنظمة تعمل",
+    "partialOperational": "تشغيل جزئي",
+    "systemIssues": "مشاكل النظام",
+    "healthScore": "نقاط الصحة",
+    "systemOnline": "النظام متصل",
+    "systemOffline": "النظام غير متصل",
+    "systemWarning": "تحذير النظام",
+    "totalProviders": "إجمالي مقدمي الخدمة",
+    "responseTime": "وقت الاستجابة",
+    "responseTimeTrend": "اتجاه وقت الاستجابة",
+    "healthDistribution": "توزيع الصحة"
   },
   "config": {
     "title": "الإعدادات",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "لوحة التحكم",
+    "systemStatus": {
+      "title": "حالة النظام",
+      "subtitle": "المراقبة في الوقت الفعلي",
+      "running": "يعمل",
+      "normal": "النظام طبيعي"
+    },
     "providerStats": {
       "title": "إحصائيات مزودي الخدمة",
       "subtitle": "الحالة العامة لمزودي الخدمة",
       "total": "الإجمالي",
       "enabled": "مفعل",
-      "disabled": "معطل"
+      "disabled": "معطل",
+      "totalProvidersConfigured": "إجمالي مقدمي الخدمة المكونين"
     },
     "healthStatus": {
       "title": "حالة الصحة",
@@ -553,6 +588,19 @@
       "loadingFailed": "فشل في تحميل البيانات",
       "copiedToClipboard": "تم النسخ إلى الحافظة",
       "copyFailed": "فشل النسخ، يرجى النسخ يدوياً"
+    },
+    "welcome": {
+      "title": "مرحباً بك في Anthropic OpenAI Bridge",
+      "subtitle": "إدارة موحدة لعدة مزودي نماذج الذكاء الاصطناعي لتحسين كفاءة التطوير"
+    },
+    "welcomeActions": {
+      "addProvider": "إضافة مزود",
+      "viewHealthStatus": "عرض الحالة الصحية"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "تمت عملية فحص الصحة",
+      "providerAdded": "تم إضافة مزود",
+      "configUpdated": "تم تحديث التكوين"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "البحث عن اللغات...",
     "noLanguagesFound": "لم يتم العثور على لغات",
     "languages": "لغات",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "اختصار السمة",
+    "toggleThemeShortcut": "(اختصارات تبديل السمة: مجموعات متعددة مدعومة)"
   },
   "welcome": {
     "title": "مرحباً بك في Anthropic OpenAI Bridge",

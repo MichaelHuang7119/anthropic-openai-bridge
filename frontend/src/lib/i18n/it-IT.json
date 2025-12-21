@@ -44,11 +44,20 @@
     "clear": "Cancella",
     "previousPage": "Pagina precedente",
     "nextPage": "Pagina successiva",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "Eliminazione...",
+    "searchProvider": "Cerca provider...",
+    "searchModel": "Cerca modelli...",
+    "modelsSelected": "modelli selezionati",
+    "modelSelected": "modello selezionato",
+    "selectPlaceholder": "Si prega di selezionare",
+    "searchPlaceholder": "Cerca...",
+    "noOptions": "Nessuna opzione",
+    "errorMessageTitle": "Messaggio di errore",
+    "clickToViewFullError": "Clicca per vedere i dettagli completi dell'errore",
+    "copiedToClipboard": "Copiato negli appunti",
+    "copyFailed": "Copia fallita, si prega di copiare manualmente",
+    "copyErrorMessage": "Copia messaggio di errore",
+    "close": "Chiudi"
   },
   "header": {
     "logout": "Disconnetti",
@@ -92,8 +101,6 @@
     "modelConfig": "Configurazione modello",
     "modelConfigHelp": "Configura almeno un modello, si raccomanda di configurare tutte e tre le categorie",
     "addModel": "Aggiungi modello",
-    "updateModel": "Aggiorna modello",
-    "editModel": "Modifica modello",
     "addBigModel": "Aggiungi modello grande",
     "addMiddleModel": "Aggiungi modello medio",
     "addSmallModel": "Aggiungi modello piccolo",
@@ -335,7 +342,16 @@
     "clearFilter": "Cancella",
     "close": "Chiudi",
     "copyResult": "Copia risultato",
-    "viewFullError": "Clic per visualizzare i dettagli completi dell'errore"
+    "viewFullError": "Clic per visualizzare i dettagli completi dell'errore",
+    "cardView": "Vista scheda",
+    "tableView": "Vista tabella",
+    "loadEditDataFailed": "Caricamento dati di modifica fallito",
+    "test": "Test",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Totale Fornitori",
+    "edit": "Modifica",
+    "delete": "Elimina"
   },
   "health": {
     "title": "Controllo salute sistema",
@@ -364,7 +380,19 @@
     "noData": "Nessun dato salute",
     "paginationInfo": "{totalCount} record, pagina {currentPage} di {totalPages}",
     "paginationPage": "Pagina",
-    "paginationOf": "di"
+    "paginationOf": "di",
+    "systemHealth": "Salute del sistema",
+    "allSystemsOperational": "Tutti i sistemi operativi",
+    "partialOperational": "Operativo parziale",
+    "systemIssues": "Problemi di sistema",
+    "healthScore": "Punteggio di salute",
+    "systemOnline": "Sistema online",
+    "systemOffline": "Sistema offline",
+    "systemWarning": "Avviso di sistema",
+    "totalProviders": "Provider totali",
+    "responseTime": "Tempo di risposta",
+    "responseTimeTrend": "Trend del tempo di risposta",
+    "healthDistribution": "Distribuzione salute"
   },
   "config": {
     "title": "Configurazione",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "Dashboard",
+    "systemStatus": {
+      "title": "System Status",
+      "subtitle": "Real-time Monitoring",
+      "running": "Running",
+      "normal": "System Normal"
+    },
     "providerStats": {
       "title": "Statistiche provider",
       "subtitle": "Stato generale dei provider",
       "total": "Totale",
       "enabled": "Abilitato",
-      "disabled": "Disabilitato"
+      "disabled": "Disabilitato",
+      "totalProvidersConfigured": "Provider Configurati Totali"
     },
     "healthStatus": {
       "title": "Stato di salute",
@@ -553,6 +588,19 @@
       "loadingFailed": "Impossibile caricare i dati",
       "copiedToClipboard": "Copiato negli appunti",
       "copyFailed": "Copia fallita, per favore copia manualmente"
+    },
+    "welcome": {
+      "title": "Benvenuto in Anthropic OpenAI Bridge",
+      "subtitle": "Gestione unificata di più fornitori di modelli AI per migliorare l'efficienza dello sviluppo"
+    },
+    "welcomeActions": {
+      "addProvider": "Aggiungi fornitore",
+      "viewHealthStatus": "Visualizza stato di salute"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Controllo salute completato",
+      "providerAdded": "Fornitore aggiunto",
+      "configUpdated": "Configurazione aggiornata"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "Cerca lingue...",
     "noLanguagesFound": "Nessuna lingua trovata",
     "languages": "lingue",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "Scorciatoia Tema",
+    "toggleThemeShortcut": "(Scorciatoie cambio tema: più combinazioni supportate)"
   },
   "welcome": {
     "title": "Benvenuto in Anthropic OpenAI Bridge",

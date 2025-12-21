@@ -44,11 +44,20 @@
     "clear": "Wissen",
     "previousPage": "Vorige pagina",
     "nextPage": "Volgende pagina",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "Verwijderen...",
+    "searchProvider": "Zoek providers...",
+    "searchModel": "Zoek modellen...",
+    "modelsSelected": "modellen geselecteerd",
+    "modelSelected": "model geselecteerd",
+    "selectPlaceholder": "Selecteer a.u.b.",
+    "searchPlaceholder": "Zoeken...",
+    "noOptions": "Geen opties",
+    "errorMessageTitle": "Foutmelding",
+    "clickToViewFullError": "Klik om volledige foutdetails te bekijken",
+    "copiedToClipboard": "Gekopieerd naar klembord",
+    "copyFailed": "Kopiëren mislukt, kopieer handmatig",
+    "copyErrorMessage": "Foutmelding kopiëren",
+    "close": "Sluiten"
   },
   "header": {
     "logout": "Uitloggen",
@@ -92,8 +101,6 @@
     "modelConfig": "Modelconfiguratie",
     "modelConfigHelp": "Configureer ten minste één model, het wordt aanbevolen om alle drie categorieën te configureren",
     "addModel": "Model toevoegen",
-    "updateModel": "Model bijwerken",
-    "editModel": "Model bewerken",
     "addBigModel": "Groot model toevoegen",
     "addMiddleModel": "Middelgroot model toevoegen",
     "addSmallModel": "Klein model toevoegen",
@@ -335,7 +342,16 @@
     "clearFilter": "Wissen",
     "close": "Sluiten",
     "copyResult": "Resultaat kopiëren",
-    "viewFullError": "Klik om volledige foutdetails te bekijken"
+    "viewFullError": "Klik om volledige foutdetails te bekijken",
+    "cardView": "Kaartweergave",
+    "tableView": "Tabelweergave",
+    "loadEditDataFailed": "Laden van bewerkingsgegevens mislukt",
+    "test": "Testen",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Totaal Aanbieders",
+    "edit": "Bewerken",
+    "delete": "Verwijderen"
   },
   "health": {
     "title": "Systeemgezondheidscontrole",
@@ -364,7 +380,19 @@
     "noData": "Geen gezondheidsgegevens",
     "paginationInfo": "{totalCount} records, pagina {currentPage} van {totalPages}",
     "paginationPage": "Pagina",
-    "paginationOf": "van"
+    "paginationOf": "van",
+    "systemHealth": "Systeemgezondheid",
+    "allSystemsOperational": "Alle systemen operationeel",
+    "partialOperational": "Gedeeltelijk operationeel",
+    "systemIssues": "Systeemproblemen",
+    "healthScore": "Gezondheidsscore",
+    "systemOnline": "Systeem online",
+    "systemOffline": "Systeem offline",
+    "systemWarning": "Systeem waarschuwing",
+    "totalProviders": "Totaal providers",
+    "responseTime": "Reactietijd",
+    "responseTimeTrend": "Reactietijd trend",
+    "healthDistribution": "Gezondheidsverdeling"
   },
   "config": {
     "title": "Configuratie",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "Dashboard",
+    "systemStatus": {
+      "title": "Systeemstatus",
+      "subtitle": "Realtime monitoring",
+      "running": "Draait",
+      "normal": "Systeem normaal"
+    },
     "providerStats": {
       "title": "Providerstatistieken",
       "subtitle": "Algemene providerstatus",
       "total": "Totaal",
       "enabled": "Ingeschakeld",
-      "disabled": "Uitgeschakeld"
+      "disabled": "Uitgeschakeld",
+      "totalProvidersConfigured": "Totaal Geconfigureerde Providers"
     },
     "healthStatus": {
       "title": "Gezondheidsstatus",
@@ -553,6 +588,19 @@
       "loadingFailed": "Gegevens laden mislukt",
       "copiedToClipboard": "Gekopieerd naar klembord",
       "copyFailed": "Kopiëren mislukt, kopieer alsjeblieft handmatig"
+    },
+    "welcome": {
+      "title": "Welkom bij Anthropic OpenAI Bridge",
+      "subtitle": "Uniforme beheer van meerdere AI-modelaanbieders om ontwikkelefficiëntie te verbeteren"
+    },
+    "welcomeActions": {
+      "addProvider": "Aanbieder toevoegen",
+      "viewHealthStatus": "Gezondheidsstatus bekijken"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Gezondheidscontrole voltooid",
+      "providerAdded": "Aanbieder toegevoegd",
+      "configUpdated": "Configuratie bijgewerkt"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "Zoeken naar talen...",
     "noLanguagesFound": "Geen talen gevonden",
     "languages": "talen",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "Thema Snelkoppeling",
+    "toggleThemeShortcut": "(Thema toggle sneltoetsen: meerdere combinaties ondersteund)"
   },
   "welcome": {
     "title": "Welkom bij Anthropic OpenAI Bridge",

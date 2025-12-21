@@ -39,6 +39,7 @@ module.exports = {
     // Disable some rules that are too strict for this project
     "@typescript-eslint/no-explicit-any": "off",
     "no-constant-condition": "warn",
-    "svelte/no-at-html-tags": "warn",
+    // Allow {@html} for controlled SVG icons (not user-generated content)
+    "svelte/no-at-html-tags": "off",
   },
 };

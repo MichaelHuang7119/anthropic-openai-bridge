@@ -44,11 +44,20 @@
     "clear": "Hapus",
     "previousPage": "Halaman Sebelumnya",
     "nextPage": "Halaman Selanjutnya",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "Menghapus...",
+    "searchProvider": "Cari penyedia...",
+    "searchModel": "Cari model...",
+    "modelsSelected": "model dipilih",
+    "modelSelected": "model dipilih",
+    "selectPlaceholder": "Silakan pilih",
+    "searchPlaceholder": "Cari...",
+    "noOptions": "Tidak ada opsi",
+    "errorMessageTitle": "Pesan error",
+    "clickToViewFullError": "Klik untuk melihat detail error lengkap",
+    "copiedToClipboard": "Disalin ke clipboard",
+    "copyFailed": "Gagal menyalin, silakan salin secara manual",
+    "copyErrorMessage": "Salin pesan error",
+    "close": "Tutup"
   },
   "header": {
     "logout": "Keluar",
@@ -92,8 +101,6 @@
     "modelConfig": "Konfigurasi Model",
     "modelConfigHelp": "Konfigurasi minimal satu model, direkomendasikan untuk mengkonfigurasi ketiga kategori",
     "addModel": "Tambah Model",
-    "updateModel": "Perbarui Model",
-    "editModel": "Sunting Model",
     "addBigModel": "Tambah Model Besar",
     "addMiddleModel": "Tambah Model Menengah",
     "addSmallModel": "Tambah Model Kecil",
@@ -335,7 +342,16 @@
     "clearFilter": "Hapus",
     "close": "Tutup",
     "copyResult": "Salin Hasil",
-    "viewFullError": "Klik untuk melihat detail error penuh"
+    "viewFullError": "Klik untuk melihat detail error penuh",
+    "cardView": "Tampilan kartu",
+    "tableView": "Tampilan tabel",
+    "loadEditDataFailed": "Gagal memuat data edit",
+    "test": "Uji",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Total Penyedia",
+    "edit": "Edit",
+    "delete": "Hapus"
   },
   "health": {
     "title": "Pemeriksaan Kesehatan Sistem",
@@ -364,7 +380,19 @@
     "noData": "Tidak ada data kesehatan",
     "paginationInfo": "{totalCount} catatan, halaman {currentPage} dari {totalPages}",
     "paginationPage": "Halaman",
-    "paginationOf": "dari"
+    "paginationOf": "dari",
+    "systemHealth": "Kesehatan sistem",
+    "allSystemsOperational": "Semua sistem beroperasi",
+    "partialOperational": "Operasional parsial",
+    "systemIssues": "Masalah sistem",
+    "healthScore": "Skor kesehatan",
+    "systemOnline": "Sistem online",
+    "systemOffline": "Sistem offline",
+    "systemWarning": "Peringatan sistem",
+    "totalProviders": "Total penyedia",
+    "responseTime": "Waktu respons",
+    "responseTimeTrend": "Tren waktu respons",
+    "healthDistribution": "Distribusi kesehatan"
   },
   "config": {
     "title": "Konfigurasi",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "Dashboard",
+    "systemStatus": {
+      "title": "System Status",
+      "subtitle": "Real-time Monitoring",
+      "running": "Running",
+      "normal": "System Normal"
+    },
     "providerStats": {
       "title": "Statistik Penyedia",
       "subtitle": "Status keseluruhan penyedia",
       "total": "Total",
       "enabled": "Aktif",
-      "disabled": "Nonaktif"
+      "disabled": "Nonaktif",
+      "totalProvidersConfigured": "Total Penyedia yang Dikonfigurasi"
     },
     "healthStatus": {
       "title": "Status Kesehatan",
@@ -553,6 +588,19 @@
       "loadingFailed": "Gagal memuat data",
       "copiedToClipboard": "Disalin ke clipboard",
       "copyFailed": "Gagal menyalin, silakan salin secara manual"
+    },
+    "welcome": {
+      "title": "Selamat datang di Anthropic OpenAI Bridge",
+      "subtitle": "Manajemen terpadu beberapa penyedia model AI untuk meningkatkan efisiensi pengembangan"
+    },
+    "welcomeActions": {
+      "addProvider": "Tambahkan penyedia",
+      "viewHealthStatus": "Lihat status kesehatan"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Pemeriksaan kesehatan selesai",
+      "providerAdded": "Penyedia ditambahkan",
+      "configUpdated": "Konfigurasi diperbarui"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "Cari bahasa...",
     "noLanguagesFound": "Tidak ada bahasa yang ditemukan",
     "languages": "bahasa",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "Pintasan Tema",
+    "toggleThemeShortcut": "(Pintasan切换 tema: beberapa kombinasi didukung)"
   },
   "welcome": {
     "title": "Selamat datang di Anthropic OpenAI Bridge",

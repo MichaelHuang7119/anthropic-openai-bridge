@@ -4,6 +4,7 @@
   import Button from "$components/ui/Button.svelte";
   import Card from "$components/ui/Card.svelte";
   import Badge from "$components/ui/Badge.svelte";
+  import StatCard from "$lib/components/ui/StatCard.svelte";
   import ProviderForm from "$components/ProviderForm.svelte";
   import ErrorMessageModal from "$components/ErrorMessageModal.svelte";
   import { providers } from "$stores/providers";
@@ -52,16 +53,28 @@
   let searchQuery = $state("");
   let filterEnabled: "all" | "enabled" | "disabled" = $state("all");
 
-  // 分页相关
+  // 视图模式切换
+  let viewMode: "card" | "table" = $state("card");
+
+  // 分页相关 - 卡片视图
   let currentPage = $state(1);
   const pageSize = 10;
+
+  // 分页相关 - 表格视图（仅用于状态跟踪）
+  let tableCurrentPage = $state(1);
 
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
 
+  // 在组件顶层订阅providers store
+  let currentProviders = $state<Provider[]>([]);
+
   // 客户端过滤和排序
-  let allFilteredProviders = $derived(
-    $providers
+  let allFilteredProviders = $derived(() => {
+    // 使用currentProviders进行过滤
+    const providers = Array.isArray(currentProviders) ? currentProviders : [];
+
+    return providers
       .filter((p) => {
         // 搜索过滤
         if (searchQuery.trim()) {
@@ -89,32 +102,137 @@
 
         // 如果名称相同，按 API 格式排序
         return (a.api_format || '').localeCompare(b.api_format || '');
-      })
-  );
+      });
+  });
 
-  // 分页计算
-  let totalCount = $derived(allFilteredProviders.length);
-  let totalPages = $derived(Math.ceil(totalCount / pageSize));
+  // 表格视图专用：重置到第1页（当视图切换时）
+  $effect(() => {
+    if (viewMode === "table") {
+      tableCurrentPage = 1;
+    }
+  });
+
+  // 表格视图排序和分页
+  let tableSortColumn = $state<string>('');
+  let tableSortDirection = $state<'asc' | 'desc'>('asc');
+
+  // 表格排序后的数据
+  let tableSortedProviders = $derived(() => {
+    const data = Array.isArray(allFilteredProviders()) ? allFilteredProviders() : [];
+    if (!tableSortColumn) return data;
+
+    return [...data].sort((a, b) => {
+      let aVal: any = a[tableSortColumn as keyof Provider];
+      let bVal: any = b[tableSortColumn as keyof Provider];
+
+      // 特殊处理布尔值
+      if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+        return tableSortDirection === 'asc'
+          ? (aVal === bVal ? 0 : aVal ? 1 : -1)
+          : (aVal === bVal ? 0 : aVal ? -1 : 1);
+      }
+
+      // 字符串排序
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comparison = aVal.localeCompare(bVal);
+        return tableSortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      // 数字排序
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        const comparison = aVal - bVal;
+        return tableSortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      return 0;
+    });
+  });
+
+  // 表格分页计算
+  let tableTotalCount = $derived(() => {
+    const data = tableSortedProviders();
+    return Array.isArray(data) ? data.length : 0;
+  });
+  let tableTotalPages = $derived(() => Math.ceil(tableTotalCount() / pageSize));
+
+  // 确保表格当前页在有效范围内
+  $effect(() => {
+    const pages = tableTotalPages();
+    if (pages === 0) {
+      tableCurrentPage = 1;
+    } else if (pages > 0 && tableCurrentPage > pages) {
+      tableCurrentPage = pages;
+    } else if (tableCurrentPage < 1) {
+      tableCurrentPage = 1;
+    }
+  });
+
+  // 表格当前页显示的数据
+  let tableFilteredProviders = $derived(() => {
+    const data = tableSortedProviders();
+    const arrayData = Array.isArray(data) ? data : [];
+    return arrayData.slice(
+      (tableCurrentPage - 1) * pageSize,
+      tableCurrentPage * pageSize
+    );
+  });
+
+  // 表格排序处理
+  function handleTableSort(column: string) {
+    if (tableSortColumn === column) {
+      tableSortDirection = tableSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      tableSortColumn = column;
+      tableSortDirection = 'asc';
+    }
+  }
+
+  // 表格分页处理
+  function handleTablePageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= tableTotalPages() && newPage !== tableCurrentPage) {
+      tableCurrentPage = newPage;
+    }
+  }
+
+  // 分页计算（卡片视图）
+  let totalCount = $derived(() => {
+    const data = allFilteredProviders();
+    return data.length;
+  });
+  let enabledCount = $derived(() => {
+    const data = allFilteredProviders();
+    return data.filter(p => p.enabled).length;
+  });
+  let disabledCount = $derived(() => {
+    const data = allFilteredProviders();
+    return data.filter(p => !p.enabled).length;
+  });
+  let openaiCount = $derived(() => {
+    const data = allFilteredProviders();
+    return data.filter(p => p.api_format === 'openai').length;
+  });
+  let totalPages = $derived(() => Math.ceil(totalCount() / pageSize));
 
   // 确保当前页在有效范围内
   $effect(() => {
-    if (totalPages === 0) {
-      // 没有数据时，设置为第1页
+    const pages = totalPages();
+    if (pages === 0) {
       currentPage = 1;
-    } else if (totalPages > 0 && currentPage > totalPages) {
-      currentPage = totalPages;
+    } else if (pages > 0 && currentPage > pages) {
+      currentPage = pages;
     } else if (currentPage < 1) {
       currentPage = 1;
     }
   });
 
   // 当前页显示的数据
-  let filteredProviders = $derived(
-    allFilteredProviders.slice(
+  let filteredProviders = $derived(() => {
+    const data = allFilteredProviders();
+    return data.slice(
       (currentPage - 1) * pageSize,
       currentPage * pageSize
-    )
-  );
+    );
+  });
 
   onMount(async () => {
     abortController = new AbortController();
@@ -146,16 +264,28 @@
       });
 
       // 检查是否已被取消
-      if (abortController.signal.aborted) return;
+      if (abortController.signal.aborted) {
+        return;
+      }
 
+      // 更新store和本地状态
       providers.set(data);
+      currentProviders = data;
     } catch (error) {
       // 忽略取消错误
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
+
       console.error("Failed to load providers:", error);
-      toast.error(t("providers.loadFailed"));
+      const errorMessage = (error as Error).message;
+
+      // 检查是否是未认证错误
+      if (errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
+        toast.error("未登录或权限不足。请使用管理员账户登录后再试。");
+      } else {
+        toast.error(t("providers.loadFailed") + ": " + errorMessage);
+      }
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -199,7 +329,7 @@
         return;
       }
       console.error("Failed to load provider data for editing:", error);
-      toast.error("加载编辑数据失败: " + (error as Error).message);
+      toast.error(t("providers.loadEditDataFailed") + ": " + (error as Error).message);
     }
   }
 
@@ -404,7 +534,7 @@
   }
 
   function handlePageChange(newPage: number) {
-    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+    if (newPage >= 1 && newPage <= totalPages() && newPage !== currentPage) {
       currentPage = newPage;
     }
   }
@@ -473,22 +603,77 @@
 
 <div class="container">
   <div class="page-header">
-    <Button onclick={handleAdd} title={t("providers.addProvider")} class="icon-button">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-    </Button>
+    <div class="header-right">
+      <!-- 视图切换按钮 -->
+      <div class="view-toggle">
+        <Button
+          variant={viewMode === "card" ? "primary" : "secondary"}
+          size="sm"
+          onclick={() => viewMode = "card"}
+          title={t("providers.cardView")}
+          class="toggle-btn"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </Button>
+        <Button
+          variant={viewMode === "table" ? "primary" : "secondary"}
+          size="sm"
+          onclick={() => viewMode = "table"}
+          title={t("providers.tableView")}
+          class="toggle-btn"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+        </Button>
+      </div>
+      <Button onclick={handleAdd} title={t("providers.addProvider")} class="icon-button">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </Button>
+    </div>
   </div>
 
   {#if loading}
@@ -554,223 +739,574 @@
       </div>
     </Card>
 
-    {#if filteredProviders.length === 0}
+    <!-- 统计卡片行 -->
+    <div class="stats-row">
+      <StatCard
+        title={t("providers.totalProviders")}
+        value={totalCount()}
+        type="info"
+        icon="server"
+      />
+      <StatCard
+        title={t("providers.enabled")}
+        value={enabledCount()}
+        type="success"
+        icon="check-circle"
+      />
+      <StatCard
+        title={t("providers.disabled")}
+        value={disabledCount()}
+        type="danger"
+        icon="x-circle"
+      />
+      <StatCard
+        title={t("providers.openaiApi")}
+        value={openaiCount()}
+        type="default"
+        icon="cpu"
+      />
+    </div>
+
+    {#if filteredProviders().length === 0}
       <div class="empty">
         <p>{t("providers.noMatch")}</p>
       </div>
     {:else}
-      <div class="table-container">
-        <table class="providers-table">
-          <thead>
-            <tr>
-              <th>{t("providers.name")}</th>
-              <th style="text-align: center;">{t("providers.status")}</th>
-              <th>{t("providers.baseUrl")}</th>
-              <th>{t("providers.apiFormat")}</th>
-              <th style="text-align: center;">{t("health.priority")}</th>
-              <th>{t("health.models")}</th>
-              <th>{t("providers.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each filteredProviders as provider}
-              <tr>
-                <td class="name-cell">
-                  <div class="name-wrapper">
-                    <span class="provider-name" title={provider.name}>
-                      {provider.name}
-                    </span>
-                  </div>
-                </td>
-                <td class="status-cell">
-                  <label class="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={provider.enabled}
-                      onchange={() => handleToggleEnabled(provider)}
-                    />
-                    <span class="toggle-slider"></span>
-                  </label>
-                </td>
-                <td class="url-cell">
-                  <span class="url-text" title={provider.base_url}
-                    >{provider.base_url}</span
-                  >
-                </td>
-                <td class="format-cell">
+      {#if viewMode === "card"}
+        <!-- 卡片视图 -->
+        <div class="providers-grid">
+          {#each filteredProviders() as provider}
+            <Card variant="elevated" class="provider-card">
+              <!-- Card Header -->
+              <div class="card-header">
+                <div class="provider-info">
+                  <h3 class="provider-name" title={provider.name}>
+                    {provider.name}
+                  </h3>
                   <Badge
                     type={provider.api_format === "anthropic"
                       ? "warning"
                       : "info"}
                   >
                     {provider.api_format === "anthropic"
-                      ? "Anthropic"
-                      : "OpenAI"}
+                      ? t("providers.anthropicApi")
+                      : t("providers.openaiApi")}
                   </Badge>
-                </td>
-                <td class="priority-cell">
-                  {#if editingPriorityKey === `${provider.name}||${provider.api_format}`}
-                    <div class="priority-edit-wrapper">
-                      <input
-                        type="number"
-                        class="priority-input"
-                        bind:value={editingPriorityValue}
-                        min="0"
-                        step="1"
-                      />
-                      <div class="priority-actions">
+                </div>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={provider.enabled}
+                    onchange={() => handleToggleEnabled(provider)}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <!-- Card Body -->
+              <div class="card-body">
+                <div class="info-row">
+                  <div class="info-item">
+                    <span class="info-label">{t("providers.baseUrl")}:</span>
+                    <span class="info-value url" title={provider.base_url}>
+                      {provider.base_url}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="info-row">
+                  <div class="info-item">
+                    <span class="info-label">{t("health.priority")}:</span>
+                    {#if editingPriorityKey === `${provider.name}||${provider.api_format}`}
+                      <div class="priority-edit-wrapper">
+                        <input
+                          type="number"
+                          class="priority-input"
+                          bind:value={editingPriorityValue}
+                          min="0"
+                          step="1"
+                        />
+                        <div class="priority-actions">
+                          <button
+                            class="priority-btn save-btn"
+                            onclick={() => handleSavePriority(provider)}
+                            disabled={saving}
+                            title={t("providers.save")}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            class="priority-btn cancel-btn"
+                            onclick={handleCancelEditPriority}
+                            disabled={saving}
+                            title={t("providers.cancel")}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    {:else}
+                      <div class="priority-display">
+                        <span class="priority-value">{provider.priority}</span>
                         <button
-                          class="priority-btn save-btn"
-                          onclick={() => handleSavePriority(provider)}
-                          disabled={saving}
-                          title={t("providers.save")}
+                          class="priority-edit-icon"
+                          onclick={() => handleEditPriority(provider)}
+                          title={t("providers.editPriority")}
                         >
-                          ✓
-                        </button>
-                        <button
-                          class="priority-btn cancel-btn"
-                          onclick={handleCancelEditPriority}
-                          disabled={saving}
-                          title={t("providers.cancel")}
-                        >
-                          ✕
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                            ></path>
+                            <path
+                              d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                            ></path>
+                          </svg>
                         </button>
                       </div>
-                    </div>
-                  {:else}
-                    <div class="priority-display">
-                      <span class="priority-value">{provider.priority}</span>
-                      <button
-                        class="priority-edit-icon"
-                        onclick={() => handleEditPriority(provider)}
-                        title={t("providers.editPriority")}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <path
-                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                          ></path>
-                          <path
-                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                          ></path>
-                        </svg>
-                      </button>
-                    </div>
-                  {/if}
-                </td>
-                <td class="models-cell">
-                  <div class="models-badge">
-                    <Badge type="info"
-                      >{t("providers.bigModels")} {provider.models.big?.length || 0}</Badge
-                    >
-                    <Badge type="info"
-                      >{t("providers.middleModels")} {provider.models.middle?.length || 0}</Badge
-                    >
-                    <Badge type="info"
-                      >{t("providers.smallModels")} {provider.models.small?.length || 0}</Badge
-                    >
+                    {/if}
                   </div>
-                </td>
-                <td class="actions-cell">
-                  <div class="actions-wrapper">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onclick={() => handleTest(provider)}
-                      title={t("providers.testConnection")}
-                      class="icon-button"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                      </svg>
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onclick={() => handleEdit(provider)}
-                      title={t("providers.editProvider")}
-                      class="icon-button"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                        ></path>
-                        <path
-                          d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                        ></path>
-                      </svg>
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onclick={() => handleDelete(provider)}
-                      title={t("providers.deleteProvider")}
-                      class="icon-button"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path
-                          d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                        ></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                      </svg>
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+                </div>
 
-      <!-- 分页控件 -->
-      {#if totalPages > 1}
+                <div class="info-row">
+                  <div class="info-item">
+                    <span class="info-label">{t("health.models")}:</span>
+                    <div class="models-grid">
+                      <Badge type="info" class="model-badge">
+                        {t("providers.bigModels")} {provider.models.big?.length || 0}
+                      </Badge>
+                      <Badge type="info" class="model-badge">
+                        {t("providers.middleModels")} {provider.models.middle?.length || 0}
+                      </Badge>
+                      <Badge type="info" class="model-badge">
+                        {t("providers.smallModels")} {provider.models.small?.length || 0}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card Actions -->
+              <div class="card-actions">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onclick={() => handleTest(provider)}
+                  title={t("providers.testConnection")}
+                  class="action-button"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                  </svg>
+                  {t("providers.test")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onclick={() => handleEdit(provider)}
+                  title={t("providers.editProvider")}
+                  class="action-button"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                    ></path>
+                    <path
+                      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                    ></path>
+                  </svg>
+                  {t("providers.edit")}
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onclick={() => handleDelete(provider)}
+                  title={t("providers.deleteProvider")}
+                  class="action-button"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path
+                      d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                    ></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                  {t("providers.delete")}
+                </Button>
+              </div>
+            </Card>
+          {/each}
+        </div>
+      {:else}
+        <!-- 表格视图 -->
+        <div class="table-view">
+          <Card variant="elevated" class="table-card">
+            <div class="table-wrapper">
+              <table class="providers-table">
+                <thead>
+                  <tr>
+                    <th class="name-column" onclick={() => handleTableSort('name')}>
+                      <div class="th-content">
+                        <span>{t("providers.name")}</span>
+                        {#if tableSortColumn === 'name'}
+                          <span class="sort-indicator">{tableSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </div>
+                    </th>
+                    <th class="status-column" onclick={() => handleTableSort('enabled')}>
+                      <div class="th-content">
+                        <span>{t("providers.status")}</span>
+                        {#if tableSortColumn === 'enabled'}
+                          <span class="sort-indicator">{tableSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </div>
+                    </th>
+                    <th class="url-column" onclick={() => handleTableSort('base_url')}>
+                      <div class="th-content">
+                        <span>{t("providers.baseUrl")}</span>
+                        {#if tableSortColumn === 'base_url'}
+                          <span class="sort-indicator">{tableSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </div>
+                    </th>
+                    <th class="api-format-column" onclick={() => handleTableSort('api_format')}>
+                      <div class="th-content">
+                        <span>{t("providers.apiFormat")}</span>
+                        {#if tableSortColumn === 'api_format'}
+                          <span class="sort-indicator">{tableSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </div>
+                    </th>
+                    <th class="priority-column" onclick={() => handleTableSort('priority')}>
+                      <div class="th-content">
+                        <span>{t("health.priority")}</span>
+                        {#if tableSortColumn === 'priority'}
+                          <span class="sort-indicator">{tableSortDirection === 'asc' ? '↑' : '↓'}</span>
+                        {/if}
+                      </div>
+                    </th>
+                    <th class="models-column">
+                      <div class="th-content">
+                        <span>{t("health.models")}</span>
+                      </div>
+                    </th>
+                    <th class="actions-column">{t("providers.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each tableFilteredProviders() as provider, index}
+                    {@const _rowNumber = (tableCurrentPage - 1) * pageSize + index + 1}
+                    {@const isEditingPriority = editingPriorityKey === `${provider.name}||${provider.api_format}`}
+                    <tr class="table-row" onclick={() => handleEdit(provider)}>
+                      <td class="name-cell">
+                        <div class="provider-name-cell">
+                          <span class="provider-title" title={provider.name}>{provider.name}</span>
+                        </div>
+                      </td>
+                      <td class="status-cell">
+                        <div class="toggle-wrapper" role="switch" aria-label={t("providers.toggleEnabled")} aria-checked={provider.enabled} tabindex="0" onkeydown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleToggleEnabled(provider);
+                          }
+                        }}>
+                          <label class="toggle-switch small">
+                            <input
+                              type="checkbox"
+                              checked={provider.enabled}
+                              onchange={() => handleToggleEnabled(provider)}
+                            />
+                            <span class="toggle-slider"></span>
+                          </label>
+                        </div>
+                      </td>
+                      <td class="url-cell">
+                        <span class="url-text" title={provider.base_url}>{provider.base_url}</span>
+                      </td>
+                      <td class="api-format-cell">
+                        <Badge
+                          type={provider.api_format === "anthropic"
+                            ? "warning"
+                            : "info"}
+                          class="api-badge"
+                        >
+                          {provider.api_format === "anthropic"
+                            ? t("providers.anthropicApi")
+                            : t("providers.openaiApi")}
+                        </Badge>
+                      </td>
+                      <td class="priority-cell">
+                        {#if isEditingPriority}
+                          <div class="priority-edit-wrapper" role="group" aria-label={t("providers.editPriority")}>
+                            <input
+                              type="number"
+                              class="priority-input"
+                              bind:value={editingPriorityValue}
+                              min="0"
+                              step="1"
+                              onclick={(e) => e.stopPropagation()}
+                            />
+                            <div class="priority-actions">
+                              <button
+                                class="priority-btn save-btn"
+                                onclick={(e) => {
+                                  e.stopPropagation();
+                                  handleSavePriority(provider);
+                                }}
+                                disabled={saving}
+                                title={t("providers.save")}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                class="priority-btn cancel-btn"
+                                onclick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelEditPriority();
+                                }}
+                                disabled={saving}
+                                title={t("providers.cancel")}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        {:else}
+                          <div class="priority-display">
+                            <span class="priority-value">{provider.priority}</span>
+                            <button
+                              class="priority-edit-icon"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                handleEditPriority(provider);
+                              }}
+                              title={t("providers.editPriority")}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              >
+                                <path
+                                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                ></path>
+                                <path
+                                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                ></path>
+                              </svg>
+                            </button>
+                          </div>
+                        {/if}
+                      </td>
+                      <td class="models-cell">
+                        <div class="models-list">
+                          <Badge type="info" class="model-badge">
+                            {t("providers.bigModels")} {provider.models.big?.length || 0}
+                          </Badge>
+                          <Badge type="info" class="model-badge">
+                            {t("providers.middleModels")} {provider.models.middle?.length || 0}
+                          </Badge>
+                          <Badge type="info" class="model-badge">
+                            {t("providers.smallModels")} {provider.models.small?.length || 0}
+                          </Badge>
+                        </div>
+                      </td>
+                      <td class="actions-cell" onclick={(e) => e.stopPropagation()}>
+                        <div class="action-buttons">
+                          <button
+                            class="action-icon-btn test-btn"
+                            onclick={() => handleTest(provider)}
+                            title={t("providers.testConnection")}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                          </button>
+                          <button
+                            class="action-icon-btn edit-btn"
+                            onclick={() => handleEdit(provider)}
+                            title={t("providers.editProvider")}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <path
+                                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                              ></path>
+                              <path
+                                d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                              ></path>
+                            </svg>
+                          </button>
+                          <button
+                            class="action-icon-btn delete-btn"
+                            onclick={() => handleDelete(provider)}
+                            title={t("providers.deleteProvider")}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path
+                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                              ></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+
+              {#if tableFilteredProviders().length === 0}
+                <div class="empty-table">
+                  <p>{t("providers.noMatch")}</p>
+                </div>
+              {/if}
+            </div>
+
+            <!-- 表格分页控件 -->
+            {#if tableTotalPages() > 1}
+              <div class="table-pagination">
+                <div class="pagination-info">
+                  {tWithParams("health.paginationInfo", {
+                    totalCount: String(tableTotalCount()),
+                    currentPage: String(tableCurrentPage),
+                    totalPages: String(tableTotalPages())
+                  })}
+                </div>
+                <div class="pagination-controls">
+                  <button
+                    class="page-btn"
+                    disabled={tableCurrentPage === 1}
+                    onclick={() => handleTablePageChange(tableCurrentPage - 1)}
+                    title={t("common.previousPage")}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+                  <span class="page-info">{tableCurrentPage} / {tableTotalPages()}</span>
+                  <button
+                    class="page-btn"
+                    disabled={tableCurrentPage === tableTotalPages()}
+                    onclick={() => handleTablePageChange(tableCurrentPage + 1)}
+                    title={t("common.nextPage")}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            {/if}
+          </Card>
+        </div>
+      {/if}
+
+      <!-- 分页控件 - 仅卡片视图显示 -->
+      {#if viewMode === "card" && totalPages() > 1}
         <div class="pagination">
           <div class="pagination-info">
             {tWithParams("health.paginationInfo", {
-              totalCount: String(totalCount),
+              totalCount: String(totalCount()),
               currentPage: String(currentPage),
-              totalPages: String(totalPages)
+              totalPages: String(totalPages())
             })}
           </div>
           <div class="pagination-controls">
@@ -796,11 +1332,11 @@
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </Button>
-            <span class="page-info">{currentPage} / {totalPages}</span>
+            <span class="page-info">{currentPage} / {totalPages()}</span>
             <Button
               variant="secondary"
               size="sm"
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages()}
               onclick={() => handlePageChange(currentPage + 1)}
               title={t("common.nextPage")}
               class="icon-button"
@@ -1041,6 +1577,29 @@
     margin-bottom: 2rem;
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 0.375rem;
+    background: var(--bg-tertiary, #f8f9fa);
+    padding: 0.25rem;
+    border-radius: 0.375rem;
+  }
+
+  :global([data-theme="dark"]) .view-toggle {
+    background: var(--bg-tertiary, #1f2937);
+  }
+
+  :global([data-theme="dark"]) .info-value.url {
+    background: var(--bg-tertiary, #1f2937);
+    color: var(--text-secondary, #9ca3af);
+  }
+
   .loading {
     text-align: center;
     padding: 4rem;
@@ -1144,97 +1703,51 @@
     text-align: center;
   }
 
-  .table-container {
-    background: var(--card-bg, white);
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    overflow-x: auto;
-    margin-top: 1rem;
-  }
-
-  .providers-table {
-    width: 100%;
-    min-width: max-content;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .providers-table thead {
-    background: var(--bg-tertiary, #f8f9fa);
-    border-bottom: 2px solid var(--border-color, #dee2e6);
-  }
-
-  .providers-table th {
-    padding: 1rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-primary, #495057);
-    white-space: nowrap;
-  }
-
-  .providers-table th:first-child {
-    width: 150px;
-  }
-
-  .providers-table th:nth-child(2) {
-    width: 100px;
-  }
-
-  .providers-table th:nth-child(3) {
-    width: 250px;
-  }
-
-  .providers-table th:nth-child(4) {
-    width: 80px;
-  }
-
-  .providers-table th:nth-child(5) {
-    width: 180px;
-  }
-
-  .providers-table th:last-child {
-    width: 220px;
-  }
-
-  .providers-table tbody tr {
-    border-bottom: 1px solid var(--border-color, #dee2e6);
-    transition: background-color 0.2s;
-  }
-
-  .providers-table tbody tr:hover {
-    background: var(--bg-tertiary, #f8f9fa);
-  }
-
-  .providers-table td {
-    padding: 1rem;
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-
-  .name-cell {
-    padding: 1rem 0.75rem;
-  }
-
-  .name-wrapper {
+  /* Statistics Row Layout */
+  .stats-row {
     display: flex;
-    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .stats-row :global(.stat-card) {
+    flex: 1;
+  }
+
+  /* Provider Grid Layout */
+  .providers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+  }
+
+  .provider-info {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
   }
 
   .provider-name {
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--text-primary, #1a1a1a);
-  }
-
-  .name-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .status-cell {
-    text-align: center;
-    padding: 1rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* Toggle Switch Styles */
@@ -1311,22 +1824,49 @@
     cursor: not-allowed;
   }
 
-  .url-cell {
-    max-width: 250px;
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 1;
   }
 
-  .url-text {
-    display: inline-block;
-    max-width: 100%;
+  .info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .info-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #666);
+  }
+
+  .info-value {
+    font-size: 0.875rem;
+    color: var(--text-primary, #1a1a1a);
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .info-value.url {
+    font-family: monospace;
+    font-size: 0.8125rem;
+    background: var(--bg-tertiary, #f8f9fa);
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    color: var(--text-secondary, #6c757d);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-secondary, #6c757d);
-    font-size: 0.8125rem;
-  }
-
-  .priority-cell {
-    text-align: center;
   }
 
   .priority-display {
@@ -1368,7 +1908,6 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    justify-content: center;
   }
 
   .priority-input {
@@ -1434,93 +1973,81 @@
     transform: scale(1.05);
   }
 
-  .models-cell {
-    padding: 0.75rem 1rem;
-  }
-
-  .models-badge {
+  .models-grid {
     display: flex;
-    gap: 0.25rem;
     flex-wrap: wrap;
-  }
-
-  .models-badge :global(.badge) {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-  }
-
-  .actions-cell {
-    padding: 0.75rem 1rem;
-  }
-
-  .actions-wrapper {
-    display: flex;
     gap: 0.375rem;
   }
 
-  .actions-wrapper :global(.btn) {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
+  .card-actions {
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color, #dee2e6);
+    flex-wrap: wrap;
   }
 
   /* Responsive Design */
+  @media (max-width: 1200px) {
+    .providers-grid {
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    }
+  }
+
   @media (max-width: 1024px) {
-    .providers-table th:nth-child(3) {
-      width: 200px;
+    .stats-row {
+      flex-wrap: wrap;
     }
 
-    .providers-table th:last-child {
-      width: 200px;
+    .stats-row :global(.stat-card) {
+      flex: 1 1 calc(50% - 0.5rem);
+      min-width: 200px;
     }
   }
 
   @media (max-width: 768px) {
-    .table-container {
-      overflow-x: auto;
+    .providers-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
     }
 
-    .providers-table {
-      min-width: 800px;
-    }
-
-    .providers-table th {
-      padding: 0.75rem 0.5rem;
-      font-size: 0.8125rem;
-    }
-
-    .providers-table td {
-      padding: 0.75rem 0.5rem;
-    }
-
-    .actions-wrapper {
+    .stats-row {
       flex-direction: column;
-      gap: 0.25rem;
     }
 
-    .actions-wrapper :global(.btn) {
-      font-size: 0.6875rem;
-      padding: 0.3125rem 0.625rem;
-      white-space: nowrap;
+    .stats-row :global(.stat-card) {
+      width: 100%;
+    }
+
+    .page-header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    .header-right {
+      width: 100%;
+      justify-content: flex-end;
+    }
+
+    .view-toggle {
+      width: 100%;
+      max-width: 200px;
+    }
+
+    .card-header {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .card-actions {
+      flex-direction: column;
     }
   }
 
   @media (max-width: 480px) {
-    .providers-table th,
-    .providers-table td {
-      padding: 0.5rem 0.375rem;
+    .info-value.url {
       font-size: 0.75rem;
-    }
-
-    .models-badge {
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .models-badge :global(.badge) {
-      font-size: 0.6875rem;
     }
   }
 
@@ -1721,5 +2248,497 @@
     margin-top: 1.5rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color, #dee2e6);
+  }
+
+  /* 表格视图样式 */
+  .table-view {
+    margin-top: 1.5rem;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .providers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .providers-table thead {
+    background: var(--bg-tertiary, #f8f9fa);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+  }
+
+  .providers-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+  }
+
+  .providers-table th:hover {
+    background: var(--bg-tertiary, #e9ecef);
+  }
+
+  .th-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .sort-indicator {
+    font-size: 0.75rem;
+    color: var(--primary-color, #007bff);
+  }
+
+  .providers-table tbody tr {
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    transition: background 0.2s;
+  }
+
+  .providers-table tbody tr:hover {
+    background: var(--bg-tertiary, #f8f9fa);
+  }
+
+  .providers-table td {
+    padding: 0.75rem 0.75rem;
+    color: var(--text-secondary, #6c757d);
+    vertical-align: middle;
+    text-align: left;
+  }
+
+  /* 列宽控制 */
+  .name-column {
+    min-width: 150px;
+  }
+
+  .status-column {
+    min-width: 100px;
+    text-align: left;
+  }
+
+  .url-column {
+    min-width: 250px;
+  }
+
+  .api-format-column {
+    min-width: 100px;
+    text-align: left;
+  }
+
+  .priority-column {
+    min-width: 80px;
+    text-align: left;
+  }
+
+  .models-column {
+    min-width: 200px;
+  }
+
+  .actions-column {
+    min-width: 80px;
+    text-align: left;
+  }
+
+  /* 单元格内容样式 */
+  .provider-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .provider-title {
+    font-weight: 500;
+    color: var(--text-primary, #1a1a1a);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .url-text {
+    font-family: monospace;
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6c757d);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    text-align: left;
+  }
+
+  .priority-display {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+
+  .priority-value {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary, #e9ecef);
+    border-radius: 0.25rem;
+    font-weight: 500;
+    color: var(--text-primary, #495057);
+    font-size: 0.8125rem;
+    text-align: left;
+  }
+
+  .priority-edit-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #6c757d);
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    opacity: 0.6;
+  }
+
+  .priority-edit-icon:hover {
+    opacity: 1;
+    background: var(--bg-tertiary, #e9ecef);
+    color: var(--primary-color, #007bff);
+  }
+
+  .priority-edit-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .priority-input {
+    width: 60px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--primary-color, #007bff);
+    border-radius: 0.25rem;
+    background: var(--bg-primary, white);
+    color: var(--text-primary, #495057);
+    font-size: 0.8125rem;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .priority-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  }
+
+  .priority-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .priority-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: bold;
+    transition: all 0.2s;
+  }
+
+  .priority-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .save-btn {
+    background: var(--success-color, #28a745);
+    color: white;
+  }
+
+  .save-btn:hover:not(:disabled) {
+    background: #218838;
+    transform: scale(1.05);
+  }
+
+  .cancel-btn {
+    background: var(--danger-color, #dc3545);
+    color: white;
+  }
+
+  .cancel-btn:hover:not(:disabled) {
+    background: #c82333;
+    transform: scale(1.05);
+  }
+
+  .models-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    justify-content: flex-start;
+  }
+
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.125rem;
+  }
+
+  .action-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    border: none;
+    background: transparent;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.7;
+  }
+
+  .action-icon-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  .test-btn {
+    color: var(--primary-color, #007bff);
+  }
+
+  .test-btn:hover {
+    background: rgba(0, 123, 255, 0.1);
+  }
+
+  .edit-btn {
+    color: var(--info-color, #17a2b8);
+  }
+
+  .edit-btn:hover {
+    background: rgba(23, 162, 184, 0.1);
+  }
+
+  .delete-btn {
+    color: var(--danger-color, #dc3545);
+  }
+
+  .delete-btn:hover {
+    background: rgba(220, 53, 69, 0.1);
+  }
+
+  .empty-table {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary, #6c757d);
+  }
+
+  .table-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-top: 1px solid var(--border-color, #dee2e6);
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .page-info {
+    font-size: 0.875rem;
+    color: var(--text-primary, #495057);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color, #dee2e6);
+    background: var(--bg-primary, white);
+    color: var(--text-primary, #495057);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .page-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary, #e9ecef);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* 小尺寸开关 */
+  .toggle-switch.small {
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle-switch.small .toggle-slider:before {
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+  }
+
+  .toggle-switch.small input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+  }
+
+  /* 暗黑主题 */
+  :global([data-theme="dark"]) .providers-table thead {
+    background: var(--bg-tertiary, #1f2937);
+  }
+
+  :global([data-theme="dark"]) .providers-table th {
+    color: var(--text-primary, #f9fafb);
+  }
+
+  :global([data-theme="dark"]) .providers-table th:hover {
+    background: var(--bg-tertiary, #374151);
+  }
+
+  :global([data-theme="dark"]) .providers-table tbody tr:hover {
+    background: var(--bg-tertiary, #1f2937);
+  }
+
+  :global([data-theme="dark"]) .priority-value {
+    background: var(--bg-tertiary, #374151);
+    color: var(--text-secondary, #d1d5db);
+  }
+
+  :global([data-theme="dark"]) .priority-edit-icon:hover {
+    background: var(--bg-tertiary, #374151);
+  }
+
+  :global([data-theme="dark"]) .table-pagination {
+    background: var(--bg-tertiary, #1f2937);
+    border-top-color: var(--border-color, #374151);
+  }
+
+  :global([data-theme="dark"]) .page-btn {
+    background: var(--bg-primary, #1f2937);
+    border-color: var(--border-color, #374151);
+    color: var(--text-primary, #f9fafb);
+  }
+
+  :global([data-theme="dark"]) .page-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary, #374151);
+  }
+
+  /* 响应式设计 */
+  @media (max-width: 1200px) {
+    .api-format-column,
+    .priority-column {
+      min-width: 80px;
+    }
+
+    .actions-column {
+      min-width: 160px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .models-column {
+      min-width: 200px;
+    }
+
+    .url-column {
+      min-width: 200px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .providers-table th,
+    .providers-table td {
+      padding: 0.75rem 0.5rem;
+      font-size: 0.8125rem;
+    }
+
+    .name-column {
+      min-width: 120px;
+    }
+
+    .status-column {
+      min-width: 80px;
+    }
+
+    .url-column {
+      min-width: 180px;
+    }
+
+    .api-format-column,
+    .priority-column {
+      min-width: 70px;
+    }
+
+    .models-column {
+      min-width: 180px;
+    }
+
+    .actions-column {
+      min-width: 140px;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .table-pagination {
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: stretch;
+    }
+
+    .pagination-controls {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .providers-table th,
+    .providers-table td {
+      padding: 0.5rem 0.375rem;
+      font-size: 0.75rem;
+    }
+
+    .name-column {
+      min-width: 100px;
+    }
+
+    .url-column {
+      min-width: 150px;
+    }
+
+    .models-column {
+      min-width: 160px;
+    }
+
+    .actions-column {
+      min-width: 120px;
+    }
   }
 </style>

@@ -44,11 +44,20 @@
     "clear": "Xóa",
     "previousPage": "Trang trước",
     "nextPage": "Trang tiếp theo",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "Đang xóa...",
+    "searchProvider": "Tìm kiếm nhà cung cấp...",
+    "searchModel": "Tìm kiếm mô hình...",
+    "modelsSelected": "đã chọn mô hình",
+    "modelSelected": "đã chọn mô hình",
+    "selectPlaceholder": "Vui lòng chọn",
+    "searchPlaceholder": "Tìm kiếm...",
+    "noOptions": "Không có tùy chọn",
+    "errorMessageTitle": "Thông báo lỗi",
+    "clickToViewFullError": "Nhấp để xem chi tiết lỗi đầy đủ",
+    "copiedToClipboard": "Đã sao chép vào clipboard",
+    "copyFailed": "Sao chép thất bại, vui lòng sao chép thủ công",
+    "copyErrorMessage": "Sao chép thông báo lỗi",
+    "close": "Đóng"
   },
   "header": {
     "logout": "Đăng xuất",
@@ -92,8 +101,6 @@
     "modelConfig": "Cấu hình mô hình",
     "modelConfigHelp": "Cấu hình ít nhất một mô hình, khuyến nghị cấu hình cả ba danh mục",
     "addModel": "Thêm mô hình",
-    "updateModel": "Cập nhật mô hình",
-    "editModel": "Chỉnh sửa mô hình",
     "addBigModel": "Thêm mô hình lớn",
     "addMiddleModel": "Thêm mô hình trung bình",
     "addSmallModel": "Thêm mô hình nhỏ",
@@ -335,7 +342,16 @@
     "clearFilter": "Xóa",
     "close": "Đóng",
     "copyResult": "Sao chép kết quả",
-    "viewFullError": "Nhấp để xem chi tiết lỗi đầy đủ"
+    "viewFullError": "Nhấp để xem chi tiết lỗi đầy đủ",
+    "cardView": "Xem thẻ",
+    "tableView": "Xem bảng",
+    "loadEditDataFailed": "Tải dữ liệu chỉnh sửa thất bại",
+    "test": "Kiểm tra",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Tổng Nhà Cung Cấp",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
   },
   "health": {
     "title": "Kiểm tra sức khỏe hệ thống",
@@ -364,7 +380,19 @@
     "noData": "Không có dữ liệu sức khỏe",
     "paginationInfo": "{totalCount} bản ghi, trang {currentPage} của {totalPages}",
     "paginationPage": "Trang",
-    "paginationOf": "của"
+    "paginationOf": "của",
+    "systemHealth": "Tình trạng hệ thống",
+    "allSystemsOperational": "Tất cả hệ thống hoạt động",
+    "partialOperational": "Hoạt động một phần",
+    "systemIssues": "Vấn đề hệ thống",
+    "healthScore": "Điểm sức khỏe",
+    "systemOnline": "Hệ thống trực tuyến",
+    "systemOffline": "Hệ thống ngoại tuyến",
+    "systemWarning": "Cảnh báo hệ thống",
+    "totalProviders": "Tổng nhà cung cấp",
+    "responseTime": "Thời gian phản hồi",
+    "responseTimeTrend": "Xu hướng thời gian phản hồi",
+    "healthDistribution": "Phân bố sức khỏe"
   },
   "config": {
     "title": "Cấu hình",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "Bảng điều khiển",
+    "systemStatus": {
+      "title": "Trạng thái hệ thống",
+      "subtitle": "Giám sát thời gian thực",
+      "running": "Đang chạy",
+      "normal": "Hệ thống bình thường"
+    },
     "providerStats": {
       "title": "Thống kê nhà cung cấp",
       "subtitle": "Trạng thái tổng thể của các nhà cung cấp",
       "total": "Tổng",
       "enabled": "Đã bật",
-      "disabled": "Đã tắt"
+      "disabled": "Đã tắt",
+      "totalProvidersConfigured": "Tổng Nhà Cung Cấp Đã Cấu Hình"
     },
     "healthStatus": {
       "title": "Trạng thái sức khỏe",
@@ -553,6 +588,19 @@
       "loadingFailed": "Không thể tải dữ liệu",
       "copiedToClipboard": "Đã sao chép vào clipboard",
       "copyFailed": "Sao chép thất bại, vui lòng sao chép thủ công"
+    },
+    "welcome": {
+      "title": "Chào mừng đến với Anthropic OpenAI Bridge",
+      "subtitle": "Quản lý thống nhất nhiều nhà cung cấp mô hình AI để nâng cao hiệu quả phát triển"
+    },
+    "welcomeActions": {
+      "addProvider": "Thêm nhà cung cấp",
+      "viewHealthStatus": "Xem tình trạng sức khỏe"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Kiểm tra sức khỏe hoàn tất",
+      "providerAdded": "Đã thêm nhà cung cấp",
+      "configUpdated": "Đã cập nhật cấu hình"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "Tìm ngôn ngữ...",
     "noLanguagesFound": "Không tìm thấy ngôn ngữ nào",
     "languages": "ngôn ngữ",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "Phím tắt Chủ đề",
+    "toggleThemeShortcut": "(Phím tắt chuyển đổi chủ đề: hỗ trợ nhiều kết hợp)"
   },
   "welcome": {
     "title": "Chào mừng đến với Anthropic OpenAI Bridge",

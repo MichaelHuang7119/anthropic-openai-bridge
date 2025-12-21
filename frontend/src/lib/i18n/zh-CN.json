@@ -38,7 +38,6 @@
     "toggleTheme": "切换主题",
     "toggleLanguage": "切换语言",
     "loading": "加载中...",
-    "saving": "保存中...",
     "deleting": "删除中...",
     "error": "错误",
     "success": "成功",
@@ -46,11 +45,19 @@
     "clear": "清除",
     "previousPage": "上一页",
     "nextPage": "下一页",
-    "searchProvider": "搜索供应商...",
+    "searchProvider": "搜索提供商...",
     "searchModel": "搜索模型...",
     "close": "关闭",
-    "modelsSelected": "个模型已选择",
-    "modelSelected": "个模型已选择"
+    "modelsSelected": "已选择模型",
+    "modelSelected": "已选择模型",
+    "selectPlaceholder": "请选择",
+    "searchPlaceholder": "搜索...",
+    "noOptions": "暂无选项",
+    "errorMessageTitle": "错误信息",
+    "clickToViewFullError": "点击查看完整错误信息",
+    "copiedToClipboard": "已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "copyErrorMessage": "复制错误信息"
   },
   "header": {
     "logout": "退出登录",
@@ -309,6 +316,7 @@
     "loading": "加载中...",
     "noProviders": "暂无供应商配置",
     "noMatch": "没有匹配的供应商",
+    "loadEditDataFailed": "加载编辑数据失败",
     "page": "第",
     "pageOf": "页，共",
     "pageUnits": "页",
@@ -351,7 +359,14 @@
     "clearFilter": "清除",
     "close": "关闭",
     "copyResult": "复制结果",
-    "viewFullError": "点击查看完整错误信息"
+    "viewFullError": "点击查看完整错误信息",
+    "cardView": "卡片视图",
+    "tableView": "表格视图",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "总供应商数",
+    "edit": "编辑",
+    "delete": "删除"
   },
   "health": {
     "title": "系统健康检查",
@@ -380,7 +395,19 @@
     "noData": "暂无健康数据",
     "paginationInfo": "共 {totalCount} 条记录，第 {currentPage} / {totalPages} 页",
     "paginationPage": "第",
-    "paginationOf": "页，共"
+    "paginationOf": "页，共",
+    "systemHealth": "系统健康",
+    "allSystemsOperational": "全部系统运行正常",
+    "partialOperational": "部分系统运行",
+    "systemIssues": "系统问题",
+    "healthScore": "健康评分",
+    "systemOnline": "系统在线",
+    "systemOffline": "系统离线",
+    "systemWarning": "系统警告",
+    "totalProviders": "供应商总数",
+    "responseTime": "响应时间",
+    "responseTimeTrend": "响应时间趋势",
+    "healthDistribution": "健康状态分布"
   },
   "config": {
     "title": "配置管理",
@@ -499,12 +526,32 @@
   },
   "home": {
     "title": "仪表板",
+    "welcome": {
+      "title": "欢迎使用 Anthropic OpenAI Bridge",
+      "subtitle": "统一管理多个AI模型提供商，提升开发效率"
+    },
+    "systemStatus": {
+      "title": "系统状态",
+      "subtitle": "实时监控",
+      "running": "运行中",
+      "normal": "系统正常"
+    },
+    "welcomeActions": {
+      "addProvider": "添加供应商",
+      "viewHealthStatus": "查看健康状态"
+    },
     "providerStats": {
       "title": "供应商统计",
       "subtitle": "供应商总体情况",
       "total": "总计",
       "enabled": "已启用",
-      "disabled": "已禁用"
+      "disabled": "已禁用",
+      "totalProvidersConfigured": "已配置供应商总数"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "健康检查完成",
+      "providerAdded": "添加新供应商",
+      "configUpdated": "配置已更新"
     },
     "healthStatus": {
       "title": "健康状态",
@@ -582,8 +629,8 @@
     "lightMode": "浅色模式",
     "darkMode": "深色模式",
     "themeHelp": "切换深色和浅色主题",
-    "themeShortcut": "主题切换快捷键",
-    "toggleThemeShortcut": "（主题切换快捷键：支持多种组合键）",
+    "themeShortcut": "主题快捷键",
+    "toggleThemeShortcut": "(主题切换快捷键: 支持多种组合)",
     "languageUpdated": "语言设置已更新",
     "languageUpdateError": "更新语言失败",
     "tabList": "设置选项卡列表",

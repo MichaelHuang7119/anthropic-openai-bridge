@@ -2,10 +2,22 @@
   import { createEventDispatcher } from 'svelte';
   import Button from './ui/Button.svelte';
   import { toast } from '$stores/toast';
+  import { tStore } from '$stores/language';
 
-  export let show: boolean = false;
-  export let errorMessage: string = '';
-  export let title: string = '错误信息';
+  interface Props {
+    show?: boolean;
+    errorMessage?: string;
+    title?: string;
+  }
+
+  let {
+    show = false,
+    errorMessage = '',
+    title = '错误信息'
+  }: Props = $props();
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -28,7 +40,7 @@
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(errorMessage);
-        toast.success('已复制到剪贴板');
+        toast.success(t('common.copiedToClipboard'));
       } else {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
@@ -41,11 +53,11 @@
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        toast.success('已复制到剪贴板');
+        toast.success(t('common.copiedToClipboard'));
       }
     } catch (error) {
       console.error('Failed to copy:', error);
-      toast.error('复制失败，请手动复制');
+      toast.error(t('common.copyFailed'));
     }
   }
 </script>
@@ -56,13 +68,13 @@
       <div class="modal-header">
         <h2>{title}</h2>
         <div class="header-actions">
-          <Button variant="secondary" size="sm" onclick={copyToClipboard} title="复制错误信息" class="icon-button">
+          <Button variant="secondary" size="sm" onclick={copyToClipboard} title={t('common.copyErrorMessage')} class="icon-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
           </Button>
-          <Button variant="secondary" size="sm" onclick={handleClose} title="关闭" class="icon-button">
+          <Button variant="secondary" size="sm" onclick={handleClose} title={t('common.close')} class="icon-button">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -76,8 +88,8 @@
       </div>
 
       <div class="modal-actions">
-        <Button variant="primary" onclick={copyToClipboard}>复制错误信息</Button>
-        <Button variant="secondary" onclick={handleClose}>关闭</Button>
+        <Button variant="primary" onclick={copyToClipboard}>{t('common.copyErrorMessage')}</Button>
+        <Button variant="secondary" onclick={handleClose}>{t('common.close')}</Button>
       </div>
     </div>
   </div>

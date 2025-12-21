@@ -44,11 +44,20 @@
     "clear": "ล้าง",
     "previousPage": "หน้าก่อนหน้า",
     "nextPage": "หน้าถัดไป",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "กำลังลบ...",
+    "searchProvider": "ค้นหาผู้ให้บริการ...",
+    "searchModel": "ค้นหาโมเดล...",
+    "modelsSelected": "เลือกโมเดลแล้ว",
+    "modelSelected": "เลือกโมเดลแล้ว",
+    "selectPlaceholder": "กรุณาเลือก",
+    "searchPlaceholder": "ค้นหา...",
+    "noOptions": "ไม่มีตัวเลือก",
+    "errorMessageTitle": "ข้อความแสดงข้อผิดพลาด",
+    "clickToViewFullError": "คลิกเพื่อดูรายละเอียดข้อผิดพลาดทั้งหมด",
+    "copiedToClipboard": "คัดลอกไปยังคลิปบอร์ดแล้ว",
+    "copyFailed": "การคัดลอกล้มเหลว กรุณาคัดลอกด้วยตนเอง",
+    "copyErrorMessage": "คัดลอกข้อความแสดงข้อผิดพลาด",
+    "close": "ปิด"
   },
   "header": {
     "logout": "ออกจากระบบ",
@@ -92,8 +101,6 @@
     "modelConfig": "การตั้งค่าโมเดล",
     "modelConfigHelp": "กำหนดค่าโมเดลอย่างน้อยหนึ่งตัว แนะนำให้กำหนดค่าทั้งสามหมวดหมู่",
     "addModel": "เพิ่มโมเดล",
-    "updateModel": "อัปเดตโมเดล",
-    "editModel": "แก้ไขโมเดล",
     "addBigModel": "เพิ่มโมเดลใหญ่",
     "addMiddleModel": "เพิ่มโมเดลกลาง",
     "addSmallModel": "เพิ่มโมเดลเล็ก",
@@ -335,7 +342,16 @@
     "clearFilter": "ล้าง",
     "close": "ปิด",
     "copyResult": "คัดลอกผลลัพธ์",
-    "viewFullError": "คลิกเพื่อดูรายละเอียดข้อผิดพลาดทั้งหมด"
+    "viewFullError": "คลิกเพื่อดูรายละเอียดข้อผิดพลาดทั้งหมด",
+    "cardView": "มุมมองการ์ด",
+    "tableView": "มุมมองตาราง",
+    "loadEditDataFailed": "โหลดข้อมูลการแก้ไขล้มเหลว",
+    "test": "ทดสอบ",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "ผู้ให้บริการทั้งหมด",
+    "edit": "แก้ไข",
+    "delete": "ลบ"
   },
   "health": {
     "title": "การตรวจสอบสุขภาพระบบ",
@@ -364,7 +380,19 @@
     "noData": "ไม่มีข้อมูลสุขภาพ",
     "paginationInfo": "{totalCount} รายการ หน้า {currentPage} จาก {totalPages}",
     "paginationPage": "หน้า",
-    "paginationOf": "จาก"
+    "paginationOf": "จาก",
+    "systemHealth": "สุขภาพระบบ",
+    "allSystemsOperational": "ระบบทั้งหมดทำงาน",
+    "partialOperational": "ทำงานบางส่วน",
+    "systemIssues": "ปัญหาระบบ",
+    "healthScore": "คะแนนสุขภาพ",
+    "systemOnline": "ระบบออนไลน์",
+    "systemOffline": "ระบบออฟไลน์",
+    "systemWarning": "คำเตือนระบบ",
+    "totalProviders": "ผู้ให้บริการทั้งหมด",
+    "responseTime": "เวลาตอบสนอง",
+    "responseTimeTrend": "แนวโน้มเวลาตอบสนอง",
+    "healthDistribution": "การกระจายสุขภาพ"
   },
   "config": {
     "title": "การตั้งค่า",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "แดชบอร์ด",
+    "systemStatus": {
+      "title": "สถานะระบบ",
+      "subtitle": "การตรวจสอบแบบเรียลไทม์",
+      "running": "กำลังทำงาน",
+      "normal": "ระบบปกติ"
+    },
     "providerStats": {
       "title": "สถิติผู้ให้บริการ",
       "subtitle": "สถานะโดยรวมของผู้ให้บริการ",
       "total": "ทั้งหมด",
       "enabled": "เปิดใช้งาน",
-      "disabled": "ปิดใช้งาน"
+      "disabled": "ปิดใช้งาน",
+      "totalProvidersConfigured": "ผู้ให้บริการที่กำหนดค่าทั้งหมด"
     },
     "healthStatus": {
       "title": "สถานะสุขภาพ",
@@ -553,6 +588,19 @@
       "loadingFailed": "โหลดข้อมูลไม่สำเร็จ",
       "copiedToClipboard": "คัดลอกไปยังคลิปบอร์ดแล้ว",
       "copyFailed": "คัดลอกไม่สำเร็จ กรุณาคัดลอกด้วยตนเอง"
+    },
+    "welcome": {
+      "title": "ยินดีต้อนรับสู่ Anthropic OpenAI Bridge",
+      "subtitle": "การจัดการผู้ให้บริการโมเดล AI หลายรายแบบรวมศูนย์เพื่อเพิ่มประสิทธิภาพการพัฒนา"
+    },
+    "welcomeActions": {
+      "addProvider": "เพิ่มผู้ให้บริการ",
+      "viewHealthStatus": "ดูสถานะสุขภาพ"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "ตรวจสุขภาพเสร็จสิ้น",
+      "providerAdded": "เพิ่มผู้ให้บริการแล้ว",
+      "configUpdated": "อัปเดตการกำหนดค่าแล้ว"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "ค้นหาภาษา...",
     "noLanguagesFound": "ไม่พบภาษา",
     "languages": "ภาษา",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "ทางลัดธีม",
+    "toggleThemeShortcut": "(ทางลัดสลับธีม: รองรับหลายคำผสม)"
   },
   "welcome": {
     "title": "ยินดีต้อนรับสู่ Anthropic OpenAI Bridge",

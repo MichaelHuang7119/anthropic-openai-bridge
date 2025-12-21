@@ -1,14 +1,16 @@
 <script lang="ts">
   let {
     type = 'secondary',
+    class: className = '',
     children
   }: {
     type?: 'success' | 'danger' | 'warning' | 'info' | 'secondary';
+    class?: string;
     children?: () => any;
   } = $props();
 </script>
 
-<span class="badge badge-{type}">
+<span class="badge badge-{type} {className}">
   {@render children?.()}
 </span>
 

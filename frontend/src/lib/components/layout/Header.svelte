@@ -165,7 +165,7 @@
 
         <!-- 移动端汉堡菜单按钮 -->
         <button
-          class="mobile-menu-button"
+          class="mobile-menu-button {showMobileNav ? 'is-open' : ''}"
           onclick={(e) => {
             e.stopPropagation();
             showMobileNav = !showMobileNav;
@@ -173,7 +173,7 @@
           aria-label={t('header.toggleMenu')}
           aria-expanded={showMobileNav}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="hamburger-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="6" x2="21" y2="6" class="line-1"></line>
             <line x1="3" y1="12" x2="21" y2="12" class="line-2"></line>
             <line x1="3" y1="18" x2="21" y2="18" class="line-3"></line>
@@ -426,22 +426,66 @@
     border-radius: 0.375rem;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mobile-menu-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(90, 156, 255, 0.1), transparent);
+    transition: left 0.5s;
+  }
+
+  .mobile-menu-button:hover::before {
+    left: 100%;
   }
 
   .mobile-menu-button:hover {
     background: var(--bg-secondary);
     border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(90, 156, 255, 0.2);
   }
 
-  .mobile-menu-button svg {
+  .mobile-menu-button:active {
+    transform: translateY(0) scale(0.95);
+  }
+
+  .hamburger-icon {
     display: block;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 汉堡菜单动画 */
+  .mobile-menu-button.is-open .hamburger-icon {
+    transform: rotate(180deg);
   }
 
   .mobile-menu-button .line-1,
   .mobile-menu-button .line-2,
   .mobile-menu-button .line-3 {
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+
+  /* 展开状态的线条动画 */
+  .mobile-menu-button.is-open .line-1 {
+    transform: translateY(6px) rotate(45deg);
+  }
+
+  .mobile-menu-button.is-open .line-2 {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  .mobile-menu-button.is-open .line-3 {
+    transform: translateY(-6px) rotate(-45deg);
   }
 
   /* 移动端导航菜单 */

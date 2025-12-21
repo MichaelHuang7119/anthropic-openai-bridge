@@ -6,6 +6,9 @@
   import Button from '$components/ui/Button.svelte';
   import Input from '$components/ui/Input.svelte';
   import ErrorMessageModal from '$components/ErrorMessageModal.svelte';
+  import StatCard from '$lib/components/ui/StatCard.svelte';
+  import RealTimeIndicator from '$lib/components/ui/RealTimeIndicator.svelte';
+  import Chart from '$lib/components/ui/Chart.svelte';
   import { healthStatus, lastHealthCheck } from '$stores/health';
   import { healthService } from '$services/health';
   import type { ProviderHealth, CategoryHealth } from '$types/health';
@@ -145,6 +148,37 @@
     }
   }
 
+  // 计算统计数据（使用所有过滤后的数据，不是分页数据）
+  let healthyCount = $derived(allFilteredProviders.filter(p => p.healthy === true).length);
+  let unhealthyCount = $derived(allFilteredProviders.filter(p => p.healthy === false).length);
+  let disabledCount = $derived(allFilteredProviders.filter(p => !p.enabled).length);
+
+  // 图表数据
+  let healthDistributionChartData = $derived({
+    labels: [t('health.healthy'), t('health.unhealthy'), t('health.disabled')],
+    datasets: [{
+      data: [healthyCount, unhealthyCount, disabledCount],
+      backgroundColor: ['#28a745', '#dc3545', '#6c757d'],
+      borderWidth: 0
+    }]
+  });
+
+  // 响应时间趋势数据（模拟数据）
+  let responseTimeChartData = $derived({
+    labels: Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toLocaleDateString();
+    }),
+    datasets: [{
+      label: t('health.responseTime'),
+      data: Array.from({ length: 7 }, () => Math.floor(Math.random() * 500) + 100),
+      borderColor: '#5a9cff',
+      backgroundColor: 'rgba(90, 156, 255, 0.1)',
+      tension: 0.4
+    }]
+  });
+
   function getStatusBadge(provider: ProviderHealth) {
     if (!provider.enabled) {
       return { type: 'secondary' as const, text: t('health.disabled') };
@@ -264,62 +298,77 @@
       <p>{t('health.checking')}</p>
     </div>
   {:else if hasData}
-    <div class="summary-card">
-      <Card title={t('health.monitoringInfo')}>
-        <div class="summary-items">
-          <div class="summary-item">
-            <span class="label">{t('health.lastCheck')}:</span>
-            <span class="value">{$lastHealthCheck ? (() => {
-              try {
-                // lastHealthCheck 存储为 ISO 字符串（UTC），需要转换为本地时区显示
-                let date: Date;
-                if ($lastHealthCheck instanceof Date) {
-                  date = $lastHealthCheck;
-                } else if (typeof $lastHealthCheck === 'string') {
-                  // ISO 字符串会被正确解析为 UTC 时间
-                  date = new Date($lastHealthCheck);
-                } else {
-                  return t('health.neverChecked');
-                }
-
-                if (isNaN(date.getTime())) {
-                  return t('health.neverChecked');
-                }
-
-                // Date 对象内部存储的是 UTC 时间戳
-                // toLocaleString 会自动转换为本地时区，不需要指定 timeZone
-                // 但为了确保一致性，我们明确指定格式选项
-                const locale = currentLanguage === 'zh-CN' ? 'zh-CN' : 'en-US';
-                return date.toLocaleString(locale, {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit'
-                });
-              } catch {
-                return t('health.neverChecked');
-              }
-            })() : t('health.neverChecked')}</span>
-          </div>
-          <div class="summary-item">
-            <span class="label">{t('health.overallStatus')}:</span>
-            <Badge type={
-              $healthStatus.status === 'healthy' ? 'success' :
-              $healthStatus.status === 'partial' ? 'warning' :
-              $healthStatus.status === 'unhealthy' ? 'danger' :
-              'info'
-            }>
-              {
-                $healthStatus.status === 'healthy' ? t('health.healthy') :
-                $healthStatus.status === 'partial' ? t('health.partialHealthy') :
-                $healthStatus.status === 'unhealthy' ? t('health.unhealthy') :
-                t('health.notChecked')
-              }
-            </Badge>
-          </div>
+    <!-- 总体状态概览 -->
+    <div class="status-overview">
+      <div class="status-card card-animated">
+        <div class="status-indicator">
+          <div class="status-dot active"></div>
+          <div class="status-pulse"></div>
         </div>
+        <div class="status-content">
+          <h2 class="status-title">{t('health.systemHealth')}</h2>
+          <p class="status-subtitle">
+            {
+              $healthStatus.status === 'healthy' ? t('health.allSystemsOperational') :
+              $healthStatus.status === 'partial' ? t('health.partialOperational') :
+              $healthStatus.status === 'unhealthy' ? t('health.systemIssues') :
+              t('health.notChecked')
+            }
+          </p>
+        </div>
+        <div class="status-score">
+          <span class="score-value">{healthyCount + unhealthyCount > 0 ? Math.round((healthyCount / (healthyCount + unhealthyCount)) * 100) : 0}</span>
+          <span class="score-label">{t('health.healthScore')}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 实时状态指示器 -->
+    <div class="realtime-status">
+      <RealTimeIndicator
+        status={$healthStatus.status === 'healthy' ? 'online' : $healthStatus.status === 'unhealthy' ? 'offline' : 'warning'}
+        text={$healthStatus.status === 'healthy' ? t('health.systemOnline') : $healthStatus.status === 'unhealthy' ? t('health.systemOffline') : t('health.systemWarning')}
+        size="md"
+        animated={true}
+      />
+    </div>
+
+    <!-- 关键指标 -->
+    <div class="stats-grid">
+      <StatCard
+        title={t('health.healthy')}
+        value={healthyCount}
+        type="success"
+        icon="check-circle"
+      />
+      <StatCard
+        title={t('health.unhealthy')}
+        value={unhealthyCount}
+        type="danger"
+        icon="x-circle"
+      />
+      <StatCard
+        title={t('health.disabled')}
+        value={disabledCount}
+        type="default"
+        icon="power"
+      />
+      <StatCard
+        title={t('health.totalProviders')}
+        value={totalCount}
+        type="info"
+        icon="server"
+      />
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="charts-grid">
+      <Card title={t('health.responseTimeTrend')} variant="elevated">
+        <Chart type="line" data={responseTimeChartData} />
+      </Card>
+
+      <Card title={t('health.healthDistribution')} variant="elevated">
+        <Chart type="doughnut" data={healthDistributionChartData} />
       </Card>
     </div>
 
@@ -510,28 +559,10 @@
     gap: 1rem;
   }
 
-  .summary-card {
-    margin-bottom: 2rem;
-  }
-
-  .summary-items {
+  .realtime-status {
+    margin-bottom: 1.5rem;
     display: flex;
-    gap: 2rem;
-  }
-
-  .summary-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .label {
-    font-weight: 500;
-    color: var(--text-secondary, #666);
-  }
-
-  .value {
-    color: var(--text-primary, #1a1a1a);
+    justify-content: center;
   }
 
   .filters {
@@ -804,6 +835,114 @@
     font-size: 1.125rem;
   }
 
+  /* 状态概览 */
+  .status-overview {
+    margin-bottom: var(--space-4);
+  }
+
+  .status-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+  }
+
+  .status-indicator {
+    position: relative;
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .status-dot {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--success);
+  }
+
+  .status-dot.active {
+    box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+  }
+
+  .status-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-full);
+    background: var(--success);
+    opacity: 0.3;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.3;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.3;
+    }
+  }
+
+  .status-content {
+    flex: 1;
+  }
+
+  .status-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin: 0 0 var(--space-2) 0;
+  }
+
+  .status-subtitle {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .status-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .score-value {
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--success);
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-top: var(--space-1);
+  }
+
+  /* 统计网格 */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  /* 图表网格 */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
   /* Responsive Design */
   @media (max-width: 1200px) {
     .health-table th:last-child {
@@ -812,11 +951,6 @@
   }
 
   @media (max-width: 1024px) {
-    .summary-items {
-      flex-direction: column;
-      gap: 1rem;
-    }
-
     .health-table th:nth-child(6) {
       width: 150px;
     }

@@ -44,11 +44,20 @@
     "clear": "Очистить",
     "previousPage": "Предыдущая страница",
     "nextPage": "Следующая страница",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "Удаление...",
+    "searchProvider": "Поиск провайдеров...",
+    "searchModel": "Поиск моделей...",
+    "modelsSelected": "моделей выбрано",
+    "modelSelected": "модель выбрана",
+    "selectPlaceholder": "Пожалуйста, выберите",
+    "searchPlaceholder": "Поиск...",
+    "noOptions": "Нет вариантов",
+    "errorMessageTitle": "Сообщение об ошибке",
+    "clickToViewFullError": "Нажмите, чтобы увидеть полные детали ошибки",
+    "copiedToClipboard": "Скопировано в буфер обмена",
+    "copyFailed": "Не удалось скопировать, скопируйте вручную",
+    "copyErrorMessage": "Копировать сообщение об ошибке",
+    "close": "Закрыть"
   },
   "header": {
     "logout": "Выйти",
@@ -92,8 +101,6 @@
     "modelConfig": "Конфигурация модели",
     "modelConfigHelp": "Настройте хотя бы одну модель, рекомендуется настроить все три категории",
     "addModel": "Добавить модель",
-    "updateModel": "Обновить модель",
-    "editModel": "Редактировать модель",
     "addBigModel": "Добавить большую модель",
     "addMiddleModel": "Добавить среднюю модель",
     "addSmallModel": "Добавить малую модель",
@@ -335,7 +342,16 @@
     "clearFilter": "Очистить",
     "close": "Закрыть",
     "copyResult": "Копировать результат",
-    "viewFullError": "Нажмите для просмотра полных деталей ошибки"
+    "viewFullError": "Нажмите для просмотра полных деталей ошибки",
+    "cardView": "Вид карточки",
+    "tableView": "Вид таблицы",
+    "loadEditDataFailed": "Не удалось загрузить данные редактирования",
+    "test": "Тест",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "Всего Провайдеров",
+    "edit": "Редактировать",
+    "delete": "Удалить"
   },
   "health": {
     "title": "Проверка здоровья системы",
@@ -364,7 +380,19 @@
     "noData": "Нет данных о здоровье",
     "paginationInfo": "{totalCount} записей, страница {currentPage} из {totalPages}",
     "paginationPage": "Страница",
-    "paginationOf": "из"
+    "paginationOf": "из",
+    "systemHealth": "Здоровье системы",
+    "allSystemsOperational": "Все системы работают",
+    "partialOperational": "Частично работает",
+    "systemIssues": "Системные проблемы",
+    "healthScore": "Оценка здоровья",
+    "systemOnline": "Система онлайн",
+    "systemOffline": "Система офлайн",
+    "systemWarning": "Системное предупреждение",
+    "totalProviders": "Всего провайдеров",
+    "responseTime": "Время отклика",
+    "responseTimeTrend": "Тренд времени отклика",
+    "healthDistribution": "Распределение здоровья"
   },
   "config": {
     "title": "Конфигурация",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "Панель управления",
+    "systemStatus": {
+      "title": "Статус системы",
+      "subtitle": "Мониторинг в реальном времени",
+      "running": "Запущено",
+      "normal": "Система в норме"
+    },
     "providerStats": {
       "title": "Статистика провайдеров",
       "subtitle": "Общий статус провайдеров",
       "total": "Всего",
       "enabled": "Включен",
-      "disabled": "Отключен"
+      "disabled": "Отключен",
+      "totalProvidersConfigured": "Всего Настроенных Провайдеров"
     },
     "healthStatus": {
       "title": "Статус здоровья",
@@ -553,6 +588,19 @@
       "loadingFailed": "Не удалось загрузить данные",
       "copiedToClipboard": "Скопировано в буфер обмена",
       "copyFailed": "Не удалось скопировать, пожалуйста, скопируйте вручную"
+    },
+    "welcome": {
+      "title": "Добро пожаловать в Anthropic OpenAI Bridge",
+      "subtitle": "Единое управление несколькими поставщиками моделей ИИ для повышения эффективности разработки"
+    },
+    "welcomeActions": {
+      "addProvider": "Добавить поставщика",
+      "viewHealthStatus": "Посмотреть состояние здоровья"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "Проверка здоровья завершена",
+      "providerAdded": "Поставщик добавлен",
+      "configUpdated": "Конфигурация обновлена"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "Поиск языков...",
     "noLanguagesFound": "Языки не найдены",
     "languages": "языки",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "Горячая клавиша Темы",
+    "toggleThemeShortcut": "(Горячие клавиши переключения темы: поддерживаются несколько комбинаций)"
   },
   "welcome": {
     "title": "Добро пожаловать в Anthropic OpenAI Bridge",

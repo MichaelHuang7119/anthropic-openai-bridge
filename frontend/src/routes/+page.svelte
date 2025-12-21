@@ -3,16 +3,18 @@
   import { onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import Card from '$components/ui/Card.svelte';
-  import Badge from '$components/ui/Badge.svelte';
+  import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
   import WelcomeModal from '$lib/components/WelcomeModal.svelte';
+  import StatCard from '$lib/components/ui/StatCard.svelte';
+  import RealTimeIndicator from '$lib/components/ui/RealTimeIndicator.svelte';
   import { providers, providerStats } from '$stores/providers';
-  import { healthStatus, lastHealthCheck } from '$stores/health';
+  import { healthStatus } from '$stores/health';
   import { providerService } from '$services/providers';
   import { authService } from '$services/auth';
   import { toast } from '$stores/toast';
   import Input from '$components/ui/Input.svelte';
-  import { tStore, language } from '$stores/language';
+  import { tStore } from '$stores/language';
 
   let loading = $state(true);
   let currentUrl = $state('');
@@ -51,7 +53,6 @@
 
   // 获取翻译函数和当前语言
   const t = $derived($tStore);
-  const currentLang = $derived($language);
 
   // 翻译函数，支持参数替换
   function translateWithParams(key: string, params: Record<string, string | number> = {}): string {
@@ -224,90 +225,120 @@
 
   const anthropicBaseUrl = $derived(currentUrl || 'http://localhost:5175');
   const configCommand = $derived(`export ANTHROPIC_BASE_URL=${anthropicBaseUrl}\nexport ANTHROPIC_API_KEY="any-value"`);
+
+  // 最近活动时间线数据（模拟数据，实际可从API获取）
+  const _recentActivities = $derived([
+    {
+      id: 1,
+      type: 'health_check',
+      message: t('home.recentActivities.healthCheckCompleted'),
+      timestamp: new Date(),
+      status: 'success'
+    },
+    {
+      id: 2,
+      type: 'provider_added',
+      message: t('home.recentActivities.providerAdded'),
+      timestamp: new Date(Date.now() - 3600000),
+      status: 'info'
+    },
+    {
+      id: 3,
+      type: 'config_updated',
+      message: t('home.recentActivities.configUpdated'),
+      timestamp: new Date(Date.now() - 7200000),
+      status: 'warning'
+    }
+  ]);
 </script>
 
 <div class="container">
 
 {#if loading}
     <div class="loading">
+      <div class="loading-spinner"></div>
       <p>{t('common.loading')}</p>
     </div>
   {:else}
+    <!-- 欢迎区块 -->
+    <div class="welcome-section">
+      <div class="welcome-content">
+        <div class="welcome-text">
+          <h1 class="welcome-title">
+            <span class="welcome-emoji">👋</span>
+            {t('home.welcome.title')}
+          </h1>
+        </div>
+        <div class="welcome-actions">
+          <Button variant="primary" onclick={() => window.location.href = '/providers'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            {t('home.welcomeActions.addProvider')}
+          </Button>
+          <Button variant="secondary" onclick={() => window.location.href = '/health'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            {t('home.welcomeActions.viewHealthStatus')}
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关键指标卡片 -->
     <div class="stats-grid">
-      <Card title={t('home.providerStats.title')} subtitle={t('home.providerStats.subtitle')}>
-        {#snippet titleSlot()}
-          <Badge type="info">{t('home.providerStats.total')} {$providerStats.total}</Badge>
+      <StatCard
+        title={t('home.providerStats.total')}
+        value={$providerStats.total}
+        subtitle={t('home.providerStats.totalProvidersConfigured')}
+        icon="<circle cx='12' cy='12' r='10'></circle><path d='M12 6v6l4 2'></path>"
+        type="info"
+        size="lg"
+      >
+        {#snippet children()}
+          <div class="stat-detail">
+            <Badge type="success">{$providerStats.enabled} {t("providers.enabled")}</Badge>
+            <Badge type="secondary">{$providerStats.disabled} {t("providers.disabled")}</Badge>
+          </div>
         {/snippet}
-        <div class="stat-items">
-          <div class="stat-item">
-            <span class="label">{t('home.providerStats.enabled')}</span>
-            <span class="value success">{$providerStats.enabled}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">{t('home.providerStats.disabled')}</span>
-            <span class="value danger">{$providerStats.disabled}</span>
-          </div>
-        </div>
-      </Card>
+      </StatCard>
 
-      <Card title={t('home.healthStatus.title')} subtitle={hasHealthData ? t('home.healthStatus.subtitle') : t('home.healthStatus.subtitleNoData')}>
-        {#snippet titleSlot()}
-          {#if hasHealthData}
-            <Badge type={statusBadgeType}>{statusBadgeText}</Badge>
-          {:else}
-            <Badge type="info">{t('health.notChecked')}</Badge>
-          {/if}
+      <StatCard
+        title={t('health.overallStatus')}
+        value={hasHealthData ? statusBadgeText : t('health.notChecked')}
+        subtitle={hasHealthData ? t('health.systemHealth') : t('health.noData')}
+        icon={hasHealthData ? (statusBadgeType === 'success' ? "<path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'></path><polyline points='22 4 12 14.01 9 11.01'></polyline>" : "<path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'></path><line x1='12' y1='9' x2='12' y2='13'></line><line x1='12' y1='17' x2='12.01' y2='17'></line>") : "<circle cx='12' cy='12' r='10'></circle><line x1='12' y1='8' x2='12' y2='12'></line><line x1='12' y1='16' x2='12.01' y2='16'></line>"}
+        type={hasHealthData ? (statusBadgeType === 'success' ? 'success' : statusBadgeType === 'warning' ? 'warning' : 'danger') : 'default'}
+        size="lg"
+        trend={hasHealthData ? (statusBadgeType === 'success' ? 'up' : statusBadgeType === 'warning' ? 'neutral' : 'down') : 'neutral'}
+        trendValue={hasHealthData ? `${healthyCount}/${healthyCount + unhealthyCount} ${t("health.healthy")}` : t("health.notChecked")}
+      >
+        {#snippet children()}
+          <div class="stat-detail">
+            <span class="detail-item">
+              <Badge type="success">{healthyCount} {t("health.healthy")}</Badge>
+            </span>
+            <span class="detail-item">
+              <Badge type="danger">{unhealthyCount} {t("health.unhealthy")}</Badge>
+            </span>
+          </div>
         {/snippet}
-        <div class="stat-items">
-          <div class="stat-item">
-            <span class="label">{t('health.healthy')}</span>
-            <span class="value success">{healthyCount}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">{t('health.unhealthy')}</span>
-            <span class="value danger">{unhealthyCount}</span>
-          </div>
-          {#if !hasHealthData}
-            <div class="stat-item">
-              <span class="label">{t('home.healthStatus.action')}</span>
-              <a href="/health" class="value link">{t('home.healthStatus.goToHealthPage')}</a>
-            </div>
-          {/if}
-        </div>
-      </Card>
+      </StatCard>
 
-      <Card title={t('home.systemInfo.title')} subtitle={t('home.systemInfo.subtitle')}>
-        <div class="sys-info">
-          <div class="info-item">
-            <span class="label">{t('home.systemInfo.frontendStatus')}</span>
-            <Badge type="success">{t('home.systemInfo.running')}</Badge>
-          </div>
-          <div class="info-item">
-            <span class="label">{t('home.systemInfo.lastCheck')}</span>
-            <span class="value">{$lastHealthCheck ? (() => {
-              try {
-                const date = $lastHealthCheck instanceof Date ? $lastHealthCheck : new Date($lastHealthCheck);
-                if (isNaN(date.getTime())) return t('health.notChecked');
-                return date.toLocaleString(currentLang === 'zh-CN' ? 'zh-CN' : 'en-US', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                });
-              } catch {
-                return t('health.notChecked');
-              }
-            })() : t('health.notChecked')}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">{t('home.systemInfo.checkMode')}</span>
-            <span class="value">{t('home.systemInfo.manualMode')}</span>
-          </div>
-        </div>
-      </Card>
+      <StatCard
+        title={t('home.systemStatus.title')}
+        value={t('home.systemStatus.running')}
+        subtitle={t('home.systemStatus.subtitle')}
+        icon="<circle cx='12' cy='12' r='10'></circle><path d='M12 6v6l4 2'></path>"
+        type="success"
+        size="lg"
+      >
+        {#snippet children()}
+          <RealTimeIndicator status="online" text={t('home.systemStatus.normal')} size="sm" animated={true} />
+        {/snippet}
+      </StatCard>
     </div>
 
     <div class="config-section">
@@ -463,83 +494,6 @@ export ANTHROPIC_API_KEY="any-value"</code></pre>
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3rem;
-  }
-
-  .stat-items {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .stat-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .label {
-    color: var(--text-secondary, #666);
-    font-size: 0.875rem;
-  }
-
-  .value {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-primary, #1a1a1a);
-  }
-
-  .value.success {
-    color: var(--success-color, #28a745);
-  }
-
-  :global([data-theme="dark"]) .value.success {
-    color: #238636;
-  }
-
-  .value.danger {
-    color: var(--danger-color, #dc3545);
-  }
-
-  :global([data-theme="dark"]) .value.danger {
-    color: #f85149;
-  }
-
-  .value.link {
-    color: var(--link-color, var(--primary-color, #007bff));
-    font-size: 1rem;
-    font-weight: 500;
-    text-decoration: none;
-  }
-
-  .value.link:hover {
-    color: var(--link-hover-color, var(--primary-color, #0056b3));
-    text-decoration: underline;
-  }
-
-  :global([data-theme="dark"]) .value.link {
-    color: #58a6ff;
-  }
-
-  :global([data-theme="dark"]) .value.link:hover {
-    color: #79c0ff;
-  }
-
-  .sys-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .sys-info .info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .sys-info .value {
-    font-size: 0.875rem;
-    font-weight: 400;
-    color: var(--text-primary, #1a1a1a);
   }
 
   .providers-preview {

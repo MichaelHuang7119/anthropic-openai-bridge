@@ -44,11 +44,20 @@
     "clear": "साफ़ करें",
     "previousPage": "पिछला पृष्ठ",
     "nextPage": "अगला पृष्ठ",
-    "deleting": "Deleting...",
-    "searchProvider": "Search providers...",
-    "searchModel": "Search models...",
-    "modelsSelected": "models selected",
-    "modelSelected": "model selected"
+    "deleting": "हटा रहे हैं...",
+    "searchProvider": "प्रदाताओं को खोजें...",
+    "searchModel": "मॉडल खोजें...",
+    "modelsSelected": "मॉडल चुने गए",
+    "modelSelected": "मॉडल चुना गया",
+    "selectPlaceholder": "कृपया चुनें",
+    "searchPlaceholder": "खोजें...",
+    "noOptions": "कोई विकल्प नहीं",
+    "errorMessageTitle": "त्रुटि संदेश",
+    "clickToViewFullError": "पूर्ण त्रुटि विवरण देखने के लिए क्लिक करें",
+    "copiedToClipboard": "क्लिपबोर्ड में कॉपी किया गया",
+    "copyFailed": "कॉपी करने में विफल, कृपया मैन्युअल रूप से कॉपी करें",
+    "copyErrorMessage": "त्रुटि संदेश कॉपी करें",
+    "close": "बंद करें"
   },
   "header": {
     "logout": "लॉग आउट",
@@ -92,8 +101,6 @@
     "modelConfig": "मॉडल कॉन्फ़िगरेशन",
     "modelConfigHelp": "कम से कम एक मॉडल कॉन्फ़िगर करें, तीनों श्रेणियों को कॉन्फ़िगर करने की सिफारिश की जाती है",
     "addModel": "मॉडल जोड़ें",
-    "updateModel": "मॉडल अपडेट करें",
-    "editModel": "मॉडल संपादित करें",
     "addBigModel": "बड़ा मॉडल जोड़ें",
     "addMiddleModel": "मध्यम मॉडल जोड़ें",
     "addSmallModel": "छोटा मॉडल जोड़ें",
@@ -335,7 +342,16 @@
     "clearFilter": "साफ़ करें",
     "close": "बंद करें",
     "copyResult": "परिणाम कॉपी करें",
-    "viewFullError": "पूर्ण त्रुटि विवरण देखने के लिए क्लिक करें"
+    "viewFullError": "पूर्ण त्रुटि विवरण देखने के लिए क्लिक करें",
+    "cardView": "कार्ड दृश्य",
+    "tableView": "तालिका दृश्य",
+    "loadEditDataFailed": "संपादन डेटा लोड करने में विफल",
+    "test": "टेस्ट",
+    "openaiApi": "OpenAI API",
+    "anthropicApi": "Anthropic API",
+    "totalProviders": "कुल प्रदाता",
+    "edit": "संपादित करें",
+    "delete": "हटाएं"
   },
   "health": {
     "title": "सिस्टम स्वास्थ्य जांच",
@@ -364,7 +380,19 @@
     "noData": "कोई स्वास्थ्य डेटा नहीं",
     "paginationInfo": "{totalCount} रिकॉर्ड, पृष्ठ {currentPage} का {totalPages}",
     "paginationPage": "पृष्ठ",
-    "paginationOf": "का"
+    "paginationOf": "का",
+    "systemHealth": "सिस्टम स्वास्थ्य",
+    "allSystemsOperational": "सभी सिस्टम संचालित",
+    "partialOperational": "आंशिक संचालित",
+    "systemIssues": "सिस्टम समस्याएं",
+    "healthScore": "स्वास्थ्य स्कोर",
+    "systemOnline": "सिस्टम ऑनलाइन",
+    "systemOffline": "सिस्टम ऑफलाइन",
+    "systemWarning": "सिस्टम चेतावनी",
+    "totalProviders": "कुल प्रदाता",
+    "responseTime": "प्रतिक्रिया समय",
+    "responseTimeTrend": "समय प्रतिक्रिया प्रवृत्ति",
+    "healthDistribution": "स्वास्थ्य वितरण"
   },
   "config": {
     "title": "कॉन्फ़िगरेशन",
@@ -483,12 +511,19 @@
   },
   "home": {
     "title": "डैशबोर्ड",
+    "systemStatus": {
+      "title": "सिस्टम स्थिति",
+      "subtitle": "वास्तविक समय मॉनिटरिंग",
+      "running": "चल रहा है",
+      "normal": "सिस्टम सामान्य"
+    },
     "providerStats": {
       "title": "प्रदाता आंकड़े",
       "subtitle": "प्रदाताओं की समग्र स्थिति",
       "total": "कुल",
       "enabled": "सक्षम",
-      "disabled": "अक्षम"
+      "disabled": "अक्षम",
+      "totalProvidersConfigured": "कुल कॉन्फ़िगर किए गए प्रदाता"
     },
     "healthStatus": {
       "title": "स्वास्थ्य स्थिति",
@@ -553,6 +588,19 @@
       "loadingFailed": "डेटा लोड करने में विफल",
       "copiedToClipboard": "क्लिपबोर्ड में कॉपी किया गया",
       "copyFailed": "कॉपी विफल, कृपया मैन्युअल रूप से कॉपी करें"
+    },
+    "welcome": {
+      "title": "Anthropic OpenAI Bridge में आपका स्वागत है",
+      "subtitle": "विकास दक्षता में सुधार के लिए एकाधिक AI मॉडल प्रदाताओं का एकीकृत प्रबंधन"
+    },
+    "welcomeActions": {
+      "addProvider": "प्रदाता जोड़ें",
+      "viewHealthStatus": "स्वास्थ्य स्थिति देखें"
+    },
+    "recentActivities": {
+      "healthCheckCompleted": "स्वास्थ्य जांच पूर्ण",
+      "providerAdded": "प्रदाता जोड़ा गया",
+      "configUpdated": "कॉन्फ़िगरेशन अपडेट किया गया"
     }
   },
   "settings": {
@@ -590,8 +638,8 @@
     "searchLanguage": "भाषाएँ खोजें...",
     "noLanguagesFound": "कोई भाषा नहीं मिली",
     "languages": "भाषाएं",
-    "themeShortcut": "Theme Shortcut",
-    "toggleThemeShortcut": "(Theme toggle shortcuts: multiple combinations supported)"
+    "themeShortcut": "थीम शॉर्टकट",
+    "toggleThemeShortcut": "(थीम टॉगल शॉर्टकट: कई संयोजन समर्थित)"
   },
   "welcome": {
     "title": "Anthropic OpenAI Bridge में आपका स्वागत है",

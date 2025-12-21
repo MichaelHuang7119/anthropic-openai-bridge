@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tStore } from '$stores/language';
+
   interface Option {
     value: string;
     label: string;
@@ -31,6 +33,9 @@
     maxHeight,
     isInBottomSheet = false
   }: Props = $props();
+
+  // 获取翻译函数
+  const t = $derived($tStore);
 
   interface FloatingStyles {
     top?: string;
@@ -334,7 +339,7 @@
                 {/if}
               </button>
             {:else}
-              <div class="no-options">暂无选项</div>
+              <div class="no-options">{t('common.noOptions')}</div>
             {/each}
           </div>
         </div>
@@ -371,7 +376,7 @@
               {/if}
             </button>
           {:else}
-            <div class="no-options">暂无选项</div>
+            <div class="no-options">{t('common.noOptions')}</div>
           {/each}
         </div>
       {/if}
