@@ -499,14 +499,17 @@
           <div
             class="model-item"
             class:dragging={draggedCategory === 'big' && draggedIndex === index}
-            draggable="true"
-            role="listitem"
-            ondragstart={(e) => handleDragStart('big', index, e)}
-            ondragover={(e) => handleDragOver('big', index, e)}
-            ondrop={(e) => handleDrop('big', index, e)}
-            ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title={t("providerForm.dragToSort")}>
+            <div
+              class="drag-handle"
+              title={t("providerForm.dragToSort")}
+              draggable="true"
+              role="listitem"
+              ondragstart={(e) => handleDragStart('big', index, e)}
+              ondragover={(e) => handleDragOver('big', index, e)}
+              ondrop={(e) => handleDrop('big', index, e)}
+              ondragend={handleDragEnd}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
               </svg>
@@ -557,14 +560,17 @@
           <div
             class="model-item"
             class:dragging={draggedCategory === 'middle' && draggedIndex === index}
-            draggable="true"
-            role="listitem"
-            ondragstart={(e) => handleDragStart('middle', index, e)}
-            ondragover={(e) => handleDragOver('middle', index, e)}
-            ondrop={(e) => handleDrop('middle', index, e)}
-            ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title={t("providerForm.dragToSort")}>
+            <div
+              class="drag-handle"
+              title={t("providerForm.dragToSort")}
+              draggable="true"
+              role="listitem"
+              ondragstart={(e) => handleDragStart('middle', index, e)}
+              ondragover={(e) => handleDragOver('middle', index, e)}
+              ondrop={(e) => handleDrop('middle', index, e)}
+              ondragend={handleDragEnd}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
               </svg>
@@ -615,14 +621,17 @@
           <div
             class="model-item"
             class:dragging={draggedCategory === 'small' && draggedIndex === index}
-            draggable="true"
-            role="listitem"
-            ondragstart={(e) => handleDragStart('small', index, e)}
-            ondragover={(e) => handleDragOver('small', index, e)}
-            ondrop={(e) => handleDrop('small', index, e)}
-            ondragend={handleDragEnd}
           >
-            <div class="drag-handle" title={t("providerForm.dragToSort")}>
+            <div
+              class="drag-handle"
+              title={t("providerForm.dragToSort")}
+              draggable="true"
+              role="listitem"
+              ondragstart={(e) => handleDragStart('small', index, e)}
+              ondragover={(e) => handleDragOver('small', index, e)}
+              ondrop={(e) => handleDrop('small', index, e)}
+              ondragend={handleDragEnd}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"></path>
               </svg>
@@ -1038,10 +1047,6 @@
     opacity: 0.6;
     border: 1px dashed var(--primary-color, #007bff);
     background: var(--bg-tertiary, #f8f9fa);
-  }
-
-  .model-item[draggable="true"] {
-    cursor: move;
   }
 
   @media (max-width: 768px) {

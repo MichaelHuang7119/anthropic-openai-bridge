@@ -1037,7 +1037,7 @@
                   {#each tableFilteredProviders() as provider, index}
                     {@const _rowNumber = (tableCurrentPage - 1) * pageSize + index + 1}
                     {@const isEditingPriority = editingPriorityKey === `${provider.name}||${provider.api_format}`}
-                    <tr class="table-row" onclick={() => handleEdit(provider)}>
+                    <tr class="table-row">
                       <td class="name-cell">
                         <div class="provider-name-cell">
                           <span class="provider-title" title={provider.name}>{provider.name}</span>
