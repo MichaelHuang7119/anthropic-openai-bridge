@@ -1,11 +1,48 @@
 #!/bin/bash
 
-# Anthropic OpenAI Bridge - 统一开发启动脚本
-# 支持前后端同时启动并启用热重载
+# Anthropic OpenAI Bridge - 统一启动脚本
+# 使用 --dev 启用热重载，不使用则使用生产模式
 
 set -e
 
-echo "🚀 Anthropic OpenAI Bridge - 统一开发启动脚本"
+# 函数：加载.env文件（支持.env和.env.example，优先级：.env > .env.example）
+load_env() {
+    local env_dir="$(dirname "$0")"
+    local env_example="$env_dir/.env.example"
+    local env_file="$env_dir/.env"
+
+    # 先加载.env.example（作为默认值）
+    if [ -f "$env_example" ]; then
+        echo "📄 加载默认环境变量: $env_example"
+        # 读取.env.example文件，导出环境变量
+        set -a  # 自动导出变量
+        source "$env_example"
+        set +a
+    fi
+
+    # 再加载.env（覆盖.env.example中的值）
+    if [ -f "$env_file" ]; then
+        echo "📄 加载自定义环境变量: $env_file"
+        # 读取.env文件，导出环境变量
+        set -a  # 自动导出变量
+        source "$env_file"
+        set +a
+    fi
+}
+
+# 加载环境变量
+load_env
+
+# 检查是否包含 --dev 参数
+DEV_MODE=false
+for arg in "$@"; do
+    if [[ "$arg" == "--dev" ]]; then
+        DEV_MODE=true
+        break
+    fi
+done
+
+echo "🚀 Anthropic OpenAI Bridge - 统一启动脚本"
 echo ""
 
 # 函数：检查端口是否可用
@@ -19,7 +56,7 @@ check_port() {
         fi
     else
         # fallback for systems without lsof
-        if nc -z localhost $port; then
+        if nc -z localhost $port 2>/dev/null; then
             return 1  # 端口被占用
         else
             return 0  # 端口可用
@@ -27,35 +64,81 @@ check_port() {
     fi
 }
 
+# 函数：查找可用端口（只输出端口号到stdout）
+find_available_port() {
+    local start_port=$1
+    local max_attempts=${2:-10}
+    local port=$start_port
+
+    for ((i=0; i<max_attempts; i++)); do
+        if check_port $port; then
+            if [ $i -gt 0 ]; then
+                echo "✅ 端口 $port 可用（已尝试 $i 个端口）" >&2
+            fi
+            # 只输出端口号到stdout
+            echo "$port"
+            return 0
+        fi
+
+        if [ $i -eq 0 ]; then
+            echo "⚠️  端口 $port 被占用，正在查找可用端口..." >&2
+        fi
+        ((port++))
+    done
+
+    echo "❌ 无法找到可用端口（已尝试 $max_attempts 个端口）" >&2
+    return 1
+}
+
 # 检查并设置端口
-if ! check_port 8000; then
-    echo "⚠️  警告: 端口 8000 已被占用，可能后端已在运行"
-else
-    echo "✅ 端口 8000 可用 (后端)"
+echo "🔍 检查端口占用情况..."
+BACKEND_PORT=$(find_available_port 8000 10)
+if [ -z "$BACKEND_PORT" ] || ! [[ "$BACKEND_PORT" =~ ^[0-9]+$ ]]; then
+    echo "❌ 无法找到可用的后端端口"
+    exit 1
 fi
 
-if ! check_port 5173; then
-    echo "⚠️  警告: 端口 5173 已被占用，可能前端已在运行"
-else
-    echo "✅ 端口 5173 可用 (前端)"
+# 使用环境变量中的EXPOSE_PORT（默认值5173）
+FRONTEND_PORT=$(find_available_port 5173 10)
+if [ -z "$FRONTEND_PORT" ] || ! [[ "$FRONTEND_PORT" =~ ^[0-9]+$ ]]; then
+    echo "❌ 无法找到可用的前端端口"
+    exit 1
 fi
+
+# 导出端口环境变量，供子脚本使用
+export BACKEND_PORT
+export EXPOSE_PORT=$FRONTEND_PORT
 
 echo ""
-echo "🔧 启用热重载配置..."
-export VITE_USE_POLLING=true
-export RELOAD=true
-export WATCHFILES_FORCE_POLLING=1
+echo "📌 最终端口配置:"
+echo "   后端: $BACKEND_PORT"
+echo "   前端: $FRONTEND_PORT"
+
+echo ""
+if [ "$DEV_MODE" = true ]; then
+    echo "🔧 开发模式 - 启用热重载..."
+    export VITE_USE_POLLING=true
+    export RELOAD=true
+    export WATCHFILES_FORCE_POLLING=1
+else
+    echo "🔧 生产模式 - 禁用热重载"
+    export RELOAD=false
+fi
 
 # 启动后端
-echo "🌐 启动后端服务 (端口 8000)..."
+echo "🌐 启动后端服务 (端口 $BACKEND_PORT)..."
 cd "$(dirname "$0")/backend"
 if [ ! -f "start.sh" ]; then
     echo "❌ 错误: 未找到后端启动脚本"
     exit 1
 fi
 
-# 在后台启动后端
-./start.sh --reload &
+# 在后台启动后端（根据DEV_MODE决定是否传递--reload）
+if [ "$DEV_MODE" = true ]; then
+    ./start.sh --dev &
+else
+    ./start.sh &
+fi
 BACKEND_PID=$!
 
 # 等待后端启动
@@ -72,7 +155,7 @@ fi
 
 # 启动前端
 echo ""
-echo "📱 启动前端开发服务器 (端口 5173)..."
+echo "📱 启动前端服务器 (端口 5173)..."
 cd "../frontend"
 if [ ! -f "start.sh" ]; then
     echo "❌ 错误: 未找到前端启动脚本"
@@ -82,8 +165,12 @@ fi
 echo "💡 提示: 按 Ctrl+C 退出整个应用"
 echo ""
 
-# 启动前端（前台运行，以便查看日志）
-./start.sh
+# 启动前端（前台运行，根据DEV_MODE决定是否启用热重载）
+if [ "$DEV_MODE" = true ]; then
+    ./start.sh --dev
+else
+    ./start.sh
+fi
 
 # 捕获 Ctrl+C 信号，优雅关闭后端
 cleanup() {
