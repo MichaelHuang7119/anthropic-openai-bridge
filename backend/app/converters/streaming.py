@@ -163,6 +163,8 @@ async def convert_openai_stream_to_anthropic_async(
     thinking_content_blocks = {}  # Maps content block index -> thinking data
     current_thinking_block = None  # Track current thinking block index
     thinking_signature = None  # Store signature for thinking block
+    thinking_finished = False  # Track if thinking block has finished
+    thinking_stop_sent = False  # Track if thinking stop event was already sent
     # State tracking for reasoning tag processing
     reasoning_flag = False  # Track if we're inside a thinking block
     provider_extracted = None
@@ -540,11 +542,12 @@ async def convert_openai_stream_to_anthropic_async(
         # Process thinking content if available
         if thinking_content:
             has_content_chunks = True
+            thinking_finished = False  # Reset thinking finished flag when we have thinking content
             logger.debug(f"Processing thinking content: {str(thinking_content)[:50]}... (text_block_index={text_block_index}, current_thinking_block={current_thinking_block})")
 
             # Initialize thinking block if not already started
             if current_thinking_block is None:
-                current_thinking_block = text_block_index + 1
+                current_thinking_block = text_block_index  # Use current text_block_index
                 thinking_content_blocks[current_thinking_block] = {
                     "thinking": "",
                     "signature": None
@@ -578,20 +581,33 @@ async def convert_openai_stream_to_anthropic_async(
                 }
                 yield event
                 logger.debug(f"Sent thinking_delta event for chunk '{thinking_content[:30]}...'")
+        else:
+            # No thinking content in this chunk - if we were thinking, this might mean thinking is finished
+            if current_thinking_block is not None and not thinking_finished:
+                thinking_finished = True
+                logger.debug(f"Thinking block {current_thinking_block} finished, ready for text content")
         
-        # Handle regular text content
-        if content is not None and content != "":
+        # Handle regular text content (ONLY if thinking block is completely finished)
+        # This ensures strict sequencing: thinking MUST fully complete before text starts
+        if content is not None and content != "" and (current_thinking_block is None or thinking_finished):
             has_content_chunks = True
             logger.debug(f"Processing text content: '{content[:50]}...'")
 
             # Start text block if not already started
             if not text_block_started:
                 # If we have a thinking block, text block comes after it
-                if current_thinking_block is not None:
+                # CRITICAL: Must stop thinking block BEFORE starting text block (Anthropic format)
+                if current_thinking_block is not None and not thinking_stop_sent:
+                    # Send thinking_block_stop BEFORE starting text block
+                    yield {
+                        "type": "content_block_stop",
+                        "index": current_thinking_block
+                    }
+                    thinking_stop_sent = True
                     text_block_index = current_thinking_block + 1
                 else:
                     text_block_index = 0
-                
+
                 yield {
                     "type": "content_block_start",
                     "index": text_block_index,
@@ -601,7 +617,7 @@ async def convert_openai_stream_to_anthropic_async(
                     }
                 }
                 text_block_started = True
-            
+
             yield {
                 "type": "content_block_delta",
                 "index": text_block_index,
@@ -659,17 +675,24 @@ async def convert_openai_stream_to_anthropic_async(
                         tool_call["name"] = func_name
                 
                 # Start content block when we have both id and name
-                if tool_call["id"] and tool_call["name"] and not tool_call["started"]:
+                # Tools can only start after thinking (if any) and text blocks are finished
+                tools_ready = (
+                    (current_thinking_block is None or thinking_finished) and
+                    (not text_block_started or thinking_finished)
+                )
+
+                if tool_call["id"] and tool_call["name"] and not tool_call["started"] and tools_ready:
                     has_content_chunks = True
                     tool_block_counter += 1
-                    claude_index = text_block_index + tool_block_counter
+                    # Ensure tool blocks come after thinking and text blocks
+                    claude_index = max(text_block_index + 1, current_thinking_block + 1 if current_thinking_block else 1) + tool_block_counter - 1
                     tool_call["claude_index"] = claude_index
                     tool_call["started"] = True
-                    
+
                     # Determine content block type - check if this is a server tool
                     tool_name = tool_call["name"]
                     is_server_tool = tool_name in ["web_search", "web_search_20250305"]
-                    
+
                     yield {
                         "type": "content_block_start",
                         "index": claude_index,
@@ -823,20 +846,21 @@ async def convert_openai_stream_to_anthropic_async(
             }
     
     # Send final SSE events in correct order
-    # First, stop all content blocks (text and tools)
-    
-    # Stop text block
-    yield {
-        "type": "content_block_stop",
-        "index": text_block_index
-    }
-    
-    # Stop thinking block if exists
-    if current_thinking_block is not None:
+    # First, stop all content blocks (thinking, text, and tools)
+
+    # Stop thinking block first (must come before text in Anthropic format)
+    # Only send if not already sent during text processing
+    if current_thinking_block is not None and not thinking_stop_sent:
         yield {
             "type": "content_block_stop",
             "index": current_thinking_block
         }
+
+    # # Stop text block (after thinking block)
+    yield {
+        "type": "content_block_stop",
+        "index": text_block_index
+    }
     
     # Stop all tool blocks
     for tool_data in current_tool_calls.values():

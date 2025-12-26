@@ -1557,16 +1557,7 @@ class MessageService:
                             else:
                                 normalized_system.append(item)
                     anthropic_request["system"] = normalized_system
-            
-            # Remove stream field from request payload if present (it's handled separately)
-            # Some APIs may not accept this field in the request body
-            if "stream" in anthropic_request:
-                del anthropic_request["stream"]
-            
-            # Remove provider field if present (it's for internal routing only)
-            if "provider" in anthropic_request:
-                del anthropic_request["provider"]
-            
+
             # Remove fields that may not be supported by all APIs or may cause issues
             # These fields are optional and some APIs may reject requests with unsupported fields
             # Only remove if they are None or empty to avoid breaking APIs that do support them
