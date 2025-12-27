@@ -38,3 +38,4 @@ CLAUDE.md
 .env
 logs
 i18n_vali*
+*.pyc

@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from pydantic import BaseModel
 
-from ..auth import require_admin
+from ..core.auth import require_admin
 from ..services.provider_service import ProviderService
 
 router = APIRouter(prefix="/api/providers", tags=["providers"])
@@ -135,7 +135,7 @@ async def test_provider(name: str, user: dict = Depends(require_admin())):
     """
     try:
         # Use health service to test provider
-        from ..api.health import get_health_service
+        from ..routes.health import get_health_service
         health_service = get_health_service()
         health_status = await health_service.get_provider_health_status(name)
         

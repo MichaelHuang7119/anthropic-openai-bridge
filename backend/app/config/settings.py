@@ -1,11 +1,10 @@
 """Configuration management for Anthropic OpenAI Bridge"""
 
 import json
-import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -136,16 +135,7 @@ class Config:
         with open(self.config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # Validate configuration security
-        from ..security import validate_config_security
-
-        warnings = validate_config_security(data)
-        if warnings:
-            logger = logging.getLogger(__name__)
-            for warning in warnings:
-                logger.warning(f"Security warning: {warning}")
-
-        # Update app_config with new configuration
+        # Validate and create app_config from data
         self.app_config = AppConfig(**data)
         return self.app_config
 

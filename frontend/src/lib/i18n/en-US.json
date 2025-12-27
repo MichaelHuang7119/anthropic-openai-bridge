@@ -187,7 +187,8 @@
     "noMessages": "No Messages",
     "startConversation": "Start a conversation",
     "welcomeTitle": "Welcome to AI Chat",
-    "welcomeDescription": "Select a conversation on the left to start chatting, or create a new conversation"
+    "welcomeDescription": "Select a conversation on the left to start chatting, or create a new conversation",
+    "selectModelFirst": "Please select a model first"
   },
   "welcome": {
     "title": "Welcome to Anthropic OpenAI Bridge",

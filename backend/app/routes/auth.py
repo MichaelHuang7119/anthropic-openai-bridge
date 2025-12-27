@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
-from ..auth import (
+from ..core.auth import (
     verify_password,
     hash_password,
     create_access_token,

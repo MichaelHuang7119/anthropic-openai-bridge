@@ -187,7 +187,8 @@
     "noMessages": "메시지 없음",
     "startConversation": "대화 시작",
     "welcomeTitle": "AI 채팅에 오신 것을 환영합니다",
-    "welcomeDescription": "왼쪽에서 대화를 선택하여 채팅을 시작하거나 새 대화を作成"
+    "welcomeDescription": "왼쪽에서 대화를 선택하여 채팅을 시작하거나 새 대화を作成",
+    "selectModelFirst": "먼저 모델을 선택하세요"
   },
   "login": {
     "title": "로그인",

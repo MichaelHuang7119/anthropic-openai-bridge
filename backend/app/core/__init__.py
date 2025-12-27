@@ -1,5 +1,5 @@
 """Core business logic modules."""
-from .model_manager import ModelManager
+from .model_manager import ModelManager, ProviderConfig
 from .models import (
     Message,
     MessageRole,
@@ -17,10 +17,45 @@ from .models import (
     ContentBlock,
     TextDelta,
 )
+from .auth import (
+    hash_password,
+    verify_password,
+    generate_api_key,
+    hash_api_key,
+    get_api_key_prefix,
+    verify_token,
+    create_token,
+    decode_token,
+    token_required,
+    require_api_key,
+    require_admin,
+)
+from .constants import (
+    API_VERSION,
+    MAX_MESSAGE_LENGTH,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_TEMPERATURE,
+    SUPPORTED_ROLES,
+    IMAGE_SIZE_LIMITS,
+    COST_PER_1K_INPUT_TOKENS,
+    COST_PER_1K_OUTPUT_TOKENS,
+    COST_PER_INPUT_TOKEN,
+    COST_PER_OUTPUT_TOKEN,
+    COLOR_CYAN,
+    COLOR_GREEN,
+    COLOR_YELLOW,
+    COLOR_BLUE,
+    COLOR_MAGENTA,
+    COLOR_WHITE,
+    COLOR_RED,
+    COLOR_RESET,
+)
+from .lifecycle import startup_event, shutdown_event
 
 __all__ = [
-    # Model Manager
+    # Model management
     "ModelManager",
+    "ProviderConfig",
     # Models
     "Message",
     "MessageRole",
@@ -37,5 +72,39 @@ __all__ = [
     "CountTokensResponse",
     "ContentBlock",
     "TextDelta",
+    # Auth
+    "hash_password",
+    "verify_password",
+    "generate_api_key",
+    "hash_api_key",
+    "get_api_key_prefix",
+    "verify_token",
+    "create_token",
+    "decode_token",
+    "token_required",
+    "require_api_key",
+    "require_admin",
+    # Constants
+    "API_VERSION",
+    "MAX_MESSAGE_LENGTH",
+    "DEFAULT_MAX_TOKENS",
+    "DEFAULT_TEMPERATURE",
+    "SUPPORTED_ROLES",
+    "IMAGE_SIZE_LIMITS",
+    "COST_PER_1K_INPUT_TOKENS",
+    "COST_PER_1K_OUTPUT_TOKENS",
+    "COST_PER_INPUT_TOKEN",
+    "COST_PER_OUTPUT_TOKEN",
+    "COLOR_CYAN",
+    "COLOR_GREEN",
+    "COLOR_YELLOW",
+    "COLOR_BLUE",
+    "COLOR_MAGENTA",
+    "COLOR_WHITE",
+    "COLOR_RED",
+    "COLOR_RESET",
+    # Lifecycle
+    "startup_event",
+    "shutdown_event",
 ]
 

@@ -116,12 +116,14 @@ echo "   前端: $FRONTEND_PORT"
 
 echo ""
 if [ "$DEV_MODE" = true ]; then
-    echo "🔧 开发模式 - 启用热重载..."
+    echo "🔧 开发模式 - 启用热重载 + DEBUG 日志"
+    echo "   日志级别: DEBUG (详细日志)"
     export VITE_USE_POLLING=true
     export RELOAD=true
     export WATCHFILES_FORCE_POLLING=1
 else
-    echo "🔧 生产模式 - 禁用热重载"
+    echo "🔧 生产模式 - 禁用热重载 + INFO 日志"
+    echo "   日志级别: INFO (仅重要信息)"
     export RELOAD=false
 fi
 

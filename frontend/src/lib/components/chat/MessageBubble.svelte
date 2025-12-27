@@ -124,7 +124,7 @@
         const safeContent = escapeHtml(message.content);
         renderedContent = await marked.parse(safeContent, {
           renderer,
-          breaks: false,
+          breaks: true,  // Convert newlines to <br> tags
           gfm: true
         });
       } else {
@@ -142,7 +142,7 @@
         const safeContent = escapeHtml(message.content);
         renderedStreamingContent = await marked.parse(safeContent, {
           renderer,
-          breaks: false,
+          breaks: true,  // Convert newlines to <br> tags
           gfm: true
         });
       } else {
@@ -161,7 +161,7 @@
         const safeThinking = escapeHtml(message.thinking);
         renderedStreamingThinking = await marked.parse(safeThinking, {
           renderer,
-          breaks: false,
+          breaks: true,  // Convert newlines to <br> tags
           gfm: true
         });
       } else {
@@ -179,7 +179,7 @@
         const safeThinking = escapeHtml(message.thinking);
         renderedThinking = await marked.parse(safeThinking, {
           renderer,
-          breaks: false,
+          breaks: true,  // Convert newlines to <br> tags
           gfm: true
         });
       } else {

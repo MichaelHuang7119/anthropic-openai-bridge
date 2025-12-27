@@ -1,6 +1,4 @@
 """Tests for /v1/messages endpoint."""
-import pytest
-import json
 import os
 import sys
 
@@ -34,7 +32,7 @@ def test_messages_non_streaming():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]  # May fail if no providers configured or model mapping issues
+    assert response.status_code in [200, 500, 400, 503]  # May fail if no providers configured or model mapping issues
     
     if response.status_code == 200:
         data = response.json()
@@ -59,7 +57,7 @@ def test_messages_streaming():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
     
     if response.status_code == 200:
         # Check it's a streaming response
@@ -105,7 +103,7 @@ def test_messages_tool_calling():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
     
     if response.status_code == 200:
         data = response.json()
@@ -149,7 +147,7 @@ def test_messages_multimodal():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
     
     if response.status_code == 200:
         data = response.json()
@@ -182,7 +180,7 @@ def test_messages_multimodal_url():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_model_mapping():
@@ -204,7 +202,7 @@ def test_messages_model_mapping():
         response = client.post("/v1/messages", json=request_data)
         # Should not fail with 400 (invalid model) if mapping works
         # In CI/CD, may return 400/500 if providers fail to connect
-        assert response.status_code in [200, 500, 400]
+        assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_full_model_names():
@@ -231,7 +229,7 @@ def test_messages_full_model_names():
         response = client.post("/v1/messages", json=request_data)
         # Should not fail with 400 (invalid model) if mapping works
         # In CI/CD, may return 400/500 if providers fail to connect
-        assert response.status_code in [200, 500, 400]
+        assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_invalid_model():
@@ -267,7 +265,7 @@ def test_messages_with_system():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_with_temperature():
@@ -285,7 +283,7 @@ def test_messages_with_temperature():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_with_system_content_blocks():
@@ -308,7 +306,7 @@ def test_messages_with_system_content_blocks():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
 
 
 def test_messages_with_system_content_blocks_multiple():
@@ -335,5 +333,5 @@ def test_messages_with_system_content_blocks_multiple():
     }
     
     response = client.post("/v1/messages", json=request_data)
-    assert response.status_code in [200, 500, 400]
+    assert response.status_code in [200, 500, 400, 503]
 

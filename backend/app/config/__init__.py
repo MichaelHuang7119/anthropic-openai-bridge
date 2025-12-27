@@ -1,6 +1,6 @@
 """Configuration management modules."""
-# Re-export everything from main config module
-from .main import (
+# Re-export everything from settings config module
+from .settings import (
     Config,
     AppConfig,
     ProviderConfig,

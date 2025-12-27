@@ -5,9 +5,13 @@ from fastapi import APIRouter, HTTPException, Depends, Header
 
 from ..core import MessagesRequest, CountTokensRequest, CountTokensResponse, Message, ModelManager
 from ..infrastructure import OpenAIClient
-from ..auth import require_api_key
+from ..core.auth import require_api_key
 from ..services.message_service import MessageService
-from ..services.token_counter import count_tokens_estimate, count_tokens_using_api
+from ..services.token_counter import (
+    count_tokens_estimate,
+    count_tokens_using_api,
+    count_tokens_from_history
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +50,11 @@ def create_messages_router(model_manager: ModelManager) -> APIRouter:
         api_user: dict = Depends(require_api_key()),
         x_session_id: Optional[str] = Header(None, alias="X-Session-Id")
     ):
-        """Handle Anthropic /v1/messages/count_tokens endpoint."""
+        """Handle Anthropic /v1/messages/count_tokens endpoint.
+
+        This endpoint first tries to find token counts from historical request logs,
+        then falls back to estimation if no cached value is found.
+        """
         logger.info(f"Received count_tokens request with session_id: {x_session_id}")
         try:
             # Parse request
@@ -54,11 +62,10 @@ def create_messages_router(model_manager: ModelManager) -> APIRouter:
                 req = CountTokensRequest(**request)
             else:
                 req = request
-            
+
             # Get provider and model
             provider_config, actual_model = model_manager.get_provider_and_model(req.model)
-            client = OpenAIClient(provider_config)
-            
+
             # Convert messages to list of dicts for counting
             messages_list = []
             for msg in req.messages:
@@ -69,17 +76,47 @@ def create_messages_router(model_manager: ModelManager) -> APIRouter:
                     })
                 else:
                     messages_list.append(msg)
-            
-            # Count tokens
+
+            # Try to get token count from historical logs first
+            token_count = None
+            token_source = "cached"  # Default source
+
+            # Try to get from history using database manager
             try:
-                # Try to get accurate count from API if possible
-                token_count = await count_tokens_using_api(
-                    messages_list, client, actual_model
+                from ..database import get_database
+                db = get_database()
+                cached_count = await count_tokens_from_history(
+                    messages_list,
+                    provider_config.name,
+                    actual_model,
+                    db
                 )
+                if cached_count is not None:
+                    token_count = cached_count
+                    token_source = "history"
+                    logger.info(f"Using cached token count from history: {token_count} tokens")
             except Exception as e:
-                logger.warning(f"Using estimation for token count: {e}")
-                token_count = count_tokens_estimate(messages_list, actual_model)
-            
+                logger.debug(f"Could not get token count from history: {e}")
+
+            # If not found in history, try API or fall back to estimation
+            if token_count is None:
+                try:
+                    client = OpenAIClient(provider_config)
+                    # Try to get accurate count from API if possible
+                    token_count = await count_tokens_using_api(
+                        messages_list, client, actual_model
+                    )
+                    token_source = "api"
+                except Exception as e:
+                    logger.warning(f"Using estimation for token count: {e}")
+                    token_count = count_tokens_estimate(messages_list, actual_model)
+                    token_source = "estimated"
+
+            logger.info(
+                f"Token count result: {token_count} tokens "
+                f"(source: {token_source}, provider: {provider_config.name}, model: {actual_model})"
+            )
+
             return CountTokensResponse(
                 model=req.model,
                 input_tokens=token_count

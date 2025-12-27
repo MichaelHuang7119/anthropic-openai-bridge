@@ -187,7 +187,8 @@
     "noMessages": "Geen berichten",
     "startConversation": "Gesprek starten",
     "welcomeTitle": "Welkom bij AI-chat",
-    "welcomeDescription": "Selecteer een gesprek aan de linkerkant om te beginnen met chatten, of maak een nieuw gesprek"
+    "welcomeDescription": "Selecteer een gesprek aan de linkerkant om te beginnen met chatten, of maak een nieuw gesprek",
+    "selectModelFirst": "Selecteer eerst een model"
   },
   "login": {
     "title": "Inloggen",

@@ -2,7 +2,6 @@
 import os
 import sys
 import json
-import tempfile
 from pathlib import Path
 
 # Add parent directory to Python path for CI/CD environments
@@ -12,6 +11,7 @@ if backend_dir not in sys.path:
 
 # Enable development mode for tests (no API key required)
 os.environ["DEV_MODE"] = "true"
+os.environ["DEV_MODE_ALLOWED_IN_PRODUCTION"] = "true"
 
 
 def pytest_configure(config):

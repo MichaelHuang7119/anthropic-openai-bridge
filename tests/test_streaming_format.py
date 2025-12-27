@@ -10,14 +10,13 @@ import json
 import sys
 import os
 from typing import AsyncIterator, Dict, Any
-from unittest.mock import AsyncMock
 
 # Add backend directory to path to import modules
 backend_path = os.path.join(os.path.dirname(__file__), '..', 'backend')
 sys.path.insert(0, backend_path)
 
 try:
-    from backend.app.converters.streaming import convert_openai_stream_to_anthropic_async
+    from backend.app.converters.openai_response_convert import to_anthropic_async as convert_openai_stream_to_anthropic_async
 except ImportError as e:
     print(f"Warning: Could not import convert_openai_stream_to_anthropic_async: {e}")
     print("Some tests may not work properly.")
@@ -393,12 +392,7 @@ def validate_tool_call_format(events):
     
     event_types = [e.get("type") for e in events]
     print(f"Event sequence: {event_types}")
-    
-    # Check for required events
-    required_events = ["message_start", "content_block_start", "content_block_delta", 
-                      "content_block_stop", "content_block_start", "content_block_delta",
-                      "content_block_stop", "message_delta", "message_stop"]
-    
+
     # Find tool_use content_block_start
     tool_starts = [e for e in events if e.get("type") == "content_block_start" 
                    and e.get("content_block", {}).get("type") == "tool_use"]

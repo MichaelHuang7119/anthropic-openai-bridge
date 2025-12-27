@@ -1,7 +1,5 @@
 """配置热更新模块 - 监听配置文件变化并自动重新加载"""
-import asyncio
 import logging
-import os
 import threading
 from pathlib import Path
 from typing import Optional, Callable
@@ -12,7 +10,7 @@ logger = logging.getLogger(__name__)
 # 尝试导入 watchdog，如果不可用则使用轮询方式
 try:
     from watchdog.observers import Observer
-    from watchdog.events import FileSystemEventHandler, FileModifiedEvent
+    from watchdog.events import FileSystemEventHandler
     WATCHDOG_AVAILABLE = True
 except ImportError:
     WATCHDOG_AVAILABLE = False
@@ -128,19 +126,16 @@ class ConfigHotReloader:
             logger.warning("watchdog not available, falling back to polling mode")
             self._start_polling()
             return
-        
+
         try:
-            from watchdog.observers import Observer
-            from watchdog.events import FileSystemEventHandler
-            
             self._handler = ConfigFileHandler(str(self.config_path), self.reload_callback)
             self.observer = Observer()
-            
+
             # 监听配置文件所在目录
             watch_dir = self.config_path.parent
             self.observer.schedule(self._handler, str(watch_dir), recursive=False)
             self.observer.start()
-            
+
             logger.info(f"Using watchdog for config hot reload (watching: {watch_dir})")
         except Exception as e:
             logger.error(f"Failed to start watchdog observer: {e}")

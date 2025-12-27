@@ -14,6 +14,126 @@ A high-performance AI model proxy service based on FastAPI and Svelte 5, support
 
 Anthropic OpenAI Bridge is an enterprise-grade API proxy service that implements Anthropic-compatible API endpoints and forwards requests to backend providers supporting OpenAI-compatible interfaces (such as Qwen, ModelScope, AI Ping, Anthropic, etc.). Through a unified API interface, you can easily switch between different AI model providers without modifying client code.
 
+## 🏗️ Project Architecture
+
+### Backend Structure (FastAPI + Python 3.11+)
+
+```
+backend/app/
+├── main.py                    # Application entry point
+├── config/                    # Configuration management
+│   ├── settings.py            # Main config (ProviderConfig, AppConfig, etc.)
+│   └── hot_reload.py          # Config hot-reload with watchdog
+├── core/                      # Core business logic
+│   ├── auth.py                # JWT auth, API key validation
+│   ├── constants.py           # Constants (API_VERSION, MAX_MESSAGE_LENGTH, etc.)
+│   ├── lifecycle.py           # Startup/shutdown events
+│   ├── model_manager.py       # Provider & model routing
+│   └── models.py              # Pydantic models (Message, MessagesRequest, etc.)
+├── routes/                    # API routes (unified under /routes/)
+│   ├── messages.py            # /v1/messages endpoint
+│   ├── auth.py                # /api/auth/* (login, register)
+│   ├── api_keys.py            # /api/api_keys/* (API key management)
+│   ├── providers.py           # /api/providers/* (provider management)
+│   ├── conversations.py       # /api/conversations/* (chat history)
+│   ├── health.py              # /api/health/* (health check)
+│   ├── stats.py               # /api/stats/* (statistics)
+│   ├── config.py              # /api/config/* (config management)
+│   ├── preferences.py         # /api/preferences/* (user preferences)
+│   └── event_logging.py       # /api/event_logging/* (event logging)
+├── services/                  # Business logic services
+│   ├── handlers/              # Request handlers (OpenAI/Anthropic format)
+│   │   ├── base.py
+│   │   ├── openai_handler.py
+│   │   └── anthropic_handler.py
+│   ├── message_service.py     # Message processing & provider routing
+│   ├── health_service.py      # Health monitoring service
+│   ├── provider_service.py    # Provider management service
+│   ├── token_counter.py       # Token counting & history lookup
+│   └── config_service.py      # Config service
+├── converters/                # Format conversion (Anthropic ↔ OpenAI)
+│   ├── anthropic_request_convert.py  # Anthropic → OpenAI request
+│   └── openai_response_convert.py    # OpenAI → Anthropic response
+├── infrastructure/            # Infrastructure layer
+│   ├── clients/               # Provider API clients
+│   │   ├── openai_client.py
+│   │   └── anthropic_client.py
+│   ├── circuit_breaker.py     # Circuit breaker pattern
+│   ├── concurrency_manager.py # Concurrency control
+│   ├── retry.py               # Retry with backoff
+│   ├── cache.py               # In-memory/Redis cache
+│   └── telemetry.py           # OpenTelemetry integration
+├── database/                  # Data access layer (async SQLite)
+│   ├── core.py                # Database connection & schema
+│   ├── users.py               # User management
+│   ├── api_keys.py            # API key storage
+│   ├── conversations.py       # Chat conversations & messages
+│   ├── request_logs.py        # Request logging
+│   ├── token_usage.py         # Token usage tracking
+│   ├── health_history.py      # Health history
+│   └── config_changes.py      # Config change history
+├── utils/                     # Utility functions
+│   ├── token_extractor.py     # Unified token extraction (supports OpenAI/Anthropic)
+│   ├── security_utils.py      # Encryption, validation, API key masking
+│   ├── color_logger.py        # Colored logging
+│   ├── error_handler.py       # Error response formatting
+│   └── response.py            # Response utilities
+└── encryption_key.py          # Encryption key management
+```
+
+### Frontend Structure (Svelte 5 + TypeScript)
+
+```
+frontend/src/
+├── lib/
+│   ├── components/            # Reusable Svelte components
+│   │   ├── chat/              # Chat-related components
+│   │   ├── layout/            # Layout components
+│   │   ├── providers/         # Provider management components
+│   │   ├── settings/          # Settings components
+│   │   └── ui/                # Base UI components
+│   ├── services/              # API client services
+│   │   ├── api.ts             # Main API client
+│   │   ├── chatService.ts     # Chat service
+│   │   └── authService.ts     # Auth service
+│   ├── stores/                # Svelte stores
+│   │   ├── auth.ts            # Auth state
+│   │   ├── chat.ts            # Chat state
+│   │   └── providers.ts       # Provider state
+│   ├── i18n/                  # Internationalization (16 languages)
+│   └── utils/                 # Utility functions
+├── routes/                    # SvelteKit pages
+│   ├── +layout.svelte         # Root layout
+│   ├── +page.svelte           # Home page
+│   ├── chat/                  # Chat routes
+│   ├── providers/             # Provider management
+│   ├── settings/              # Settings
+│   └── admin/                 # Admin routes
+└── app.html                   # HTML template
+```
+
+### Request Flow
+
+```
+Client Request
+  ↓
+API Routes (/routes/messages.py, /routes/*.py)
+  ↓
+Message Service (message_service.py)
+  ↓
+Converters (converters/)
+  ↓
+Provider Handler (services/handlers/)
+  ↓
+Provider Client (infrastructure/clients/)
+  ↓
+Backend AI Provider (OpenAI/Anthropic format)
+  ↓
+Response Conversion
+  ↓
+Client
+```
+
 ## 🚀 Key Features
 
 - **🔥 High-Performance Architecture** - Async database + connection pool, HTTP connection pool optimization, supports 10k QPS

@@ -18,6 +18,88 @@ class APIKeysManager:
         """
         self.db_core = db_core
 
+    async def _execute_query(
+        self,
+        query: str,
+        params: tuple = None,
+        fetch_one: bool = False,
+        fetch_all: bool = False
+    ) -> Optional[Any]:
+        """Execute a query and return results with proper resource cleanup.
+
+        Args:
+            query: SQL query to execute
+            params: Query parameters
+            fetch_one: If True, return single row
+            fetch_all: If True, return all rows
+
+        Returns:
+            Query results based on fetch mode
+        """
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if fetch_one:
+                return await cursor.fetchone()
+            elif fetch_all:
+                return await cursor.fetchall()
+            return None
+        except Exception as e:
+            logger.error(f"Database query failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+
+    async def _execute_update(
+        self,
+        query: str,
+        params: tuple = None,
+        commit: bool = True
+    ) -> int:
+        """Execute an update/insert query with proper resource cleanup.
+
+        Args:
+            query: SQL query to execute
+            params: Query parameters
+            commit: Whether to commit the transaction
+
+        Returns:
+            Number of rows affected or last row id
+        """
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if commit:
+                await conn.commit()
+
+            return cursor.lastrowid if query.strip().upper().startswith("INSERT") else cursor.rowcount
+        except Exception as e:
+            if query.strip().upper().startswith("INSERT"):
+                logger.error(f"Failed to create API key: {e}")
+            elif "UPDATE" in query.upper():
+                logger.error(f"Failed to update API key: {e}")
+            elif "DELETE" in query.upper():
+                logger.error(f"Failed to delete API key: {e}")
+            else:
+                logger.error(f"Database update failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+
     async def create_api_key(
         self,
         key_hash: str,
@@ -27,41 +109,40 @@ class APIKeysManager:
         email: Optional[str] = None,
         user_id: Optional[int] = None
     ) -> Optional[int]:
-        """Create a new API key."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Create a new API key.
 
-            await cursor.execute("""
+        Returns:
+            API key ID if successful, None if key already exists.
+        """
+        try:
+            api_key_id = await self._execute_update(
+                """
                 INSERT INTO api_keys (key_hash, key_prefix, encrypted_key, name, email, user_id)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (key_hash, key_prefix, encrypted_key, name, email, user_id))
-
-            api_key_id = cursor.lastrowid
-            await conn.commit()
-
+                """,
+                (key_hash, key_prefix, encrypted_key, name, email, user_id)
+            )
             logger.info(f"Created API key: {name}")
             return api_key_id
         except aiosqlite.IntegrityError:
-            logger.error(f"API key already exists")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to create API key: {e}")
+            logger.error("API key already exists")
             return None
 
     async def get_api_key_by_hash(self, key_hash: str) -> Optional[Dict[str, Any]]:
-        """Get API key by hash."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get API key by hash.
 
-            await cursor.execute("SELECT * FROM api_keys WHERE key_hash = ? AND is_active = 1", (key_hash,))
-            row = await cursor.fetchone()
-
-            return dict(row) if row else None
-        except Exception as e:
-            logger.error(f"Failed to get API key: {e}")
-            return None
+        Returns:
+            API key info dict if found and active, None otherwise.
+        """
+        row = await self._execute_query(
+            """
+            SELECT id, key_hash, key_prefix, encrypted_key, name, email, user_id, is_active, created_at, last_used_at, updated_at
+            FROM api_keys WHERE key_hash = ? AND is_active = 1
+            """,
+            (key_hash,),
+            fetch_one=True
+        )
+        return dict(row) if row else None
 
     async def get_api_keys(
         self,
@@ -71,36 +152,31 @@ class APIKeysManager:
         name_filter: Optional[str] = None,
         is_active: Optional[bool] = None
     ) -> List[Dict[str, Any]]:
-        """Get API keys with optional filters."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get API keys with optional filters.
 
-            query = "SELECT * FROM api_keys WHERE 1=1"
-            params = []
+        Returns:
+            List of API key info dicts.
+        """
+        query = "SELECT * FROM api_keys WHERE 1=1"
+        params = []
 
-            if user_id:
-                query += " AND user_id = ?"
-                params.append(user_id)
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
 
-            if name_filter:
-                query += " AND name LIKE ?"
-                params.append(f"%{name_filter}%")
+        if name_filter:
+            query += " AND name LIKE ?"
+            params.append(f"%{name_filter}%")
 
-            if is_active is not None:
-                query += " AND is_active = ?"
-                params.append(1 if is_active else 0)
+        if is_active is not None:
+            query += " AND is_active = ?"
+            params.append(1 if is_active else 0)
 
-            query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-            params.extend([limit, offset])
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
 
-            await cursor.execute(query, params)
-            rows = await cursor.fetchall()
-
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Failed to get API keys: {e}")
-            return []
+        rows = await self._execute_query(query, tuple(params), fetch_all=True)
+        return [dict(row) for row in rows] if rows else []
 
     async def get_api_keys_count(
         self,
@@ -108,33 +184,28 @@ class APIKeysManager:
         name_filter: Optional[str] = None,
         is_active: Optional[bool] = None
     ) -> int:
-        """Get total count of API keys matching filters."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get total count of API keys matching filters.
 
-            query = "SELECT COUNT(*) as count FROM api_keys WHERE 1=1"
-            params = []
+        Returns:
+            Count of matching API keys.
+        """
+        query = "SELECT COUNT(*) as count FROM api_keys WHERE 1=1"
+        params = []
 
-            if user_id:
-                query += " AND user_id = ?"
-                params.append(user_id)
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
 
-            if name_filter:
-                query += " AND name LIKE ?"
-                params.append(f"%{name_filter}%")
+        if name_filter:
+            query += " AND name LIKE ?"
+            params.append(f"%{name_filter}%")
 
-            if is_active is not None:
-                query += " AND is_active = ?"
-                params.append(1 if is_active else 0)
+        if is_active is not None:
+            query += " AND is_active = ?"
+            params.append(1 if is_active else 0)
 
-            await cursor.execute(query, params)
-            result = await cursor.fetchone()
-
-            return result["count"] if result else 0
-        except Exception as e:
-            logger.error(f"Failed to get API keys count: {e}")
-            return 0
+        row = await self._execute_query(query, tuple(params), fetch_one=True)
+        return row["count"] if row else 0
 
     async def update_api_key(
         self,
@@ -143,88 +214,65 @@ class APIKeysManager:
         email: Optional[str] = None,
         is_active: Optional[bool] = None
     ) -> bool:
-        """Update API key."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Update API key.
 
-            updates = []
-            params = []
+        Returns:
+            True if update was successful, False otherwise.
+        """
+        updates = []
+        params = []
 
-            if name is not None:
-                updates.append("name = ?")
-                params.append(name)
-            if email is not None:
-                updates.append("email = ?")
-                params.append(email)
-            if is_active is not None:
-                updates.append("is_active = ?")
-                params.append(is_active)
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        if email is not None:
+            updates.append("email = ?")
+            params.append(email)
+        if is_active is not None:
+            updates.append("is_active = ?")
+            params.append(is_active)
 
-            if not updates:
-                return False
-
-            updates.append("updated_at = CURRENT_TIMESTAMP")
-            params.append(api_key_id)
-
-            query = f"UPDATE api_keys SET {', '.join(updates)} WHERE id = ?"
-            await cursor.execute(query, params)
-
-            await conn.commit()
-
-            return cursor.rowcount > 0
-        except Exception as e:
-            logger.error(f"Failed to update API key: {e}")
+        if not updates:
             return False
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(api_key_id)
+
+        query = f"UPDATE api_keys SET {', '.join(updates)} WHERE id = ?"
+        row_count = await self._execute_update(query, tuple(params))
+        return row_count > 0
 
     async def delete_api_key(self, api_key_id: int) -> bool:
-        """Delete API key."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Delete API key.
 
-            await cursor.execute("DELETE FROM api_keys WHERE id = ?", (api_key_id,))
+        Returns:
+            True if deletion was successful, False otherwise.
+        """
+        row_count = await self._execute_update(
+            "DELETE FROM api_keys WHERE id = ?",
+            (api_key_id,)
+        )
+        return row_count > 0
 
-            await conn.commit()
-
-            return cursor.rowcount > 0
-        except Exception as e:
-            logger.error(f"Failed to delete API key: {e}")
-            return False
-
-    async def update_api_key_last_used(self, api_key_id: int):
+    async def update_api_key_last_used(self, api_key_id: int) -> None:
         """Update API key's last used time."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute("""
-                UPDATE api_keys
-                SET last_used_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """, (api_key_id,))
-
-            await conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to update API key last used: {e}")
+        await self._execute_update(
+            """
+            UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?
+            """,
+            (api_key_id,),
+            commit=True
+        )
 
     async def get_api_key_encrypted(self, api_key_id: int) -> Optional[Dict[str, Any]]:
-        """获取包含加密完整key的API Key信息"""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get API key info including encrypted full key by ID.
 
-            await cursor.execute("""
-                SELECT *
-                FROM api_keys
-                WHERE id = ?
-            """, (api_key_id,))
-
-            row = await cursor.fetchone()
-
-            if row:
-                return dict(row)
-            return None
-        except Exception as e:
-            logger.error(f"Failed to get encrypted API key: {e}")
-            return None
+        Returns:
+            API key info dict if found, None otherwise.
+        """
+        row = await self._execute_query(
+            "SELECT * FROM api_keys WHERE id = ?",
+            (api_key_id,),
+            fetch_one=True
+        )
+        return dict(row) if row else None

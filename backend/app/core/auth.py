@@ -15,7 +15,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 import bcrypt
 
-from .database import get_database
+from ..database import get_database
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,6 @@ security = HTTPBearer(auto_error=False)
 # Secret key for JWT - MUST be set via environment variable in production
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
-    import secrets
     SECRET_KEY = secrets.token_urlsafe(32)
     logger.warning(
         "JWT_SECRET_KEY not set! Generated a random key for this session. "
@@ -35,7 +34,21 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours default
 
 # Development mode flag (set via environment variable or command line argument)
-DEV_MODE = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "yes")
+# WARNING: DEV_MODE should NEVER be enabled in production environments!
+# It bypasses all authentication and is a major security risk.
+# The environment variable is only read at startup - changes require a restart.
+_is_dev_mode_env = os.getenv("DEV_MODE", "false").lower() in ("true", "1", "yes")
+# Production check: Disable DEV_MODE if not explicitly allowed
+# Set DEV_MODE_ALLOWED_IN_PRODUCTION=true to enable in production (not recommended)
+DEV_MODE = _is_dev_mode_env and os.getenv("DEV_MODE_ALLOWED_IN_PRODUCTION", "false").lower() in ("true", "1", "yes")
+
+if _is_dev_mode_env and not DEV_MODE:
+    logger.warning(
+        "DEV_MODE environment variable is set but DEV_MODE_ALLOWED_IN_PRODUCTION is not enabled. "
+        "DEV_MODE has been disabled for security reasons. "
+        "If you need to use DEV_MODE in production, set DEV_MODE_ALLOWED_IN_PRODUCTION=true "
+        "(WARNING: This is a major security risk and not recommended!)"
+    )
 
 
 def hash_password(password: str) -> str:
@@ -91,7 +104,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Verify JWT token and return user info.
-    
+
     Returns:
         User info if valid, None otherwise
     """
@@ -102,7 +115,7 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
 
         if user_id_str is None:
             return None
-        
+
         # Convert sub back to int (it's stored as string in JWT)
         try:
             user_id = int(user_id_str)
@@ -119,7 +132,7 @@ def verify_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         # Log more specific error information for debugging
         error_type = type(e).__name__
         if "Signature verification failed" in str(e):
-            logger.warning(f"JWT signature verification failed. This may indicate JWT_SECRET_KEY was changed or token is from a different instance.")
+            logger.warning("JWT signature verification failed. This may indicate JWT_SECRET_KEY was changed or token is from a different instance.")
         elif "Expired" in str(e) or "expired" in str(e).lower():
             logger.debug(f"JWT token expired: {e}")
         else:
@@ -201,7 +214,7 @@ async def get_current_admin_user(
                     "type": "jwt"
                 }
         else:
-            logger.warning(f"JWT token verification failed for token: {token[:20]}...")
+            logger.warning("JWT token verification failed")
     elif request:
         # Check if Authorization header exists but wasn't parsed by HTTPBearer
         auth_header = request.headers.get("Authorization")
@@ -223,9 +236,9 @@ async def get_current_admin_user(
                             "type": "jwt"
                         }
                 else:
-                    logger.warning(f"Manual token extraction failed for: {token[:20]}...")
+                    logger.warning("Manual token extraction failed")
             else:
-                logger.warning(f"Authorization header present but not Bearer format: {auth_header[:50]}...")
+                logger.warning("Authorization header has invalid format")
         else:
             logger.warning("No Authorization header found in request")
     
@@ -352,7 +365,7 @@ async def get_current_api_user(
                         "type": "jwt"
                     }
             # JWT token was provided but invalid
-            logger.warning(f"Invalid JWT token provided to API endpoint")
+            logger.warning("Invalid JWT token provided to API endpoint")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token",
@@ -392,7 +405,7 @@ def require_admin():
 def require_api_key():
     """
     Dependency for requiring API key authentication (for service API).
-    
+
     Returns:
         Dependency function
     """
@@ -401,7 +414,18 @@ def require_api_key():
         credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
     ):
         return await get_current_api_user(credentials, request)
-    
+
     return dependency
+
+
+# Alias for verify_jwt_token (used by core/__init__.py)
+verify_token = verify_jwt_token
+
+# Alias for create_access_token (used by core/__init__.py)
+create_token = create_access_token
+decode_token = verify_jwt_token
+
+# Alias for require_api_key (used by core/__init__.py)
+token_required = require_api_key
 
 

@@ -1,5 +1,4 @@
 """Tests for /v1/messages/count_tokens endpoint."""
-import pytest
 import os
 import sys
 

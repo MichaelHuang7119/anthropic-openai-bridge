@@ -187,7 +187,8 @@
     "noMessages": "Không có tin nhắn",
     "startConversation": "Bắt đầu cuộc trò chuyện",
     "welcomeTitle": "Chào mừng đến với AI Chat",
-    "welcomeDescription": "Chọn một cuộc trò chuyện ở bên trái để bắt đầu chat, hoặc tạo cuộc trò chuyện mới"
+    "welcomeDescription": "Chọn một cuộc trò chuyện ở bên trái để bắt đầu chat, hoặc tạo cuộc trò chuyện mới",
+    "selectModelFirst": "Vui lòng chọn mô hình trước"
   },
   "login": {
     "title": "Đăng nhập",

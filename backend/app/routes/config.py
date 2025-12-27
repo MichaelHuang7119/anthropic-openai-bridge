@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 import json
 import os
 from pydantic import BaseModel
-from ..auth import require_admin
+from ..core.auth import require_admin
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 

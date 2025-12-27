@@ -28,7 +28,7 @@ async def batch_event_logging(request: Request):
         else:
             # Just log that we received an event batch (for monitoring without the verbose details)
             logger.debug(
-                f"Received event logging batch (details omitted - set VERBOSE_EVENT_LOGGING=true to see them)"
+                "Received event logging batch (details omitted - set VERBOSE_EVENT_LOGGING=true to see them)"
             )
 
         # For now, just return success without storing the events

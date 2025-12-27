@@ -1,10 +1,11 @@
 """性能统计和监控 API 端点"""
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from ..database import get_database
-from ..auth import require_admin
+from ..core.auth import require_admin
+from ..core import COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -172,7 +173,7 @@ async def get_performance_summary(
             provider_stats[provider]["total_tokens"] += total_request_tokens
 
             # 同时计算该请求的成本并累加
-            request_cost = (input_tokens * 0.00001) + (output_tokens * 0.00003)
+            request_cost = (input_tokens * COST_PER_INPUT_TOKEN) + (output_tokens * COST_PER_OUTPUT_TOKEN)
             provider_stats[provider]["total_cost"] += request_cost
 
         # 构建基于 request_logs 的准确 token_usage 统计
@@ -218,7 +219,7 @@ async def get_performance_summary(
             model = log.get("model", "unknown")
             input_tokens = log.get("input_tokens") or 0
             output_tokens = log.get("output_tokens") or 0
-            request_cost = (input_tokens * 0.00001) + (output_tokens * 0.00003)
+            request_cost = (input_tokens * COST_PER_INPUT_TOKEN) + (output_tokens * COST_PER_OUTPUT_TOKEN)
 
             key = (log_date, provider)
             if key not in date_provider_map:

@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 import logging
 
-from ..auth import require_admin, generate_api_key, hash_api_key, get_api_key_prefix
+from ..core.auth import require_admin, generate_api_key, hash_api_key, get_api_key_prefix
 from ..database import get_database
 
 logger = logging.getLogger(__name__)
@@ -110,17 +110,16 @@ async def get_api_key(
 ):
     """获取指定API Key详情（需要管理员权限）"""
     db = get_database()
-    
-    # 获取API Key列表并查找指定ID
-    api_keys = await db.get_api_keys(limit=1000, offset=0)
-    api_key = next((k for k in api_keys if k["id"] == api_key_id), None)
-    
+
+    # 直接通过ID查询
+    api_key = await db.get_api_key_encrypted(api_key_id)
+
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found"
         )
-    
+
     return APIKeyResponse(
         id=api_key["id"],
         key_prefix=api_key["key_prefix"],
@@ -191,17 +190,16 @@ async def update_api_key(
 ):
     """更新API Key（需要管理员权限）"""
     db = get_database()
-    
+
     # 检查API Key是否存在
-    api_keys = await db.get_api_keys(limit=1000, offset=0)
-    api_key = next((k for k in api_keys if k["id"] == api_key_id), None)
-    
+    api_key = await db.get_api_key_encrypted(api_key_id)
+
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found"
         )
-    
+
     # 更新API Key
     success = await db.update_api_key(
         api_key_id=api_key_id,
@@ -209,17 +207,16 @@ async def update_api_key(
         email=request.email.lower() if request.email else None,
         is_active=request.is_active
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update API key"
         )
-    
+
     # 获取更新后的API Key
-    api_keys = await db.get_api_keys(limit=1000, offset=0)
-    updated_key = next((k for k in api_keys if k["id"] == api_key_id), None)
-    
+    updated_key = await db.get_api_key_encrypted(api_key_id)
+
     return APIKeyResponse(
         id=updated_key["id"],
         key_prefix=updated_key["key_prefix"],
@@ -242,8 +239,7 @@ async def delete_api_key(
     db = get_database()
 
     # 检查API Key是否存在
-    api_keys = await db.get_api_keys(limit=1000, offset=0)
-    api_key = next((k for k in api_keys if k["id"] == api_key_id), None)
+    api_key = await db.get_api_key_encrypted(api_key_id)
 
     if not api_key:
         raise HTTPException(

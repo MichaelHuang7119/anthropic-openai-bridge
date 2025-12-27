@@ -46,13 +46,19 @@ fi
 # 检查是否包含 --dev 或 --reload 参数
 DEV_MODE=false
 RELOAD_PARAM=""
+LOG_LEVEL="info"  # 默认日志级别为 info
+
 for arg in "$@"; do
     if [[ "$arg" == "--dev" ]] || [[ "$arg" == "--reload" ]]; then
         DEV_MODE=true
         RELOAD_PARAM="--reload"
+        LOG_LEVEL="debug"  # 开发模式使用 debug 日志级别
         break
     fi
 done
+
+# 设置日志级别环境变量
+export LOG_LEVEL
 
 echo "🚀 Anthropic OpenAI Bridge - 启动后端服务..."
 echo ""
@@ -86,17 +92,20 @@ echo ""
 
 # 根据模式显示不同信息
 if [ "$DEV_MODE" = true ]; then
-    echo "🔧 开发模式 - 启用自动重载（代码变更时自动重启）"
+    echo "🔧 开发模式 - 启用自动重载 + DEBUG 日志"
+    echo "   日志级别: DEBUG (详细日志)"
     echo "   使用 --no-reload 禁用重载"
 else
-    echo "🔧 生产模式 - 禁用自动重载"
-    echo "   使用 --dev 或 --reload 启用热重载"
+    echo "🔧 生产模式 - 禁用自动重载 + INFO 日志"
+    echo "   日志级别: INFO (仅重要信息)"
+    echo "   使用 --dev 或 --reload 启用热重载和 DEBUG 日志"
 fi
 
 # 获取实际使用的端口
 FINAL_PORT=${PORT:-8000}
 echo "   服务地址: http://localhost:$FINAL_PORT"
 echo "   API 文档: http://localhost:$FINAL_PORT/docs"
+echo "   日志级别: $LOG_LEVEL"
 echo "   按 Ctrl+C 停止服务"
 echo ""
 
@@ -107,6 +116,10 @@ for arg in "$@"; do
         FINAL_ARGS+=("$arg")
     fi
 done
+
+# 添加日志级别参数
+FINAL_ARGS+=("--log-level")
+FINAL_ARGS+=("$LOG_LEVEL")
 
 # 将参数传递给 Python 启动脚本
 exec python start_proxy.py "${FINAL_ARGS[@]}"

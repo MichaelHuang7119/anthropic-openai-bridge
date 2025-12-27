@@ -94,7 +94,6 @@ def initialize_telemetry(
 
 def get_tracer():
     """Get OpenTelemetry tracer."""
-    global _tracer
     if not _initialized:
         logger.warning("Telemetry not initialized. Call initialize_telemetry() first.")
     return _tracer
@@ -102,7 +101,6 @@ def get_tracer():
 
 def get_meter():
     """Get OpenTelemetry meter."""
-    global _meter
     if not _initialized:
         logger.warning("Telemetry not initialized. Call initialize_telemetry() first.")
     return _meter

@@ -6,8 +6,8 @@ from .circuit_breaker import (
     get_circuit_breaker_registry,
     with_circuit_breaker,
 )
-from .client import OpenAIClient
-from .anthropic_client import AnthropicClient
+from .clients.openai_client import OpenAIClient
+from .clients.anthropic_client import AnthropicClient
 from .retry import retry_with_backoff, is_retryable_error
 
 __all__ = [

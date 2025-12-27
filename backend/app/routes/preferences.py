@@ -1,9 +1,8 @@
 """用户偏好设置API端点"""
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
-from typing import Optional
 
-from ..auth import require_admin
+from ..core.auth import require_admin
 from ..database import get_database
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])

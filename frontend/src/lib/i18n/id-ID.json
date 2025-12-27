@@ -187,7 +187,8 @@
     "noMessages": "Tidak Ada Pesan",
     "startConversation": "Mulai Percakapan",
     "welcomeTitle": "Selamat Datang di AI Chat",
-    "welcomeDescription": "Pilih percakapan di sebelah kiri untuk mulai mengobrol, atau buat percakapan baru"
+    "welcomeDescription": "Pilih percakapan di sebelah kiri untuk mulai mengobrol, atau buat percakapan baru",
+    "selectModelFirst": "Silakan pilih model terlebih dahulu"
   },
   "login": {
     "title": "Masuk",

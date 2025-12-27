@@ -3,20 +3,20 @@ import os
 import logging
 from fastapi import FastAPI
 
-from .config import config
+from .config.settings import config
 from .core import ModelManager
-from .api.providers import router as providers_router, set_provider_service
-from .api.health import router as api_health_router, set_health_service
-from .api.config import router as config_router
-from .api.stats import router as stats_router
-from .api.auth import router as auth_router
-from .api.api_keys import router as api_keys_router
-from .api.conversations import router as conversations_router
-from .api.preferences import router as preferences_router
+from .routes.providers import router as providers_router, set_provider_service
+from .routes.health import router as api_health_router, set_health_service
+from .routes.config import router as config_router
+from .routes.stats import router as stats_router
+from .routes.auth import router as auth_router
+from .routes.api_keys import router as api_keys_router
+from .routes.conversations import router as conversations_router
+from .routes.preferences import router as preferences_router
 from .routes.messages import create_messages_router
 from .routes.health import router as health_router
 from .routes.event_logging import router as event_logging_router
-from .lifecycle import startup_event, shutdown_event
+from .core.lifecycle import startup_event, shutdown_event
 from .services.message_service import MessageService
 from .services.health_service import HealthService
 from .services.provider_service import ProviderService
@@ -24,8 +24,10 @@ from .database.core import DatabaseCore
 from .database.health_history import HealthHistoryManager
 
 # Configure logging
-# Allow log level to be set via environment variable or default to DEBUG
-log_level = os.getenv('LOG_LEVEL', 'DEBUG').upper()
+# Allow log level to be set via environment variable or default to INFO
+# Production mode: INFO (clean output)
+# Development mode (--dev): DEBUG (detailed logs)
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
 # Map string level to logging constant
 log_level_map = {
     'DEBUG': logging.DEBUG,

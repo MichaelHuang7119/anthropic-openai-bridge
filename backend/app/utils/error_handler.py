@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 from fastapi import HTTPException
 import httpx
 from openai import RateLimitError, APIError, APIConnectionError
-from ..constants import (
+from ..core.constants import (
     ERROR_TYPE_RATE_LIMIT,
     ERROR_TYPE_CONNECTION_TIMEOUT,
     ERROR_TYPE_READ_TIMEOUT,

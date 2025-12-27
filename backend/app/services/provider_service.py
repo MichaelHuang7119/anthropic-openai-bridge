@@ -2,7 +2,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from ..services.config_service import ConfigService
+from .config_service import ConfigService
 from ..config import config
 
 logger = logging.getLogger(__name__)

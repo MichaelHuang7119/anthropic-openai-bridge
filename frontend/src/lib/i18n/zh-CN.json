@@ -187,7 +187,8 @@
     "noMessages": "暂无消息",
     "startConversation": "开始对话吧",
     "welcomeTitle": "欢迎使用 AI 聊天",
-    "welcomeDescription": "选择左侧的对话开始聊天，或创建新对话"
+    "welcomeDescription": "选择左侧的对话开始聊天，或创建新对话",
+    "selectModelFirst": "请先选择模型"
   },
   "welcome": {
     "title": "欢迎使用 Anthropic OpenAI Bridge",

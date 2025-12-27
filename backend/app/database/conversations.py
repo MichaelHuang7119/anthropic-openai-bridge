@@ -1,12 +1,39 @@
 """Conversations database operations for chat history management."""
-
-import json
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime
-from datetime import timezone, timedelta
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+# Beijing timezone constant
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def _convert_to_beijing_iso(dt_value) -> Optional[str]:
+    """Convert a datetime value to Beijing timezone ISO format string.
+
+    Args:
+        dt_value: Datetime object or string from database
+
+    Returns:
+        ISO format string in Beijing timezone, or None if input is None/invalid
+    """
+    if dt_value is None:
+        return None
+
+    try:
+        if hasattr(dt_value, 'astimezone'):
+            # Already a datetime object, convert to Beijing timezone
+            beijing_dt = dt_value.astimezone(BEIJING_TZ)
+            return beijing_dt.isoformat()
+        else:
+            # String format, parse as UTC then convert to Beijing
+            utc_str = str(dt_value).replace(' ', 'T') + 'Z'
+            utc_dt = datetime.fromisoformat(utc_str)
+            beijing_dt = utc_dt.astimezone(BEIJING_TZ)
+            return beijing_dt.isoformat()
+    except Exception:
+        return None
 
 
 class ConversationsManager:
@@ -20,6 +47,86 @@ class ConversationsManager:
             db_core: DatabaseCore instance for connection management.
         """
         self.db_core = db_core
+
+    async def _execute_query(
+        self,
+        query: str,
+        params: tuple = None,
+        fetch_one: bool = False,
+        fetch_all: bool = False
+    ) -> Optional[Any]:
+        """Execute a query with proper resource cleanup.
+
+        Args:
+            query: SQL query to execute
+            params: Query parameters
+            fetch_one: If True, return single row
+            fetch_all: If True, return all rows
+
+        Returns:
+            Query results based on fetch mode
+        """
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if fetch_one:
+                return await cursor.fetchone()
+            elif fetch_all:
+                return await cursor.fetchall()
+            return None
+        except Exception as e:
+            logger.error(f"Database query failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+
+    async def _execute_update(
+        self,
+        query: str,
+        params: tuple = None,
+        commit: bool = True
+    ) -> int:
+        """Execute an update/insert/delete query with proper resource cleanup.
+
+        Args:
+            query: SQL query to execute
+            params: Query parameters
+            commit: Whether to commit the transaction
+
+        Returns:
+            Number of rows affected or last row id
+        """
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if commit:
+                await conn.commit()
+
+            query_upper = query.strip().upper()
+            if query_upper.startswith("INSERT"):
+                return cursor.lastrowid
+            elif query_upper.startswith("UPDATE") or query_upper.startswith("DELETE"):
+                return cursor.rowcount
+            return cursor.rowcount
+        except Exception as e:
+            logger.error(f"Database update failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
 
     async def create_conversation(
         self,
@@ -43,19 +150,13 @@ class ConversationsManager:
             Conversation ID if successful, None otherwise
         """
         try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute(
+            conversation_id = await self._execute_update(
                 """
                 INSERT INTO conversations (user_id, title, provider_name, api_format, model)
                 VALUES (?, ?, ?, ?, ?)
-            """,
-                (user_id, title, provider_name, api_format, model),
+                """,
+                (user_id, title, provider_name, api_format, model)
             )
-
-            await conn.commit()
-            conversation_id = cursor.lastrowid
             logger.info(f"Created conversation {conversation_id} for user {user_id}")
             return conversation_id
         except Exception as e:
@@ -80,10 +181,9 @@ class ConversationsManager:
             List of conversation records
         """
         try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            query = """
+            # Single query with subquery for last_model (no N+1 issue)
+            rows = await self._execute_query(
+                """
                 SELECT
                     c.id,
                     c.title,
@@ -104,58 +204,23 @@ class ConversationsManager:
                 WHERE c.user_id = ?
                 ORDER BY c.updated_at DESC
                 LIMIT ? OFFSET ?
-            """
-
-            await cursor.execute(query, (user_id, limit, offset))
-            rows = await cursor.fetchall()
+                """,
+                (user_id, limit, offset),
+                fetch_all=True
+            )
 
             conversations = []
-            # 定义北京时区
-            from datetime import timezone, timedelta
-            beijing_tz = timezone(timedelta(hours=8))
             for row in rows:
-                # 转换时间为北京时间ISO格式
-                created_at_beijing = None
-                updated_at_beijing = None
-
-                if row["created_at"]:
-                    created_at_dt = row["created_at"]
-                    if hasattr(created_at_dt, 'isoformat'):
-                        # 已经是datetime对象，转换为北京时间
-                        beijing_dt = created_at_dt.astimezone(beijing_tz)
-                        created_at_beijing = beijing_dt.isoformat()
-                    else:
-                        # SQLite字符串格式，先解析为UTC，再转北京时间
-                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
-                        utc_dt = datetime.fromisoformat(utc_str)
-                        beijing_dt = utc_dt.astimezone(beijing_tz)
-                        created_at_beijing = beijing_dt.isoformat()
-
-                if row["updated_at"]:
-                    updated_at_dt = row["updated_at"]
-                    if hasattr(updated_at_dt, 'isoformat'):
-                        # 已经是datetime对象，转换为北京时间
-                        beijing_dt = updated_at_dt.astimezone(beijing_tz)
-                        updated_at_beijing = beijing_dt.isoformat()
-                    else:
-                        # SQLite字符串格式，先解析为UTC，再转北京时间
-                        utc_str = str(updated_at_dt).replace(' ', 'T') + 'Z'
-                        utc_dt = datetime.fromisoformat(utc_str)
-                        beijing_dt = utc_dt.astimezone(beijing_tz)
-                        updated_at_beijing = beijing_dt.isoformat()
-
-                conversations.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "provider_name": row["provider_name"],
-                        "api_format": row["api_format"],
-                        "model": row["model"],
-                        "last_model": row["last_model"],
-                        "created_at": created_at_beijing,
-                        "updated_at": updated_at_beijing,
-                    }
-                )
+                conversations.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "provider_name": row["provider_name"],
+                    "api_format": row["api_format"],
+                    "model": row["model"],
+                    "last_model": row["last_model"],
+                    "created_at": _convert_to_beijing_iso(row["created_at"]),
+                    "updated_at": _convert_to_beijing_iso(row["updated_at"]),
+                })
 
             return conversations
         except Exception as e:
@@ -176,11 +241,8 @@ class ConversationsManager:
             Conversation record with messages if found and belongs to user
         """
         try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            # Get conversation with last user message info
-            await cursor.execute(
+            # Single query combining all subqueries (fixes N+1 issue)
+            row = await self._execute_query(
                 """
                 SELECT
                     c.id,
@@ -216,46 +278,13 @@ class ConversationsManager:
                     ) as last_api_format
                 FROM conversations c
                 WHERE c.id = ? AND c.user_id = ?
-            """,
+                """,
                 (conversation_id, user_id),
+                fetch_one=True
             )
 
-            row = await cursor.fetchone()
             if not row:
                 return None
-
-            # 转换时间为北京时间ISO格式
-            # 定义北京时区
-            from datetime import timezone, timedelta
-            beijing_tz = timezone(timedelta(hours=8))
-            created_at_beijing = None
-            updated_at_beijing = None
-
-            if row["created_at"]:
-                created_at_dt = row["created_at"]
-                if hasattr(created_at_dt, 'isoformat'):
-                    # 已经是datetime对象，转换为北京时间
-                    beijing_dt = created_at_dt.astimezone(beijing_tz)
-                    created_at_beijing = beijing_dt.isoformat()
-                else:
-                    # SQLite字符串格式，先解析为UTC，再转北京时间
-                    utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
-                    utc_dt = datetime.fromisoformat(utc_str)
-                    beijing_dt = utc_dt.astimezone(beijing_tz)
-                    created_at_beijing = beijing_dt.isoformat()
-
-            if row["updated_at"]:
-                updated_at_dt = row["updated_at"]
-                if hasattr(updated_at_dt, 'isoformat'):
-                    # 已经是datetime对象，转换为北京时间
-                    beijing_dt = updated_at_dt.astimezone(beijing_tz)
-                    updated_at_beijing = beijing_dt.isoformat()
-                else:
-                    # SQLite字符串格式，先解析为UTC，再转北京时间
-                    utc_str = str(updated_at_dt).replace(' ', 'T') + 'Z'
-                    utc_dt = datetime.fromisoformat(utc_str)
-                    beijing_dt = utc_dt.astimezone(beijing_tz)
-                    updated_at_beijing = beijing_dt.isoformat()
 
             conversation = {
                 "id": row["id"],
@@ -266,57 +295,39 @@ class ConversationsManager:
                 "last_model": row["last_model"],
                 "last_provider_name": row["last_provider_name"],
                 "last_api_format": row["last_api_format"],
-                "created_at": created_at_beijing,
-                "updated_at": updated_at_beijing,
+                "created_at": _convert_to_beijing_iso(row["created_at"]),
+                "updated_at": _convert_to_beijing_iso(row["updated_at"]),
                 "messages": [],
             }
 
-            # Get messages
-            await cursor.execute(
+            # Get messages for this conversation
+            message_rows = await self._execute_query(
                 """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id, model_instance_index
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens,
+                       created_at, provider_name, api_format, parent_message_id, model_instance_index
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
-            """,
+                """,
                 (conversation_id,),
+                fetch_all=True
             )
 
-            message_rows = await cursor.fetchall()
             for msg_row in message_rows:
-                # 转换消息时间为北京时间ISO格式
-                # 定义北京时区
-                beijing_tz = timezone(timedelta(hours=8))
-                msg_created_at_beijing = None
-                if msg_row["created_at"]:
-                    created_at_dt = msg_row["created_at"]
-                    if hasattr(created_at_dt, 'isoformat'):
-                        # 已经是datetime对象，转换为北京时间
-                        beijing_dt = created_at_dt.astimezone(beijing_tz)
-                        msg_created_at_beijing = beijing_dt.isoformat()
-                    else:
-                        # SQLite字符串格式，先解析为UTC，再转北京时间
-                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
-                        utc_dt = datetime.fromisoformat(utc_str)
-                        beijing_dt = utc_dt.astimezone(beijing_tz)
-                        msg_created_at_beijing = beijing_dt.isoformat()
-
-                conversation["messages"].append(
-                    {
-                        "id": msg_row["id"],
-                        "role": msg_row["role"],
-                        "content": msg_row["content"],
-                        "model": msg_row["model"],
-                        "thinking": msg_row["thinking"],
-                        "input_tokens": msg_row["input_tokens"],
-                        "output_tokens": msg_row["output_tokens"],
-                        "provider_name": msg_row["provider_name"],
-                        "api_format": msg_row["api_format"],
-                        "parent_message_id": msg_row["parent_message_id"],
-                        "model_instance_index": msg_row["model_instance_index"] or 0,
-                        "created_at": msg_created_at_beijing,
-                    }
-                )
+                conversation["messages"].append({
+                    "id": msg_row["id"],
+                    "role": msg_row["role"],
+                    "content": msg_row["content"],
+                    "model": msg_row["model"],
+                    "thinking": msg_row["thinking"],
+                    "input_tokens": msg_row["input_tokens"],
+                    "output_tokens": msg_row["output_tokens"],
+                    "provider_name": msg_row["provider_name"],
+                    "api_format": msg_row["api_format"],
+                    "parent_message_id": msg_row["parent_message_id"],
+                    "model_instance_index": msg_row["model_instance_index"] or 0,
+                    "created_at": _convert_to_beijing_iso(msg_row["created_at"]),
+                })
 
             return conversation
         except Exception as e:
@@ -337,27 +348,17 @@ class ConversationsManager:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute(
-                """
-                UPDATE conversations
-                SET title = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ? AND user_id = ?
+        row_count = await self._execute_update(
+            """
+            UPDATE conversations
+            SET title = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
             """,
-                (title, conversation_id, user_id),
-            )
-
-            await conn.commit()
-            success = cursor.rowcount > 0
-            if success:
-                logger.info(f"Updated conversation {conversation_id} title")
-            return success
-        except Exception as e:
-            logger.error(f"Failed to update conversation {conversation_id}: {e}")
-            return False
+            (title, conversation_id, user_id)
+        )
+        if row_count > 0:
+            logger.info(f"Updated conversation {conversation_id} title")
+        return row_count > 0
 
     async def delete_conversation(self, conversation_id: int, user_id: int) -> bool:
         """
@@ -370,26 +371,16 @@ class ConversationsManager:
         Returns:
             True if successful, False otherwise
         """
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute(
-                """
-                DELETE FROM conversations
-                WHERE id = ? AND user_id = ?
+        row_count = await self._execute_update(
+            """
+            DELETE FROM conversations
+            WHERE id = ? AND user_id = ?
             """,
-                (conversation_id, user_id),
-            )
-
-            await conn.commit()
-            success = cursor.rowcount > 0
-            if success:
-                logger.info(f"Deleted conversation {conversation_id}")
-            return success
-        except Exception as e:
-            logger.error(f"Failed to delete conversation {conversation_id}: {e}")
-            return False
+            (conversation_id, user_id)
+        )
+        if row_count > 0:
+            logger.info(f"Deleted conversation {conversation_id}")
+        return row_count > 0
 
     async def add_message(
         self,
@@ -427,33 +418,31 @@ class ConversationsManager:
         try:
             conn = await self.db_core.get_connection()
             cursor = await conn.cursor()
+            try:
+                # Insert new message
+                await cursor.execute(
+                    """
+                    INSERT INTO conversation_messages
+                    (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index or 0),
+                )
+                message_id = cursor.lastrowid
 
-            # Always insert new messages (no deduplication) to support retry functionality
-            # This allows multiple assistant messages for the same user question
-            await cursor.execute(
-                """
-                INSERT INTO conversation_messages
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (conversation_id, role, content, provider_name, model, thinking, input_tokens, output_tokens, api_format, parent_message_id, model_instance_index or 0),
-            )
-            message_id = cursor.lastrowid
-            print(f"Conversation {conversation_id}: Inserted new {role} message ID {message_id}")
+                # Update conversation updated_at
+                await cursor.execute(
+                    """
+                    UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                    """,
+                    (conversation_id,),
+                )
 
-            # Update conversation updated_at
-            await cursor.execute(
-                """
-                UPDATE conversations
-                SET updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """,
-                (conversation_id,),
-            )
-
-            await conn.commit()
-            logger.debug(f"Added message {message_id} to conversation {conversation_id}")
-            return message_id
+                await conn.commit()
+                logger.debug(f"Added message {message_id} to conversation {conversation_id}")
+                return message_id
+            finally:
+                await cursor.close()
         except Exception as e:
             logger.error(f"Failed to add message to conversation {conversation_id}: {e}")
             return None
@@ -472,61 +461,37 @@ class ConversationsManager:
             List of message records
         """
         try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
             query = """
-                SELECT id, role, content, model, thinking, input_tokens, output_tokens, created_at, provider_name, api_format, parent_message_id, model_instance_index
+                SELECT id, role, content, model, thinking, input_tokens, output_tokens,
+                       created_at, provider_name, api_format, parent_message_id, model_instance_index
                 FROM conversation_messages
                 WHERE conversation_id = ?
                 ORDER BY created_at ASC
             """
-
             params = [conversation_id]
 
             if limit:
                 query += " LIMIT ?"
                 params.append(limit)
 
-            await cursor.execute(query, params)
-            rows = await cursor.fetchall()
+            rows = await self._execute_query(query, tuple(params), fetch_all=True)
 
             messages = []
-            # 定义北京时区
-            from datetime import timezone, timedelta
-            beijing_tz = timezone(timedelta(hours=8))
             for row in rows:
-                # 转换消息时间为北京时间ISO格式
-                created_at_beijing = None
-                if row["created_at"]:
-                    created_at_dt = row["created_at"]
-                    if hasattr(created_at_dt, 'isoformat'):
-                        # 已经是datetime对象，转换为北京时间
-                        beijing_dt = created_at_dt.astimezone(beijing_tz)
-                        created_at_beijing = beijing_dt.isoformat()
-                    else:
-                        # SQLite字符串格式，先解析为UTC，再转北京时间
-                        utc_str = str(created_at_dt).replace(' ', 'T') + 'Z'
-                        utc_dt = datetime.fromisoformat(utc_str)
-                        beijing_dt = utc_dt.astimezone(beijing_tz)
-                        created_at_beijing = beijing_dt.isoformat()
-
-                messages.append(
-                    {
-                        "id": row["id"],
-                        "role": row["role"],
-                        "content": row["content"],
-                        "model": row["model"],
-                        "thinking": row["thinking"],
-                        "input_tokens": row["input_tokens"],
-                        "output_tokens": row["output_tokens"],
-                        "provider_name": row["provider_name"],
-                        "api_format": row["api_format"],
-                        "parent_message_id": row["parent_message_id"],
-                        "model_instance_index": row["model_instance_index"] or 0,
-                        "created_at": created_at_beijing,
-                    }
-                )
+                messages.append({
+                    "id": row["id"],
+                    "role": row["role"],
+                    "content": row["content"],
+                    "model": row["model"],
+                    "thinking": row["thinking"],
+                    "input_tokens": row["input_tokens"],
+                    "output_tokens": row["output_tokens"],
+                    "provider_name": row["provider_name"],
+                    "api_format": row["api_format"],
+                    "parent_message_id": row["parent_message_id"],
+                    "model_instance_index": row["model_instance_index"] or 0,
+                    "created_at": _convert_to_beijing_iso(row["created_at"]),
+                })
 
             return messages
         except Exception as e:
@@ -543,22 +508,13 @@ class ConversationsManager:
         Returns:
             Number of deleted conversations
         """
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute(
-                """
-                DELETE FROM conversations
-                WHERE updated_at < datetime('now', '-' || ? || ' days')
+        row_count = await self._execute_update(
+            """
+            DELETE FROM conversations
+            WHERE updated_at < datetime('now', '-' || ? || ' days')
             """,
-                (days,),
-            )
-
-            await conn.commit()
-            deleted_count = cursor.rowcount
-            logger.info(f"Deleted {deleted_count} old conversations")
-            return deleted_count
-        except Exception as e:
-            logger.error(f"Failed to delete old conversations: {e}")
-            return 0
+            (days,)
+        )
+        if row_count > 0:
+            logger.info(f"Deleted {row_count} old conversations")
+        return row_count

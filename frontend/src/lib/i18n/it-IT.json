@@ -187,7 +187,8 @@
     "noMessages": "Nessun messaggio",
     "startConversation": "Inizia conversazione",
     "welcomeTitle": "Benvenuto nella chat IA",
-    "welcomeDescription": "Seleziona una conversazione a sinistra per iniziare a chattare, o crea una nuova conversazione"
+    "welcomeDescription": "Seleziona una conversazione a sinistra per iniziare a chattare, o crea una nuova conversazione",
+    "selectModelFirst": "Seleziona prima un modello"
   },
   "login": {
     "title": "Accedi",

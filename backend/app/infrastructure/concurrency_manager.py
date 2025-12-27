@@ -130,8 +130,6 @@ class ConcurrencyManager:
                 self._model_semaphores[model_name] = asyncio.Semaphore(self._limits["model_limit"])
             model_sem = self._model_semaphores.get(model_name)
 
-        # 按优先级获取锁：message > chat > session > api_key > provider > model
-        start_time = time.time()
         timeout = 30
 
         acquired_sems = []

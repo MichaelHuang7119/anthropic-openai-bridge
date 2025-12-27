@@ -1,11 +1,9 @@
 """Conversation management API endpoints."""
-
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Query
-from datetime import datetime
 
-from ..auth import require_admin
+from ..core.auth import require_admin
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 

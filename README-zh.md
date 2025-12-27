@@ -14,6 +14,126 @@
 
 Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthropic 兼容的 API 端点，并将请求转发到支持 OpenAI 兼容接口的后端供应商（如通义千问、ModelScope、AI Ping、Anthropic 等）。通过统一的 API 接口，您可以轻松切换不同的 AI 模型供应商，而无需修改客户端代码。
 
+## 🏗️ 项目架构
+
+### 后端结构 (FastAPI + Python 3.11+)
+
+```
+backend/app/
+├── main.py                    # 应用入口
+├── config/                    # 配置管理
+│   ├── settings.py            # 主配置 (ProviderConfig, AppConfig 等)
+│   └── hot_reload.py          # 使用 watchdog 的配置热重载
+├── core/                      # 核心业务逻辑
+│   ├── auth.py                # JWT 认证、API Key 验证
+│   ├── constants.py           # 常量定义 (API_VERSION, MAX_MESSAGE_LENGTH 等)
+│   ├── lifecycle.py           # 启动/关闭事件
+│   ├── model_manager.py       # 供应商和模型路由
+│   └── models.py              # Pydantic 模型 (Message, MessagesRequest 等)
+├── routes/                    # API 路由（统一在 /routes/ 下）
+│   ├── messages.py            # /v1/messages 端点
+│   ├── auth.py                # /api/auth/* (登录、注册)
+│   ├── api_keys.py            # /api/api_keys/* (API Key 管理)
+│   ├── providers.py           # /api/providers/* (供应商管理)
+│   ├── conversations.py       # /api/conversations/* (聊天历史)
+│   ├── health.py              # /api/health/* (健康检查)
+│   ├── stats.py               # /api/stats/* (统计数据)
+│   ├── config.py              # /api/config/* (配置管理)
+│   ├── preferences.py         # /api/preferences/* (用户偏好)
+│   └── event_logging.py       # /api/event_logging/* (事件日志)
+├── services/                  # 业务逻辑服务
+│   ├── handlers/              # 请求处理器 (OpenAI/Anthropic 格式)
+│   │   ├── base.py
+│   │   ├── openai_handler.py
+│   │   └── anthropic_handler.py
+│   ├── message_service.py     # 消息处理和供应商路由
+│   ├── health_service.py      # 健康监控服务
+│   ├── provider_service.py    # 供应商管理服务
+│   ├── token_counter.py       # Token 计数和历史查询
+│   └── config_service.py      # 配置服务
+├── converters/                # 格式转换 (Anthropic ↔ OpenAI)
+│   ├── anthropic_request_convert.py  # Anthropic → OpenAI 请求转换
+│   └── openai_response_convert.py    # OpenAI → Anthropic 响应转换
+├── infrastructure/            # 基础设施层
+│   ├── clients/               # 供应商 API 客户端
+│   │   ├── openai_client.py
+│   │   └── anthropic_client.py
+│   ├── circuit_breaker.py     # 熔断器模式
+│   ├── concurrency_manager.py # 并发控制
+│   ├── retry.py               # 指数退避重试
+│   ├── cache.py               # 内存/Redis 缓存
+│   └── telemetry.py           # OpenTelemetry 集成
+├── database/                  # 数据访问层 (异步 SQLite)
+│   ├── core.py                # 数据库连接和模式定义
+│   ├── users.py               # 用户管理
+│   ├── api_keys.py            # API Key 存储
+│   ├── conversations.py       # 对话和消息
+│   ├── request_logs.py        # 请求日志
+│   ├── token_usage.py         # Token 使用统计
+│   ├── health_history.py      # 健康历史
+│   └── config_changes.py      # 配置变更历史
+├── utils/                     # 工具函数
+│   ├── token_extractor.py     # 统一 Token 提取 (支持 OpenAI/Anthropic)
+│   ├── security_utils.py      # 加密、验证、API Key 掩码
+│   ├── color_logger.py        # 彩色日志
+│   ├── error_handler.py       # 错误响应格式化
+│   └── response.py            # 响应工具
+└── encryption_key.py          # 加密密钥管理
+```
+
+### 前端结构 (Svelte 5 + TypeScript)
+
+```
+frontend/src/
+├── lib/
+│   ├── components/            # 可复用的 Svelte 组件
+│   │   ├── chat/              # 聊天相关组件
+│   │   ├── layout/            # 布局组件
+│   │   ├── providers/         # 供应商管理组件
+│   │   ├── settings/          # 设置组件
+│   │   └── ui/                # 基础 UI 组件
+│   ├── services/              # API 客户端服务
+│   │   ├── api.ts             # 主 API 客户端
+│   │   ├── chatService.ts     # 聊天服务
+│   │   └── authService.ts     # 认证服务
+│   ├── stores/                # Svelte 状态存储
+│   │   ├── auth.ts            # 认证状态
+│   │   ├── chat.ts            # 聊天状态
+│   │   └── providers.ts       # 供应商状态
+│   ├── i18n/                  # 国际化 (16种语言)
+│   └── utils/                 # 工具函数
+├── routes/                    # SvelteKit 页面
+│   ├── +layout.svelte         # 根布局
+│   ├── +page.svelte           # 首页
+│   ├── chat/                  # 聊天路由
+│   ├── providers/             # 供应商管理
+│   ├── settings/              # 设置
+│   └── admin/                 # 管理路由
+└── app.html                   # HTML 模板
+```
+
+### 请求流程
+
+```
+客户端请求
+  ↓
+API 路由 (/routes/messages.py, /routes/*.py)
+  ↓
+消息服务 (message_service.py)
+  ↓
+格式转换器 (converters/)
+  ↓
+供应商处理器 (services/handlers/)
+  ↓
+供应商客户端 (infrastructure/clients/)
+  ↓
+后端 AI 供应商 (OpenAI/Anthropic 格式)
+  ↓
+响应转换
+  ↓
+客户端
+```
+
 ## 🚀 核心功能
 
 - **🔥 高性能架构** - 异步数据库 + 连接池，HTTP 连接池优化，支持 10k QPS

@@ -19,6 +19,65 @@ class RequestLogsManager:
         """
         self.db_core = db_core
 
+    async def _execute_query(
+        self,
+        query: str,
+        params: tuple = None,
+        fetch_one: bool = False,
+        fetch_all: bool = False
+    ) -> Optional[Any]:
+        """Execute a query with proper resource cleanup."""
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if fetch_one:
+                return await cursor.fetchone()
+            elif fetch_all:
+                return await cursor.fetchall()
+            return None
+        except Exception as e:
+            logger.error(f"Database query failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+
+    async def _execute_update(
+        self,
+        query: str,
+        params: tuple = None,
+        commit: bool = True
+    ) -> int:
+        """Execute an update/insert/delete query with proper resource cleanup."""
+        cursor = None
+        try:
+            conn = await self.db_core.get_connection()
+            cursor = await conn.cursor()
+            await cursor.execute(query, params or ())
+
+            if commit:
+                await conn.commit()
+
+            query_upper = query.strip().upper()
+            if query_upper.startswith("INSERT"):
+                return cursor.lastrowid
+            return cursor.rowcount
+        except Exception as e:
+            logger.error(f"Database update failed: {e}")
+            raise
+        finally:
+            if cursor is not None:
+                try:
+                    await cursor.close()
+                except Exception:
+                    pass
+
     async def log_request(
         self,
         request_id: str,
@@ -31,40 +90,28 @@ class RequestLogsManager:
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
         response_time_ms: Optional[float] = None,
-    ):
+    ) -> None:
         """Log a request to the database."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
-
-            await cursor.execute(
-                """
-                INSERT INTO request_logs (
-                    request_id, provider_name, model, request_params, response_data,
-                    status_code, error_message, input_tokens, output_tokens, response_time_ms
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        await self._execute_update(
+            """
+            INSERT INTO request_logs (
+                request_id, provider_name, model, request_params, response_data,
+                status_code, error_message, input_tokens, output_tokens, response_time_ms
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (
-                    request_id,
-                    provider_name,
-                    model,
-                    json.dumps(request_params, ensure_ascii=False),
-                    (
-                        json.dumps(response_data, ensure_ascii=False)
-                        if response_data
-                        else None
-                    ),
-                    status_code,
-                    error_message,
-                    input_tokens,
-                    output_tokens,
-                    response_time_ms,
-                ),
+            (
+                request_id,
+                provider_name,
+                model,
+                json.dumps(request_params, ensure_ascii=False),
+                json.dumps(response_data, ensure_ascii=False) if response_data else None,
+                status_code,
+                error_message,
+                input_tokens,
+                output_tokens,
+                response_time_ms,
             )
-
-            await conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to log request: {e}")
+        )
 
     async def get_request_logs(
         self,
@@ -77,51 +124,45 @@ class RequestLogsManager:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Get request logs with optional filters."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get request logs with optional filters.
 
-            query = "SELECT * FROM request_logs WHERE 1=1"
-            params = []
+        Returns:
+            List of request log dicts.
+        """
+        query = "SELECT * FROM request_logs WHERE 1=1"
+        params = []
 
-            if provider_name:
-                query += " AND provider_name = ?"
-                params.append(provider_name)
+        if provider_name:
+            query += " AND provider_name = ?"
+            params.append(provider_name)
 
-            if model:
-                query += " AND model = ?"
-                params.append(model)
+        if model:
+            query += " AND model = ?"
+            params.append(model)
 
-            if status_code is not None:
-                query += " AND status_code = ?"
-                params.append(status_code)
-            elif status_min is not None:
-                query += " AND status_code >= ?"
-                params.append(status_min)
+        if status_code is not None:
+            query += " AND status_code = ?"
+            params.append(status_code)
+        elif status_min is not None:
+            query += " AND status_code >= ?"
+            params.append(status_min)
 
-            if date_from:
-                query += " AND date(created_at) >= ?"
-                params.append(date_from)
+        if date_from:
+            query += " AND date(created_at) >= ?"
+            params.append(date_from)
 
-            if date_to:
-                query += " AND date(created_at) <= ?"
-                params.append(date_to)
+        if date_to:
+            query += " AND date(created_at) <= ?"
+            params.append(date_to)
 
-            # Only add LIMIT if limit is specified
-            if limit is not None:
-                query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-                params.extend([limit, offset])
-            else:
-                query += " ORDER BY created_at DESC"
+        if limit is not None:
+            query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+        else:
+            query += " ORDER BY created_at DESC"
 
-            await cursor.execute(query, params)
-            rows = await cursor.fetchall()
-
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Failed to get request logs: {e}")
-            return []
+        rows = await self._execute_query(query, tuple(params), fetch_all=True)
+        return [dict(row) for row in rows] if rows else []
 
     async def get_request_logs_count(
         self,
@@ -132,40 +173,36 @@ class RequestLogsManager:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
     ) -> int:
-        """Get total count of request logs with filters."""
-        try:
-            conn = await self.db_core.get_connection()
-            cursor = await conn.cursor()
+        """Get total count of request logs with filters.
 
-            query = "SELECT COUNT(*) FROM request_logs WHERE 1=1"
-            params = []
+        Returns:
+            Count of matching records.
+        """
+        query = "SELECT COUNT(*) FROM request_logs WHERE 1=1"
+        params = []
 
-            if provider_name:
-                query += " AND provider_name = ?"
-                params.append(provider_name)
+        if provider_name:
+            query += " AND provider_name = ?"
+            params.append(provider_name)
 
-            if model:
-                query += " AND model = ?"
-                params.append(model)
+        if model:
+            query += " AND model = ?"
+            params.append(model)
 
-            if status_code is not None:
-                query += " AND status_code = ?"
-                params.append(status_code)
-            elif status_min is not None:
-                query += " AND status_code >= ?"
-                params.append(status_min)
+        if status_code is not None:
+            query += " AND status_code = ?"
+            params.append(status_code)
+        elif status_min is not None:
+            query += " AND status_code >= ?"
+            params.append(status_min)
 
-            if date_from:
-                query += " AND date(created_at) >= ?"
-                params.append(date_from)
+        if date_from:
+            query += " AND date(created_at) >= ?"
+            params.append(date_from)
 
-            if date_to:
-                query += " AND date(created_at) <= ?"
-                params.append(date_to)
+        if date_to:
+            query += " AND date(created_at) <= ?"
+            params.append(date_to)
 
-            await cursor.execute(query, params)
-            result = await cursor.fetchone()
-            return result[0] if result else 0
-        except Exception as e:
-            logger.error(f"Failed to get request logs count: {e}")
-            return 0
+        result = await self._execute_query(query, tuple(params), fetch_one=True)
+        return result[0] if result else 0

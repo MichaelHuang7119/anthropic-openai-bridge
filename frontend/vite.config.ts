@@ -2,6 +2,9 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
+// Get backend port from environment or use default
+const backendPort = process.env.BACKEND_PORT || "8000";
+
 export default defineConfig({
   plugins: [sveltekit()],
   server: {
@@ -35,13 +38,13 @@ export default defineConfig({
       // Proxy API requests to the backend
       // Only proxy paths that start with /api/ (not /api-keys which is a frontend route)
       "^/api/": {
-        target: "http://localhost:8000",
+        target: `http://localhost:${backendPort}`,
         changeOrigin: true,
         // Don't remove /api prefix - backend routes need it
       },
       // Also proxy the original /v1 endpoints
       "^/v1/": {
-        target: "http://localhost:8000",
+        target: `http://localhost:${backendPort}`,
         changeOrigin: true,
       },
     },

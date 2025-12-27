@@ -9,11 +9,8 @@ This script tests the performance of streaming responses to measure:
 - Overall throughput
 """
 
-import asyncio
 import time
 import json
-import statistics
-from typing import List, Dict, Any
 
 
 def test_json_serialization_performance():

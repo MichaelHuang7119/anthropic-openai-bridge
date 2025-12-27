@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from ..core import MessagesRequest, Message, MessageRole
 from ..services.message_service import MessageService
 from ..infrastructure import get_circuit_breaker_registry
-from ..services.config_service import ConfigService
+from .config_service import ConfigService
 from ..database.health_history import HealthHistoryManager
 
 logger = logging.getLogger(__name__)

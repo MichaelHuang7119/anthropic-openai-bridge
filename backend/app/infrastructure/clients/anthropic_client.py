@@ -1,17 +1,17 @@
 """Anthropic client wrapper for making direct requests to Anthropic-compatible providers."""
-from typing import Optional, Dict, Any, AsyncIterator
+from typing import Dict, Any, AsyncIterator
 import os
 import json
 import httpx
 import logging
 import sys
-from ..config import ProviderConfig
-from ..constants import (
+from ...config import ProviderConfig
+from ...core.constants import (
     DEFAULT_MAX_KEEPALIVE_CONNECTIONS,
     DEFAULT_MAX_CONNECTIONS,
     DEFAULT_KEEPALIVE_EXPIRY
 )
-from ..utils.color_logger import format_log_message
+from ...utils.color_logger import format_log_message
 
 logger = logging.getLogger(__name__)
 
@@ -415,11 +415,11 @@ class AnthropicClient:
 
     def close(self):
         """Close the HTTP client connections."""
-        if hasattr(self, '_http_client'):
+        if hasattr(self, '_http_client') and self._http_client:
             self._http_client.close()
 
     async def close_async(self):
         """Close the async HTTP client connections."""
-        if hasattr(self, '_async_http_client'):
+        if hasattr(self, '_async_http_client') and self._async_http_client:
             await self._async_http_client.aclose()
 

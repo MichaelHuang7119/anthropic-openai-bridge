@@ -3,7 +3,7 @@ import asyncio
 import logging
 from typing import Callable, TypeVar, Optional, Any
 import httpx
-from openai import RateLimitError, APIError, APIConnectionError
+from openai import APIConnectionError
 
 logger = logging.getLogger(__name__)
 

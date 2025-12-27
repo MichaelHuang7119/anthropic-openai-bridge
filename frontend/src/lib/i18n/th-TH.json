@@ -187,7 +187,8 @@
     "noMessages": "ไม่มีข้อความ",
     "startConversation": "เริ่มบทสนทนา",
     "welcomeTitle": "ยินดีต้อนรับสู่ AI Chat",
-    "welcomeDescription": "เลือกบทสนทนาทางซ้ายเพื่อเริ่มแชท หรือสร้างบทสนทนาใหม่"
+    "welcomeDescription": "เลือกบทสนทนาทางซ้ายเพื่อเริ่มแชท หรือสร้างบทสนทนาใหม่",
+    "selectModelFirst": "กรุณาเลือกโมเดลก่อน"
   },
   "login": {
     "title": "เข้าสู่ระบบ",

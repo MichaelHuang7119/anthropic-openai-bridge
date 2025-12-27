@@ -1,10 +1,10 @@
 """OpenAI client wrapper for making requests to providers."""
-from typing import Optional, Dict, Any, AsyncIterator
+from typing import Optional, Dict, Any
 import os
 import httpx
 from openai import OpenAI, AsyncOpenAI
-from ..config import ProviderConfig
-from ..constants import (
+from ...config import ProviderConfig
+from ...core.constants import (
     DEFAULT_MAX_KEEPALIVE_CONNECTIONS,
     DEFAULT_MAX_CONNECTIONS,
     DEFAULT_KEEPALIVE_EXPIRY
@@ -155,15 +155,11 @@ class OpenAIClient:
 
     def close(self):
         """Close the HTTP client connections."""
-        if hasattr(self, '_http_client'):
+        if hasattr(self, '_http_client') and self._http_client:
             self._http_client.close()
-        if hasattr(self, '_async_http_client'):
-            # Note: For async client, caller should use await client.async_client.close()
-            # or we can provide a separate close_async method
-            pass
 
     async def close_async(self):
         """Close the async HTTP client connections."""
-        if hasattr(self, '_async_http_client'):
+        if hasattr(self, '_async_http_client') and self._async_http_client:
             await self._async_http_client.aclose()
 

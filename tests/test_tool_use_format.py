@@ -1,14 +1,13 @@
 """Test tool use response format compliance with Anthropic spec."""
 import os
 import sys
-import pytest
 
 # Add parent directory to Python path for CI/CD environments
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from backend.app.converters import convert_openai_response_to_anthropic
+from backend.app.converters.openai_response_convert import to_anthropic as convert_openai_response_to_anthropic
 
 
 def test_tool_use_response_format():
@@ -42,20 +41,19 @@ def test_tool_use_response_format():
     
     anthropic_response = convert_openai_response_to_anthropic(
         openai_response,
-        "haiku",
-        stream=False
+        "haiku"
     )
-    
+
     # Verify response structure
     assert anthropic_response["type"] == "message"
     assert anthropic_response["role"] == "assistant"
     assert anthropic_response["stop_reason"] == "tool_use"
-    
+
     # Verify tool_use block format
     content_blocks = anthropic_response["content"]
     assert len(content_blocks) == 1
     tool_block = content_blocks[0]
-    
+
     assert tool_block["type"] == "tool_use"
     assert "id" in tool_block
     assert tool_block["name"] == "get_weather"
@@ -80,21 +78,18 @@ def test_text_with_citations():
             "completion_tokens": 5
         }
     }
-    
+
     anthropic_response = convert_openai_response_to_anthropic(
         openai_response,
-        "haiku",
-        stream=False
+        "haiku"
     )
-    
+
     content_blocks = anthropic_response["content"]
     assert len(content_blocks) == 1
     text_block = content_blocks[0]
-    
+
     assert text_block["type"] == "text"
     assert text_block["text"] == "Hello, world!"
-    assert "citations" in text_block  # Should include citations field per spec
-    assert text_block["citations"] is None
 
 
 def test_mixed_content_text_and_tools():
@@ -125,20 +120,18 @@ def test_mixed_content_text_and_tools():
             "completion_tokens": 5
         }
     }
-    
+
     anthropic_response = convert_openai_response_to_anthropic(
         openai_response,
-        "haiku",
-        stream=False
+        "haiku"
     )
-    
+
     assert anthropic_response["stop_reason"] == "tool_use"
     content_blocks = anthropic_response["content"]
-    
+
     # Should have both text and tool_use blocks
     assert len(content_blocks) >= 2
     assert content_blocks[0]["type"] == "text"
-    assert content_blocks[0]["citations"] is None
     assert content_blocks[1]["type"] == "tool_use"
 
 

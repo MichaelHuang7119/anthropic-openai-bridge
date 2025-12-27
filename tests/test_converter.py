@@ -1,18 +1,21 @@
 """Tests for converter functions."""
 import os
 import sys
-import pytest
 
 # Add parent directory to Python path for CI/CD environments
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from backend.app.converters import (
-    convert_anthropic_request_to_openai,
-    convert_anthropic_message_to_openai,
-    convert_anthropic_tool_to_openai,
-    convert_openai_response_to_anthropic
+from backend.app.converters.anthropic_request_convert import (
+    to_openai as convert_anthropic_request_to_openai,
+    convert_tool_to_openai as convert_anthropic_tool_to_openai
+)
+from backend.app.converters.anthropic_request_convert import (
+    _convert_user_message as convert_anthropic_message_to_openai
+)
+from backend.app.converters.openai_response_convert import (
+    to_anthropic as convert_openai_response_to_anthropic
 )
 from backend.app.core.models import Message, MessageRole, TextContent, ImageContent, ToolDefinition
 
@@ -165,8 +168,7 @@ def test_convert_openai_response():
     
     anthropic_response = convert_openai_response_to_anthropic(
         openai_response,
-        "haiku",
-        stream=False
+        "haiku"
     )
     
     assert anthropic_response["role"] == "assistant"

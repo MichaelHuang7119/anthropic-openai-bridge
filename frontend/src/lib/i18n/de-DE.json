@@ -187,7 +187,8 @@
     "noMessages": "Keine Nachrichten",
     "startConversation": "Unterhaltung starten",
     "welcomeTitle": "Willkommen beim KI-Chat",
-    "welcomeDescription": "Wählen Sie links eine Unterhaltung aus, um zu chatten, oder erstellen Sie eine neue Unterhaltung"
+    "welcomeDescription": "Wählen Sie links eine Unterhaltung aus, um zu chatten, oder erstellen Sie eine neue Unterhaltung",
+    "selectModelFirst": "Bitte wählen Sie zuerst ein Modell aus"
   },
   "login": {
     "title": "Anmelden",

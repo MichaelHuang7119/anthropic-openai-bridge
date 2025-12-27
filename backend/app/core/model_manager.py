@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, Dict
 import random
 import logging
 from ..config import Config, ProviderConfig
-from ..infrastructure import get_circuit_breaker_registry, with_circuit_breaker
+from ..infrastructure import get_circuit_breaker_registry
 
 logger = logging.getLogger(__name__)
 

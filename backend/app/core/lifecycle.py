@@ -2,9 +2,9 @@
 import os
 import logging
 
-from .config import config
-from .infrastructure import get_cache_manager
-from .database import get_database
+from ..config import config
+from ..infrastructure import get_cache_manager
+from ..database import get_database
 from .auth import hash_password
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,8 @@ async def init_default_admin():
     if user_id:
         logger.info(f"Created default admin user: {admin_email}")
         if not os.getenv("ADMIN_PASSWORD"):
-            logger.warning(f"Generated admin password: {admin_password} - Please save this and change it after first login!")
+            # In production, use ADMIN_PASSWORD env var. Random password was generated for safety.
+            logger.warning("No ADMIN_PASSWORD set. A random password was generated. Set ADMIN_PASSWORD environment variable before using in production!")
         else:
             logger.info("Admin user created with provided password")
     else:
@@ -59,7 +60,7 @@ async def init_default_admin():
 async def startup_event():
     """Initialize cache on startup."""
     # Initialize database
-    from .database import initialize_database
+    from ..database import initialize_database
     await initialize_database()
     logger.info("Database initialized successfully")
     
@@ -75,7 +76,7 @@ async def startup_event():
     # Start config hot reload
     hot_reload_enabled = os.getenv("CONFIG_HOT_RELOAD", "true").lower() in ("true", "1", "yes")
     if hot_reload_enabled:
-        from .config import start_config_hot_reload
+        from ..config import start_config_hot_reload
         # Create reload callback that reloads config
         def reload_config():
             try:
@@ -95,15 +96,15 @@ async def shutdown_event():
     logger.info("Shutting down and cleaning up resources...")
     
     # Stop config hot reload
-    from .config import stop_config_hot_reload
+    from ..config import stop_config_hot_reload
     stop_config_hot_reload()
     
     # Close cache connections
-    from .infrastructure import close_cache
+    from ..infrastructure import close_cache
     await close_cache()
     
     # Close database connections
-    from .database import close_database
+    from ..database import close_database
     await close_database()
     
     logger.info("Shutdown complete")

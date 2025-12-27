@@ -2,7 +2,6 @@
 Circuit breaker implementation for fault tolerance and resilience.
 Provides automatic failure detection and recovery for providers.
 """
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
@@ -143,10 +142,10 @@ class CircuitBreaker:
             result = await func(*args, **kwargs)
             self._on_success()
             return result
-        except self.expected_exception as e:
+        except self.expected_exception:
             self._on_failure()
             raise
-        except Exception as e:
+        except Exception:
             # Other exceptions also count as failures
             self._on_failure()
             raise
