@@ -514,6 +514,8 @@
         <div class="streaming-content-wrapper">
           <!-- eslint-disable-next-line svelte/no-at-html-tags -->
           {@html renderedStreamingContent}
+          <!-- Blinking cursor to indicate streaming -->
+          <span class="cursor"></span>
         </div>
       {:else}
         <!-- Marked.parse() sanitizes the markdown content -->
@@ -717,7 +719,8 @@
     font-size: 0.7rem;
   }
 
-  .code-block-container {
+  /* Code block styles for rendered HTML content */
+  :global(.code-block-container) {
     position: relative;
     margin: 0.75rem 0;
     border-radius: 0.5rem;
@@ -729,33 +732,32 @@
     box-sizing: border-box;
   }
 
-  .code-block-header {
+  :global(.code-block-header) {
     position: relative;
-    padding: 0.5rem 4rem;  /* 增加左右内边距，为两端元素留出空间 */
+    padding: 0.5rem 1rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    box-sizing: border-box;
   }
 
-  .code-language {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
+  :global(.code-language) {
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: var(--bg-secondary);
+    margin-right: auto;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
   }
 
-  .copy-code-btn {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
+  :global(.copy-code-btn) {
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -770,9 +772,10 @@
     line-height: 1;
     opacity: 0.95;
     font-weight: 500;
+    flex-shrink: 0;
   }
 
-  .copy-code-btn:hover {
+  :global(.copy-code-btn:hover) {
     background: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
@@ -781,17 +784,17 @@
     opacity: 1;
   }
 
-  .copy-code-btn:active {
+  :global(.copy-code-btn:active) {
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
   }
 
-  .copy-text,
-  .copied-text {
+  :global(.copy-text),
+  :global(.copied-text) {
     font-size: 0.75rem;
   }
 
-  .copy-code-btn.copied {
+  :global(.copy-code-btn.copied) {
     background: var(--success-color, #10b981);
     color: white;
     border-color: var(--success-color, #10b981);
@@ -800,24 +803,24 @@
     font-weight: 600;
   }
 
-  .copy-code-btn.copied:hover {
+  :global(.copy-code-btn.copied:hover) {
     background: var(--success-color, #0ea371);
     border-color: var(--success-color, #0ea371);
   }
 
-  :global([data-theme="dark"]) .copy-code-btn {
+  :global([data-theme="dark"]) :global(.copy-code-btn) {
     background: rgba(79, 70, 229, 0.2);
     border: 1px solid rgba(79, 70, 229, 0.4);
     color: #a5b4fc;
   }
 
-  :global([data-theme="dark"]) .copy-code-btn.copied {
+  :global([data-theme="dark"]) :global(.copy-code-btn.copied) {
     background: #059669;
     border-color: #059669;
     box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4);
   }
 
-  :global([data-theme="dark"]) .copy-code-btn.copied:hover {
+  :global([data-theme="dark"]) :global(.copy-code-btn.copied:hover) {
     background: #047857;
     border-color: #047857;
   }
@@ -990,31 +993,30 @@
 
   .thinking-wrapper :global(.code-block-header) {
     position: relative;
-    padding: 0.5rem 4rem;
+    padding: 0.5rem 1rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    box-sizing: border-box;
   }
 
   .thinking-wrapper :global(.code-language) {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: var(--bg-secondary);
+    margin-right: auto;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
   }
 
   .thinking-wrapper :global(.copy-code-btn) {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
     display: flex;
     align-items: center;
     gap: 0.375rem;
@@ -1029,6 +1031,7 @@
     line-height: 1;
     opacity: 0.95;
     font-weight: 500;
+    flex-shrink: 0;
   }
 
   .thinking-wrapper :global(.copy-code-btn:hover) {
@@ -1248,6 +1251,78 @@
     padding: 0;
   }
 
+  /* Ensure code block header always has space-between layout */
+  .content-text :global(.code-block-header) {
+    position: relative !important;
+    padding: 0.5rem 1rem !important;
+    background: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 2.5rem;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .content-text :global(.code-language) {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: auto;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  .content-text :global(.copy-code-btn) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: rgba(79, 70, 229, 0.1);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 0.375rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    line-height: 1;
+    opacity: 0.95;
+    font-weight: 500;
+    flex-shrink: 0;
+    margin-left: auto !important;
+  }
+
+  .content-text :global(.copy-code-btn:hover) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    opacity: 1;
+  }
+
+  .content-text :global(.copy-code-btn.copied) {
+    background: var(--success-color, #10b981);
+    color: white;
+    border-color: var(--success-color, #10b981);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    font-weight: 600;
+  }
+
+  .content-text :global(.copy-text),
+  .content-text :global(.copied-text) {
+    font-size: 0.75rem;
+  }
+
   .content-text :global(blockquote) {
     border-left: 3px solid var(--primary-color);
     padding-left: 1rem;
@@ -1326,6 +1401,21 @@
     display: inline;
   }
 
+  /* Keep pre and code blocks as block/inline-block */
+  .streaming-content-wrapper :global(pre),
+  .streaming-content-wrapper :global(.code-block-container) {
+    display: block !important;
+  }
+
+  .streaming-content-wrapper :global(pre code) {
+    display: inline !important;
+  }
+
+  /* Cursor should be block to avoid issues with inline layout */
+  .streaming-content-wrapper .cursor {
+    display: inline-block !important;
+  }
+
   .streaming-content-wrapper :global(pre) {
     display: block !important;
     white-space: pre !important;
@@ -1386,12 +1476,15 @@
   }
 
   .streaming-content-wrapper :global(.code-block-header) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
     padding: 0.5rem 1rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    box-sizing: border-box;
   }
 
   .streaming-content-wrapper :global(.code-language) {
@@ -1402,6 +1495,9 @@
     letter-spacing: 0.5px;
     margin-right: auto;
     flex-shrink: 0;
+    background: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
   }
 
   .streaming-content-wrapper :global(.copy-code-btn) {
@@ -1420,29 +1516,6 @@
     opacity: 0.95;
     font-weight: 500;
     flex-shrink: 0;
-  }
-
-  .streaming-content-wrapper :global(.copy-code-btn:hover) {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-    opacity: 1;
-  }
-
-  .streaming-content-wrapper :global(.copy-code-btn.copied) {
-    background: var(--success-color, #10b981);
-    color: white;
-    border-color: var(--success-color, #10b981);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    transform: translateY(-2px);
-    font-weight: 600;
-  }
-
-  .streaming-content-wrapper :global(.copy-code-btn.copied:hover) {
-    background: var(--success-color, #0ea371);
-    border-color: var(--success-color, #0ea371);
   }
 
   .streaming-thinking-wrapper {
@@ -1514,12 +1587,15 @@
   }
 
   .streaming-thinking-wrapper :global(.code-block-header) {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    position: relative;
     padding: 0.5rem 1rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    box-sizing: border-box;
   }
 
   .streaming-thinking-wrapper :global(.code-language) {
@@ -1530,6 +1606,9 @@
     letter-spacing: 0.5px;
     margin-right: auto;
     flex-shrink: 0;
+    background: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
   }
 
   .streaming-thinking-wrapper :global(.copy-code-btn) {
@@ -1878,12 +1957,11 @@
     }
 
     .code-language {
-      left: 0.75rem;
       font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
     }
 
     .copy-code-btn {
-      right: 0.75rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.6875rem;
       opacity: 1; /* 在移动端始终显示复制按钮 */
