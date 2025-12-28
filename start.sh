@@ -34,7 +34,7 @@ load_env() {
 load_env
 
 # 检查是否包含 --dev 参数
-DEV_MODE=false
+declare DEV_MODE=false
 for arg in "$@"; do
     if [[ "$arg" == "--dev" ]]; then
         DEV_MODE=true
@@ -121,10 +121,14 @@ if [ "$DEV_MODE" = true ]; then
     export VITE_USE_POLLING=true
     export RELOAD=true
     export WATCHFILES_FORCE_POLLING=1
+    export LOG_LEVEL=debug
+    export DEV_MODE=true
 else
     echo "🔧 生产模式 - 禁用热重载 + INFO 日志"
     echo "   日志级别: INFO (仅重要信息)"
     export RELOAD=false
+    export LOG_LEVEL=info
+    export DEV_MODE=false
 fi
 
 # 启动后端

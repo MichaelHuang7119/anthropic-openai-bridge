@@ -171,8 +171,9 @@ class UsersManager:
             fetch_one=True
         )
 
-        if row and row.get('language'):
-            return row['language']
+        # sqlite3.Row doesn't support .get() method, use index or column name access
+        if row and row[0]:
+            return row[0]
 
         return "en-US"
 

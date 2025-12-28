@@ -190,7 +190,7 @@
         };
         selectedModels = newModels;
         dispatch("modelsSelected", selectedModels);
-        console.log("Model updated at index", editingIndex, ":", newModels[editingIndex]);
+        console.log("Model updated at index", editingIndex, ":", $state.snapshot(newModels[editingIndex]));
       } else {
         // Add new model (allow duplicates to support testing same model with different parameters)
         // Assign modelInstanceIndex based on existing models with the same provider/apiFormat/model
@@ -211,7 +211,7 @@
 
         selectedModels = [...selectedModels, modelChoice];
         dispatch("modelsSelected", selectedModels);
-        console.log("Model added:", modelChoice, "Total models:", selectedModels.length);
+        console.log("Model added:", $state.snapshot(modelChoice), "Total models:", selectedModels.length);
       }
 
       // Reset form

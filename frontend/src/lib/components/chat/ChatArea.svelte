@@ -173,7 +173,7 @@
             }
             currentViewingMessageIds = migrated;
             hasLoadedMessageIds = true;
-            console.log('Initialized viewing message IDs with migration:', currentViewingMessageIds);
+            console.log('Initialized viewing message IDs with migration:', $state.snapshot(currentViewingMessageIds));
           }
         }
       } catch (e) {
@@ -345,7 +345,7 @@
         backendMessageCount: loadedMessages.length,
         uniqueMessageIds: Array.from(uniqueIds),
         hasDuplicates: uniqueIds.size !== loadedMessages.length,
-        backendMessages: loadedMessages
+        backendMessages: $state.snapshot(loadedMessages)
       });
 
       // Check if we have any streaming messages in progress
@@ -385,9 +385,9 @@
 
         if (tempUserMessages.length > 0 || tempAssistantMessages.length > 0 || streamingAssistantMessages.length > 0) {
           console.log("ChatArea: Preserving temporary messages:", {
-            tempUserMessages,
-            tempAssistantMessages,
-            streamingAssistantMessages
+            tempUserMessages: $state.snapshot(tempUserMessages),
+            tempAssistantMessages: $state.snapshot(tempAssistantMessages),
+            streamingAssistantMessages: $state.snapshot(streamingAssistantMessages)
           });
           messages = [...uniqueMessages, ...tempUserMessages, ...tempAssistantMessages];
         } else {
@@ -396,7 +396,7 @@
 
         console.log("ChatArea: Set messages array:", {
           uniqueMessageCount: messages.length,
-          messages: messages
+          messages: $state.snapshot(messages)
         });
 
         // Update model selector based on the last user question and its assistant responses
@@ -674,12 +674,12 @@
                     selectedModelName = latestModel.model;
                   }
 
-                  console.log("ChatArea: Updated model selector from all messages (fallback with grouping):", {
+                  console.log("ChatArea: Updated model selector from all messages (fallback with grouping):", $state.snapshot({
                     selectedModels,
                     selectedProviderName,
                     selectedApiFormat,
                     selectedModelName
-                  });
+                  }));
                 }
               }
             }
@@ -755,22 +755,22 @@
                 selectedProviderName = latestModel.providerName;
                 selectedApiFormat = latestModel.apiFormat;
                 selectedModelName = latestModel.model;
-                console.log("ChatArea: Updated model selector from all messages (fallback - latest only):", {
+                console.log("ChatArea: Updated model selector from all messages (fallback - latest only):", $state.snapshot({
                   selectedModels,
                   selectedProviderName,
                   selectedApiFormat,
                   selectedModelName
-                });
+                }));
               }
             }
           }
         } else if (messages.length > 0 && selectedModels && selectedModels.length > 0) {
-          console.log("ChatArea: Skipping model selector update - already initialized from parent:", {
+          console.log("ChatArea: Skipping model selector update - already initialized from parent:", $state.snapshot({
             selectedModels,
             selectedProviderName,
             selectedApiFormat,
             selectedModelName
-          });
+          }));
         }
       } else {
         // Streaming in progress - only update model selector, don't replace messages
@@ -1047,16 +1047,16 @@
               }]
             : []);
 
-    console.log("ChatArea: Sending message details:", {
+    console.log("ChatArea: Sending message details:", $state.snapshot({
       selectedModelsLength: selectedModels.length,
-      selectedModels: selectedModels,
+      selectedModels,
       selectedModelName: selectedModelName,
       conversationModel: conversation.model,
-      modelsToUse: modelsToUse,
+      modelsToUse,
       modelsToUseLength: modelsToUse.length,
       streamingMessageId: event.streamingMessageId,
       skipAddUserMessage: event.skipAddUserMessage
-    });
+    }));
 
     if (modelsToUse.length === 0) {
       console.error("✗ No models to use");
@@ -1072,7 +1072,7 @@
     userScrolledUp = false;
     isAtBottom = true;
 
-    console.log("ChatArea: Sending message to models:", modelsToUse);
+    console.log("ChatArea: Sending message to models:", $state.snapshot(modelsToUse));
     console.log("========================================");
 
     try {
@@ -1163,6 +1163,13 @@
         streamingFinished[index] = false;
       });
       isLoading = true;
+
+      // Debug: Log messages before sending
+      console.log("ChatArea: Sending messages array to API:", {
+        messagesCount: messages.length,
+        messages: $state.snapshot(messages),
+        userMessage
+      });
 
       // Send to all selected models
       const promises = modelsToUse.map(async (model, index) => {
@@ -1307,7 +1314,7 @@
               // All streams completed - reload messages to get the latest state from database
               isLoading = false;
 
-              console.log("ChatArea: All streams completed, messages before reload:", messages);
+              console.log("ChatArea: All streams completed, messages before reload:", $state.snapshot(messages));
 
               // Reload messages to ensure we have the latest database state
               // This ensures correct result counting (e.g., 4/5 instead of losing the count)
@@ -1418,7 +1425,7 @@
 
     // Debug: print all assistant messages
     const assistantMessages = messages.filter(m => m.role === "assistant");
-    console.log("All assistant messages:", assistantMessages.map(m => ({
+    console.log("All assistant messages:", $state.snapshot(assistantMessages.map(m => ({
       id: m.id,
       provider_name: m.provider_name,
       api_format: m.api_format,
@@ -1426,7 +1433,7 @@
       model_instance_index: m.model_instance_index,
       parent_message_id: (m as any).parent_message_id,
       content: m.content.substring(0, 50) + "..."
-    })));
+    }))));
 
     // Find the LAST assistant message that matches this model AND instance index
     // In multi-model scenarios, we want the most recent message for this specific model instance
@@ -1620,7 +1627,7 @@
           .slice(messageIndex + 1)
           .filter(msg => msg.role === "assistant");
 
-        console.log("ChatArea: Removing assistant messages:", assistantMessagesToRemove.map(m => m.id));
+        console.log("ChatArea: Removing assistant messages:", $state.snapshot(assistantMessagesToRemove.map(m => m.id)));
 
         // Remove them from the local state
         if (assistantMessagesToRemove.length > 0) {
@@ -1849,16 +1856,6 @@
                   {@const resultIndex = validIndex}
                   <!-- Each model should have independent navigation showing its own retry count -->
                   {@const totalResults = modelGroupMessages.length}
-                  <!-- DEBUG: Log navigation calculation -->
-                  {console.log('Navigation Debug:', {
-                    userMessageId: group.userMessage?.id,
-                    modelKey,
-                    modelGroupMessagesCount: modelGroupMessages.length,
-                    modelGroupMessagesIds: modelGroupMessages.map((m: Message) => m.id),
-                    totalResults,
-                    validIndex,
-                    currentMessageId: currentMessage?.id
-                  })}
                   <!-- Always show navigation for assistant messages, especially for retry functionality -->
                   {@const shouldShowNav = true}
 
@@ -1916,19 +1913,6 @@
                   {@const totalResultsForStreaming = modelGroupMessagesForStreaming.length + 1}
                   <!-- Always show navigation for streaming messages -->
                   {@const showResultNavigation = true}
-                  <!-- DEBUG: Log streaming navigation calculation -->
-                  {console.log('Streaming Navigation Debug:', {
-                    index,
-                    modelName,
-                    providerName,
-                    apiFormat,
-                    currentStreamingIndex,
-                    totalResultsForStreaming,
-                    userMessageId: userMessage?.id,
-                    existingMessagesCount: modelGroupMessagesForStreaming.length,
-                    modelKey,
-                    modelGroupMessagesIds: modelGroupMessagesForStreaming.map(m => m.id)
-                  })}
                   <div class="assistant-message-column">
                     <MessageBubble
                       message={{

@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
   import Card from '$components/ui/Card.svelte';
   import Input from '$components/ui/Input.svelte';
@@ -16,13 +14,6 @@
   let password = $state('');
   let loading = $state(false);
   let showPassword = $state(false);
-
-  // 如果已经登录，重定向到首页
-  onMount(() => {
-    if (browser && authService.isAuthenticated()) {
-      goto('/');
-    }
-  });
 
   async function handleSubmit() {
     if (!email || !password) {
@@ -53,7 +44,10 @@
 
       // 登录成功后跳转到首页，欢迎弹窗会在首页显示
       console.log('[Login] Redirecting to home page');
-      await goto('/');
+      // 使用 setTimeout 确保导航在正确的时机执行，避免 hydration 期间的问题
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 50);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('login.checkCredentials');
       toast.error(message);

@@ -440,16 +440,42 @@ class ChatService {
       );
       console.log("chatService: Filtered messages:", filteredMessages);
 
-      const messages = [
-        ...filteredMessages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        {
+      // Check if the new message is already in the conversation.messages
+      // This happens when the message was already added to the local state (e.g., from ChatArea)
+      // Use message ID comparison to avoid false positives from message content alone
+      const isMessageAlreadyAdded = filteredMessages.some(
+        (msg) => msg.role === "user" && msg.content === message,
+      );
+
+      console.log("=== DUPLICATE CHECK DEBUG ===");
+      console.log("chatService: New message to send:", message);
+      console.log(
+        "chatService: Existing messages count:",
+        filteredMessages.length,
+      );
+      console.log("chatService: isMessageAlreadyAdded:", isMessageAlreadyAdded);
+      filteredMessages.forEach((msg, idx) => {
+        console.log(`  [${idx}] role: ${msg.role}, content: "${msg.content}"`);
+      });
+      console.log("=== END DUPLICATE CHECK DEBUG ===");
+
+      // Build the messages array for the API
+      const messages = filteredMessages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Only add the new message if it's not already in the conversation
+      if (!isMessageAlreadyAdded) {
+        messages.push({
           role: "user",
           content: message,
-        },
-      ];
+        });
+      } else {
+        console.log(
+          "ChatService: Message already in conversation, skipping duplicate add",
+        );
+      }
 
       console.log("chatService: Final messages to send:", messages);
 
