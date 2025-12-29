@@ -147,8 +147,8 @@ class MessageService:
         provider_api_format = api_format or getattr(provider_config, 'api_format', 'openai').lower()
         start_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         logger.info(
-            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET} {COLOR_GREEN}Started at{COLOR_RESET} {COLOR_YELLOW}{start_timestamp}{COLOR_RESET}\n"
-            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET} Processing message request:\n"
+            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+            f"  {COLOR_GREEN}Started at{COLOR_RESET} {COLOR_YELLOW}{start_timestamp}{COLOR_RESET}\n"
             f"  {COLOR_GREEN}Model{COLOR_RESET}: {COLOR_YELLOW}{actual_model}{COLOR_RESET}\n"
             f"  {COLOR_GREEN}Provider{COLOR_RESET}: {COLOR_BLUE}{provider_config.name}{COLOR_RESET}\n"
             f"  {COLOR_GREEN}API Format{COLOR_RESET}: {COLOR_MAGENTA}{provider_api_format}{COLOR_RESET}\n"
@@ -217,16 +217,11 @@ class MessageService:
                 import datetime
                 session_info = f", Session: {session_id}" if session_id else ""
                 provider_api_format = getattr(provider_config, 'api_format', 'openai').lower()
-                # Only log timestamp on first iteration
-                if len(current_exclude_providers) == 0 and current_provider_name is None:
-                    start_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                    log_prefix = f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET} {COLOR_GREEN}Started at{COLOR_RESET} {COLOR_YELLOW}{start_timestamp}{COLOR_RESET}\n"
-                else:
-                    log_prefix = ""
+                start_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
                 logger.info(
-                    f"{log_prefix}"
-                    f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET} Processing message request:\n"
+                    f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                    f"  {COLOR_GREEN}Started at{COLOR_RESET} {COLOR_YELLOW}{start_timestamp}{COLOR_RESET}\n"
                     f"  {COLOR_GREEN}Model{COLOR_RESET}: {COLOR_YELLOW}{actual_model}{COLOR_RESET}\n"
                     f"  {COLOR_GREEN}Provider{COLOR_RESET}: {COLOR_BLUE}{provider_config.name}{COLOR_RESET}\n"
                     f"  {COLOR_GREEN}API Format{COLOR_RESET}: {COLOR_MAGENTA}{provider_api_format}{COLOR_RESET}\n"

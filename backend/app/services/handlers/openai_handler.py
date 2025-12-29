@@ -13,7 +13,7 @@ import httpx
 
 from .base import BaseRequestHandler
 from ...config import config
-from ...core import MessagesRequest, Message, ModelManager, COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN, COLOR_GREEN, COLOR_YELLOW, COLOR_RESET
+from ...core import MessagesRequest, Message, ModelManager, COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN, COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, COLOR_CYAN
 from ...converters import to_openai, to_anthropic, to_anthropic_async
 from ...infrastructure import OpenAIClient, retry_with_backoff, get_cache_manager
 from ...utils import openai_response_to_dict
@@ -297,7 +297,6 @@ class OpenAIMessageHandler(BaseRequestHandler):
                             logger.error(f"Received None stream from {provider_config.name}")
                             raise ValueError(f"Stream from {provider_config.name} is None")
 
-                        actual_provider = None
 
                         async def stream_iterator():
                             async for chunk in openai_stream:
@@ -308,15 +307,21 @@ class OpenAIMessageHandler(BaseRequestHandler):
                         actual_usage = None
                         actual_input_tokens = None
                         actual_output_tokens = None
+                        actual_provider = None
+                        actual_message_id = None
                         try:
                             async for chunk in self._convert_response_async(
                                 stream_iterator(), req.model, initial_input_tokens
                             ):
                                 chunk_count += 1
 
-                                if chunk.get("type") == "message_metadata" and not actual_provider:
+
+                                if chunk.get("type") == "message_metadata":
                                     actual_provider = chunk.get("actual_provider")
                                     logger.debug(f"Received actual_provider from metadata: {actual_provider}")
+                                    # Always extract message_id from metadata (this is the real one from OpenAI)
+                                    actual_message_id = chunk.get("actual_message_id")
+                                    logger.debug(f"Extracted real message_id from metadata: {actual_message_id}")
                                     continue
 
                                 # Extract actual usage from message_delta event
@@ -351,20 +356,25 @@ class OpenAIMessageHandler(BaseRequestHandler):
                         # Log success
                         import datetime
                         response_time_ms = (time.time() - start_time) * 1000
-                        provider_width = calculate_display_width(actual_provider or provider_config.name)
+                        # Use actual_provider_from_response if available, otherwise use actual_provider from metadata, fallback to provider_config.name
+                        display_provider = actual_provider or provider_config.name
+                        provider_width = calculate_display_width(display_provider)
                         total_width = 35
                         padding_needed = total_width - provider_width - 4
                         padding = " " * padding_needed
                         usage_source = "actual" if actual_usage else "estimate"
                         end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                         logger.info(
-                            f"[Request {request_id}] {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-                            f"[Request {request_id}] Streaming summary:\n"
+                            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                            f"  {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+                            f"  API Format: openai\n"
+                            f"  Stream: True\n"
                             f"  Provider: {provider_config.name}\n"
                             f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-                            f"  {COLOR_GREEN}│ {actual_provider or provider_config.name}{padding} │{COLOR_RESET}\n"
+                            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
                             f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
                             f"  Model: {actual_model}\n"
+                            f"  Actual Provider Message ID: {actual_message_id}\n"
                             f"  Input Tokens: {final_input_tokens} ({usage_source})\n"
                             f"  Output Tokens: {final_output_tokens} ({usage_source})\n"
                             f"  Response Time: {response_time_ms:.2f}ms\n"
@@ -641,19 +651,25 @@ class OpenAIMessageHandler(BaseRequestHandler):
 
         # Log completion for non-streaming
         import datetime
-        provider_width = calculate_display_width(provider_config.name)
+        # Use actual_provider_from_response if available, fallback to provider_config.name
+        display_provider = anthropic_response.get("provider") or provider_config.name or "unknown"
+        provider_width = calculate_display_width(display_provider)
+        actual_message_id = anthropic_response.get("id")
         total_width = 35
         padding_needed = total_width - provider_width - 4
         padding = " " * padding_needed
         end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         logger.info(
-            f"[Request {request_id}] {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-            f"[Request {request_id}] Response summary:\n"
+            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+            f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+            f"  API Format: openai\n"
+            f"  Stream: False\n"
             f"  Provider: {provider_config.name}\n"
             f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}│ {provider_config.name}{padding} │{COLOR_RESET}\n"
+            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
             f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
             f"  Model: {actual_model}\n"
+            f"  Actual Provider Message ID: {actual_message_id}\n"
             f"  Input Tokens: {input_tokens}\n"
             f"  Output Tokens: {output_tokens}\n"
             f"  Response Time: {response_time_ms:.2f}ms"

@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 import httpx
 
 from .base import BaseRequestHandler
-from ...core import MessagesRequest, ModelManager, COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN, COLOR_GREEN, COLOR_YELLOW, COLOR_RESET
+from ...core import MessagesRequest, ModelManager, COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN, COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, COLOR_CYAN
 from ...infrastructure import AnthropicClient, retry_with_backoff
 from ..token_counter import count_tokens_estimate
 from ...utils.token_extractor import extract_tokens_from_usage, update_token_tracking
@@ -295,7 +295,9 @@ class AnthropicMessageHandler(BaseRequestHandler):
         Returns:
             Tuple of (input_tokens, output_tokens)
         """
-        usage = response.get("usage", {})
+        # Handle case where usage key might be None instead of missing
+        usage_raw = response.get("usage")
+        usage = usage_raw if isinstance(usage_raw, dict) else {}
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
         return input_tokens, output_tokens
@@ -339,11 +341,32 @@ class AnthropicMessageHandler(BaseRequestHandler):
             messages = anthropic_request.get("messages", [])
             initial_input_tokens = count_tokens_estimate(messages, actual_model)
             reasoning_flag = False
+            # Track provider_message_id
+            actual_message_id = None
+            # Track actual provider name from API response
+            actual_provider = None
 
             try:
                 async for chunk in client.messages_async(anthropic_request, stream=True):
                     logger.debug(f"Anthropic streaming: {chunk}")
                     chunk_count += 1
+
+                    # Extract actual provider name from chunk
+                    if not actual_provider and isinstance(chunk, dict) and chunk.get("provider"):
+                        actual_provider = chunk.get("provider")
+                        logger.debug(f"Extracted actual provider: {actual_provider}")
+
+                    # Extract actual_message_id from chunk
+                    # For Anthropic, the id is in message_start event's message object
+                    if not actual_message_id and isinstance(chunk, dict):
+                        if chunk.get("type") == "message_start" and isinstance(chunk.get("message"), dict):
+                            actual_message_id = chunk.get("message", {}).get("id")
+                        elif chunk.get("id"):
+                            # Fallback to direct id if available
+                            actual_message_id = chunk.get("id")
+
+                        if actual_message_id:
+                            logger.debug(f"Extracted actual provider_message_id: {actual_message_id}")
 
                     # Extract usage from chunk (message_start, message_delta events)
                     chunk_usage = chunk.get("usage") if isinstance(chunk, dict) else None
@@ -385,8 +408,9 @@ class AnthropicMessageHandler(BaseRequestHandler):
                     # Log success
                     import datetime
                     response_time_ms = (time.time() - start_time) * 1000
-                    actual_provider = provider_config.name
-                    provider_width = calculate_display_width(actual_provider)
+                    # Use actual_provider from API response, fallback to provider_config.name
+                    display_provider = actual_provider or provider_config.name
+                    provider_width = calculate_display_width(display_provider)
                     total_width = 35
                     padding_needed = total_width - provider_width - 4
                     padding = " " * padding_needed
@@ -399,13 +423,16 @@ class AnthropicMessageHandler(BaseRequestHandler):
                     )
 
                     logger.info(
-                        f"[Request {request_id}] {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-                        f"[Request {request_id}] Streaming summary:\n"
+                        f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                        f"  {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+                        f"  API Format: anthropic\n"
+                        f"  Stream: True\n"
                         f"  Provider: {provider_config.name}\n"
                         f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-                        f"  {COLOR_GREEN}│ {actual_provider}{padding} │{COLOR_RESET}\n"
+                        f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
                         f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
                         f"  Model: {actual_model}\n"
+                        f"  Actual Provider Message ID: {actual_message_id}\n"
                         f"  Input Tokens: {final_input_tokens}\n"
                         f"  Output Tokens: {total_output_tokens}\n"
                         f"  Response Time: {response_time_ms:.2f}ms\n"
@@ -496,6 +523,17 @@ class AnthropicMessageHandler(BaseRequestHandler):
                 retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.RequestError),
                 provider_name=provider_config.name
             )
+
+            # Extract provider_message_id and actual provider from response
+            if isinstance(response, dict):
+                provider_message_id = response.get("id")
+                actual_provider = response.get("provider", provider_config.name)
+                logger.debug(f"Extracted provider_message_id: {provider_message_id}")
+                logger.debug(f"Extracted actual provider: {actual_provider}")
+            else:
+                provider_message_id = None
+                actual_provider = provider_config.name
+
         except httpx.HTTPStatusError as e:
             error_text = str(e.response.text) if hasattr(e.response, 'text') else ""
             logger.error(f"HTTP error from {provider_config.name}: {e.response.status_code} - {error_text}")
@@ -552,19 +590,24 @@ class AnthropicMessageHandler(BaseRequestHandler):
 
         # Log completion for non-streaming
         import datetime
-        provider_width = calculate_display_width(provider_config.name)
+        # Use actual_provider from API response, fallback to provider_config.name
+        display_provider = actual_provider or provider_config.name
+        provider_width = calculate_display_width(display_provider)
         total_width = 35
         padding_needed = total_width - provider_width - 4
         padding = " " * padding_needed
         end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         logger.info(
-            f"[Request {request_id}] {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-            f"[Request {request_id}] Response summary:\n"
+            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+            f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+            f"  API Format: anthropic\n"
+            f"  Stream: False\n"
             f"  Provider: {provider_config.name}\n"
             f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}│ {provider_config.name}{padding} │{COLOR_RESET}\n"
+            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
             f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
             f"  Model: {actual_model}\n"
+            f"  Actual Provider Message ID: {provider_message_id}\n"
             f"  Input Tokens: {input_tokens}\n"
             f"  Output Tokens: {output_tokens}\n"
             f"  Response Time: {response_time_ms:.2f}ms"

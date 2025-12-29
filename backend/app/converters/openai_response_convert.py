@@ -242,12 +242,12 @@ def to_anthropic(
     input_tokens = input_tokens if input_tokens is not None else 0
     output_tokens = output_tokens if output_tokens is not None else 0
 
-    message_id = openai_response.get('id', '')
-    if not message_id or not message_id.startswith('msg_'):
-        message_id = f"msg_{uuid.uuid4().hex[:24]}"
+    message_id = openai_response.get('id')
+    provider = openai_response.get("provider")
 
     response = {
         "id": message_id,
+        "provider": provider,
         "type": "message",
         "role": "assistant",
         "content": content_blocks if content_blocks else [{"type": "text", "text": ""}],
@@ -329,6 +329,13 @@ async def to_anthropic_async(
         logger.debug(f"OpenAI streaming: {chunk}")
         chunk_count += 1
 
+        # Extract message_id from OpenAI chunk if available
+        actual_message_id = None
+        if isinstance(chunk, dict):
+            actual_message_id = chunk.get("id")
+        elif hasattr(chunk, 'id'):
+            actual_message_id = getattr(chunk, 'id')
+
         # Extract usage from chunk
         chunk_usage = None
         if hasattr(chunk, 'usage') and chunk.usage:
@@ -390,6 +397,7 @@ async def to_anthropic_async(
             yield {
                 "type": "message_metadata",
                 "actual_provider": actual_provider,
+                "actual_message_id": actual_message_id,
             }
 
         choices = None
