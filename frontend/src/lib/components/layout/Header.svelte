@@ -372,7 +372,8 @@
     width: max-content;
     min-width: max-content;
     z-index: 1000;
-    overflow: hidden;
+    /* 使用padding替代overflow裁剪，确保点击区域不被裁剪 */
+    padding: 0.25rem;
   }
 
   .menu-item {
@@ -388,6 +389,9 @@
     font-size: 0.875rem;
     transition: background 0.15s;
     text-align: left;
+    /* 确保点击区域足够大 */
+    min-height: 44px;
+    box-sizing: border-box;
   }
 
   .menu-item:hover {

@@ -24,12 +24,15 @@
     { href: '/api-keys', label: 'nav.apiKeys' }
   ];
 
+  // 获取当前路径名（增加空值检查）
+  let currentPathname = $derived($page.url?.pathname || '');
+
   // 检查链接是否激活
   function isActive(href: string): boolean {
     if (href === '/') {
-      return $page.url.pathname === '/';
+      return currentPathname === '/';
     }
-    return $page.url.pathname.startsWith(href);
+    return currentPathname.startsWith(href);
   }
 
   // 初始化主题和语言，以及认证检查
@@ -51,7 +54,7 @@
     }
 
     // 检查认证状态（排除登录页）
-    if ($page.url.pathname !== '/login' && !authService.isAuthenticated()) {
+    if (currentPathname !== '/login' && !authService.isAuthenticated()) {
       goto('/login');
     }
 
@@ -75,8 +78,8 @@
   let { children } = $props();
 </script>
 
-<div class="app" class:chat-layout={$page.url.pathname === '/chat'}>
-  {#if $page.url.pathname !== '/login'}
+<div class="app" class:chat-layout={currentPathname === '/chat'}>
+  {#if currentPathname !== '/login'}
     <Header title="Anthropic OpenAI Bridge">
       {#snippet nav()}
         <nav>
@@ -96,7 +99,7 @@
   <main class="main">
     {@render children()}
   </main>
-  {#if $page.url.pathname !== '/login' && $page.url.pathname !== '/chat'}
+  {#if currentPathname !== '/login' && currentPathname !== '/chat'}
     <footer class="footer">
       <p>© 2025 Anthropic OpenAI Bridge.</p>
     </footer>
