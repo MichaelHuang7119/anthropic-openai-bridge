@@ -190,6 +190,11 @@ class DatabaseCore:
             await cursor.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en-US'")
             logger.info("Added language column to users table")
 
+        # 检查并添加 permissions 字段（如果不存在）
+        if 'permissions' not in columns:
+            await cursor.execute("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'")
+            logger.info("Added permissions column to users table")
+
         # Create api_keys table for API key management
         await cursor.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
@@ -301,6 +306,34 @@ class DatabaseCore:
         await cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_created_at
             ON conversation_messages(created_at)
+        """)
+
+        # Create oauth_accounts table for OAuth2 authentication
+        await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                provider_user_id TEXT NOT NULL,
+                access_token TEXT,
+                refresh_token TEXT,
+                token_expires_at TIMESTAMP,
+                raw_user_info TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(provider, provider_user_id),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user_id
+            ON oauth_accounts(user_id)
+        """)
+
+        await cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_oauth_accounts_provider
+            ON oauth_accounts(provider)
         """)
 
         await conn.commit()

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { onDestroy } from 'svelte';
   import { browser } from '$app/environment';
+  import { goto } from '$app/navigation';
   import Card from '$components/ui/Card.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
@@ -15,6 +16,11 @@
   import { toast } from '$stores/toast';
   import Input from '$components/ui/Input.svelte';
   import { tStore } from '$stores/language';
+
+  // Set page title
+  if (browser) {
+    document.title = 'Anthropic OpenAI Bridge';
+  }
 
   let loading = $state(true);
   let currentUrl = $state('');
@@ -112,6 +118,13 @@
   onMount(async () => {
     // 确保已认证后再加载数据
     if (!authService.isAuthenticated()) {
+      return;
+    }
+
+    // 如果没有 providers 权限，跳过数据加载（路由级别会重定向，但保留这里作为安全网）
+    if (!authService.hasPermission('providers')) {
+      console.log('[Home] User does not have providers permission');
+      loading = false;
       return;
     }
 
@@ -270,14 +283,14 @@
           </h1>
         </div>
         <div class="welcome-actions">
-          <Button variant="primary" onclick={() => window.location.href = '/providers'}>
+          <Button variant="primary" onclick={() => goto('/providers', { replaceState: true })}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
             {t('home.welcomeActions.addProvider')}
           </Button>
-          <Button variant="secondary" onclick={() => window.location.href = '/health'}>
+          <Button variant="secondary" onclick={() => goto('/health', { replaceState: true })}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
             </svg>

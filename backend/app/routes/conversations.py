@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Query
 
-from ..core.auth import require_admin
+from ..core.auth import require_user, require_conversations
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
@@ -104,7 +104,7 @@ class ConversationDetailResponse(BaseModel):
 async def get_conversations(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Get conversations for current user.
@@ -118,7 +118,7 @@ async def get_conversations(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -144,7 +144,7 @@ async def get_conversations(
 @router.post("", response_model=ConversationResponse, status_code=201)
 async def create_conversation(
     conversation: ConversationCreate,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Create a new conversation.
@@ -157,7 +157,7 @@ async def create_conversation(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -194,7 +194,7 @@ async def create_conversation(
 @router.get("/{conversation_id}", response_model=ConversationDetailResponse)
 async def get_conversation(
     conversation_id: int,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Get a specific conversation with messages.
@@ -207,7 +207,7 @@ async def get_conversation(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -247,7 +247,7 @@ async def get_conversation(
 async def update_conversation(
     conversation_id: int,
     update: ConversationUpdate,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Update conversation (rename).
@@ -261,7 +261,7 @@ async def update_conversation(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -293,7 +293,7 @@ async def update_conversation(
 @router.delete("/{conversation_id}", status_code=204)
 async def delete_conversation(
     conversation_id: int,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Delete a conversation and all its messages.
@@ -306,7 +306,7 @@ async def delete_conversation(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -325,7 +325,7 @@ async def delete_conversation(
 async def add_message(
     conversation_id: int,
     message_data: MessageCreate,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Add a message to a conversation.
@@ -342,7 +342,7 @@ async def add_message(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -408,7 +408,7 @@ async def add_message(
 async def get_messages(
     conversation_id: int,
     limit: Optional[int] = Query(None, ge=1, le=1000),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_conversations())
 ):
     """
     Get messages for a conversation.
@@ -422,7 +422,7 @@ async def get_messages(
         from ..database import get_database
         db = get_database()
 
-        user_id = user.get("user_id")
+        user_id = user.get("id")
         if not user_id:
             raise HTTPException(status_code=401, detail="User not authenticated")
 

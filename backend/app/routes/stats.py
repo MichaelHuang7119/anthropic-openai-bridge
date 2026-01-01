@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from ..database import get_database
-from ..core.auth import require_admin
+from ..core.auth import require_admin, require_stats
 from ..core import COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -24,7 +24,7 @@ async def get_request_stats(
     ),
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    user: dict = Depends(require_admin()),
+    user: dict = Depends(require_stats()),
 ):
     """获取请求日志统计"""
     try:
@@ -96,7 +96,7 @@ async def get_request_stats(
 async def get_token_usage_stats(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    user: dict = Depends(require_admin()),
+    user: dict = Depends(require_stats()),
 ):
     """获取 Token 使用统计"""
     try:
@@ -114,7 +114,7 @@ async def get_token_usage_stats(
 async def get_performance_summary(
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_stats())
 ):
     """获取性能摘要统计"""
     try:

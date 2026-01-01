@@ -7,6 +7,7 @@
     "home": "Beranda",
     "chat": "Chat",
     "providers": "Penyedia",
+    "users": "Pengguna",
     "apiKeys": "Kunci API",
     "stats": "Statistik",
     "health": "Kesehatan",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Disalin ke clipboard",
     "copyFailed": "Gagal menyalin, silakan salin secara manual",
     "copyErrorMessage": "Salin pesan error",
+    "accessDenied": "Akses ditolak",
+    "saving": "Menyimpan...",
+    "back": "Kembali",
+    "loginSuccess": "Selamat datang, ",
+    "redirecting": "Mengalihkan...",
     "close": "Tutup"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Ambang Kegagalan",
     "failureThresholdHelp": "Berapa banyak kegagalan berturut-turut untuk memicu circuit breaker (1-20)",
     "recoveryTimeout": "Timeout Pemulihan (detik)",
-    "recoveryTimeoutHelp": "Berapa lama menunggu sebelum mencoba pemulihan setelah circuit breaker terbuka (10-600 detik)"
+    "recoveryTimeoutHelp": "Berapa lama menunggu sebelum mencoba pemulihan setelah circuit breaker terbuka (10-600 detik)",
+    "retryOnZeroOutput": "Coba lagi pada Output Token Nol",
+    "retryOnZeroOutputDesc": "Secara otomatis coba lagi dengan penyedia lain ketika permintaan mengembalikan nol token output"
   },
   "stats": {
     "title": "Statistik Penggunaan",
@@ -657,5 +665,78 @@
     "step3Title": "Mulai obrolan",
     "step3Desc": "Buka halaman Chat untuk memulai percakapan AI Anda",
     "getStarted": "Mulai"
+  },
+  "permissions": {
+    "title": "Manajemen Izin",
+    "manage": "Kelola Izin",
+    "categories": {
+      "feature": "Izin Fitur",
+      "admin": "Izin Admin",
+      "system": "Izin Sistem"
+    },
+    "loadFailed": "Gagal memuat izin",
+    "saveFailed": "Gagal menyimpan izin",
+    "saved": "Izin tersimpan",
+    "reset": "Atur ulang ke default",
+    "resetConfirm": "Apakah Anda yakin ingin mengatur ulang izin ke default?",
+    "resetSuccess": "Izin diatur ulang ke default",
+    "resetFailed": "Gagal mengatur ulang izin",
+    "accessDenied": "Anda tidak memiliki izin untuk mengakses halaman ini",
+    "adminUser": "Admin - Izin tidak dapat diubah"
+  },
+  "users": {
+    "title": "Manajemen Pengguna",
+    "searchPlaceholder": "Cari pengguna...",
+    "email": "Email",
+    "name": "Nama",
+    "role": "Peran",
+    "status": "Status",
+    "createdAt": "Dibuat",
+    "lastLogin": "Login Terakhir",
+    "actions": "Aksi",
+    "noUsers": "Tidak ada pengguna ditemukan",
+    "fetchFailed": "Gagal mengambil pengguna",
+    "addUser": "Tambah pengguna",
+    "editUser": "Edit pengguna",
+    "deleteUser": "Hapus pengguna",
+    "password": "Kata sandi",
+    "confirmPassword": "Konfirmasi kata sandi",
+    "isAdmin": "Admin",
+    "isActive": "Aktif",
+    "addFirstUser": "Tambah pengguna pertama",
+    "save": "Simpan",
+    "cancel": "Batal",
+    "saveSuccess": "Berhasil disimpan",
+    "saveFailed": "Gagal menyimpan",
+    "deleteSuccess": "Berhasil dihapus",
+    "deleteFailed": "Gagal menghapus",
+    "deleteConfirm": "Apakah Anda yakin ingin menghapus pengguna \"{email}\"?",
+    "deleteConfirmTitle": "Konfirmasi hapus",
+    "cannotDeleteSelf": "Tidak dapat menghapus akun sendiri",
+    "cannotDeactivateSelf": "Tidak dapat menonaktifkan akun sendiri",
+    "cannotRemoveOwnAdmin": "Tidak dapat menghapus hak admin sendiri",
+    "passwordTooShort": "Kata sandi minimal 8 karakter",
+    "emailAlreadyExists": "Email sudah terdaftar",
+    "invalidEmail": "Format email tidak valid",
+    "passwordMismatch": "Kata sandi tidak cocok",
+    "roles": {
+      "admin": "Admin",
+      "user": "Pengguna"
+    },
+    "statusActive": "Aktif",
+    "statusInactive": "Tidak Aktif",
+    "managePermissions": "Kelola izin",
+    "newPassword": "Kata sandi baru",
+    "newPasswordPlaceholder": "Kosongkan untuk mempertahankan kata sandi saat ini"
+  },
+  "pagination": {
+    "page": "Halaman",
+    "of": "dari",
+    "itemsPerPage": "item/halaman",
+    "firstPage": "Halaman pertama",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "lastPage": "Halaman terakhir",
+    "jumpTo": "Loncat ke"
   }
 }

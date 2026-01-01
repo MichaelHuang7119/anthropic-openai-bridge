@@ -7,6 +7,7 @@
     "home": "Trang chủ",
     "chat": "Chat",
     "providers": "Nhà cung cấp",
+    "users": "Người dùng",
     "apiKeys": "Khóa API",
     "stats": "Thống kê",
     "health": "Tình trạng",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Đã sao chép vào clipboard",
     "copyFailed": "Sao chép thất bại, vui lòng sao chép thủ công",
     "copyErrorMessage": "Sao chép thông báo lỗi",
+    "accessDenied": "Truy cập bị từ chối",
+    "saving": "Đang lưu...",
+    "back": "Quay lại",
+    "loginSuccess": "Chào mừng, ",
+    "redirecting": "Đang chuyển hướng...",
     "close": "Đóng"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Ngưỡng lỗi",
     "failureThresholdHelp": "Số lỗi liên tiếp để kích hoạt circuit breaker (1-20)",
     "recoveryTimeout": "Thời gian chờ khôi phục (giây)",
-    "recoveryTimeoutHelp": "Thời gian chờ trước khi thử khôi phục sau khi circuit breaker mở (10-600 giây)"
+    "recoveryTimeoutHelp": "Thời gian chờ trước khi thử khôi phục sau khi circuit breaker mở (10-600 giây)",
+    "retryOnZeroOutput": "Thử lại khi token đầu ra bằng 0",
+    "retryOnZeroOutputDesc": "Tự động thử lại với nhà cung cấp khác khi yêu cầu trả về 0 token đầu ra"
   },
   "stats": {
     "title": "Thống kê sử dụng",
@@ -657,5 +665,78 @@
     "step3Title": "Bắt đầu trò chuyện",
     "step3Desc": "Đi tới trang Chat để bắt đầu cuộc trò chuyện AI của bạn",
     "getStarted": "Bắt đầu"
+  },
+  "permissions": {
+    "title": "Quản lý quyền",
+    "manage": "Quản lý quyền",
+    "categories": {
+      "feature": "Quyền tính năng",
+      "admin": "Quyền quản trị viên",
+      "system": "Quyền hệ thống"
+    },
+    "loadFailed": "Tải quyền thất bại",
+    "saveFailed": "Lưu quyền thất bại",
+    "saved": "Quyền đã được lưu",
+    "reset": "Đặt lại về mặc định",
+    "resetConfirm": "Bạn có chắc chắn muốn đặt lại quyền về mặc định không?",
+    "resetSuccess": "Quyền đã được đặt lại về mặc định",
+    "resetFailed": "Đặt lại quyền thất bại",
+    "accessDenied": "Bạn không có quyền truy cập trang này",
+    "adminUser": "Quản trị viên - Quyền không thể chỉnh sửa"
+  },
+  "users": {
+    "title": "Quản lý người dùng",
+    "searchPlaceholder": "Tìm kiếm người dùng...",
+    "email": "Email",
+    "name": "Tên",
+    "role": "Vai trò",
+    "status": "Trạng thái",
+    "createdAt": "Đã tạo",
+    "lastLogin": "Đăng nhập cuối",
+    "actions": "Hành động",
+    "noUsers": "Không tìm thấy người dùng",
+    "fetchFailed": "Lấy người dùng thất bại",
+    "addUser": "Thêm người dùng",
+    "editUser": "Chỉnh sửa người dùng",
+    "deleteUser": "Xóa người dùng",
+    "password": "Mật khẩu",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "isAdmin": "Quản trị viên",
+    "isActive": "Hoạt động",
+    "addFirstUser": "Thêm người dùng đầu tiên",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "saveSuccess": "Lưu thành công",
+    "saveFailed": "Lưu thất bại",
+    "deleteSuccess": "Xóa thành công",
+    "deleteFailed": "Xóa thất bại",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa người dùng \"{email}\"",
+    "deleteConfirmTitle": "Xác nhận xóa",
+    "cannotDeleteSelf": "Bạn không thể xóa tài khoản của chính mình",
+    "cannotDeactivateSelf": "Bạn không thể vô hiệu hóa tài khoản của chính mình",
+    "cannotRemoveOwnAdmin": "Bạn không thể xóa quyền quản trị viên của chính mình",
+    "passwordTooShort": "Mật khẩu phải có ít nhất 8 ký tự",
+    "emailAlreadyExists": "Email đã được đăng ký",
+    "invalidEmail": "Định dạng email không hợp lệ",
+    "passwordMismatch": "Mật khẩu không khớp",
+    "roles": {
+      "admin": "Quản trị viên",
+      "user": "Người dùng"
+    },
+    "statusActive": "Hoạt động",
+    "statusInactive": "Không hoạt động",
+    "managePermissions": "Quản lý quyền",
+    "newPassword": "Mật khẩu mới",
+    "newPasswordPlaceholder": "Để trống để giữ nguyên mật khẩu hiện tại"
+  },
+  "pagination": {
+    "page": "Trang",
+    "of": "tổng",
+    "itemsPerPage": "mục/trang",
+    "firstPage": "Trang đầu",
+    "previousPage": "Trang trước",
+    "nextPage": "Trang sau",
+    "lastPage": "Trang cuối",
+    "jumpTo": "Đến trang"
   }
 }

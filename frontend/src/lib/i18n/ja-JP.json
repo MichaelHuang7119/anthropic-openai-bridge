@@ -7,6 +7,7 @@
     "home": "ホーム",
     "chat": "チャット",
     "providers": "プロバイダー",
+    "users": "ユーザー管理",
     "apiKeys": "APIキー",
     "stats": "統計",
     "health": "ヘルス",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Clipboardにコピーされました",
     "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
     "copyErrorMessage": "エラーメッセージをコピー",
+    "accessDenied": "アクセスが拒否されました",
+    "saving": "保存中...",
+    "back": "戻る",
+    "loginSuccess": "ようこそ、",
+    "redirecting": "リダイレクト中...",
     "close": "閉じる"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "失敗しきい値",
     "failureThresholdHelp": "サーキットブレーカーをトリガーする連続失敗回数（1-20）",
     "recoveryTimeout": "復旧タイムアウト（秒）",
-    "recoveryTimeoutHelp": "サーキットブレーカー開放後の復旧試行までの待機時間（10-600秒）"
+    "recoveryTimeoutHelp": "サーキットブレーカー開放後の復旧試行までの待機時間（10-600秒）",
+    "retryOnZeroOutput": "ゼロ出力トークンの再試行",
+    "retryOnZeroOutputDesc": "リクエストがゼロ出力トークンを返した場合、自動的に別のプロバイダーで再試行します"
   },
   "stats": {
     "title": "使用統計",
@@ -657,5 +665,78 @@
     "step3Title": "チャットの開始",
     "step3Desc": "チャットページに移動して AI 会話を開始します",
     "getStarted": "始める"
+  },
+  "permissions": {
+    "title": "権限管理",
+    "manage": "権限管理",
+    "categories": {
+      "feature": "機能権限",
+      "admin": "管理権限",
+      "system": "システム権限"
+    },
+    "loadFailed": "権限の読み込みに失敗しました",
+    "saveFailed": "権限の保存に失敗しました",
+    "saved": "権限が保存されました",
+    "reset": "デフォルトにリセット",
+    "resetConfirm": "権限をデフォルトにリセットしますか？",
+    "resetSuccess": "権限がデフォルトにリセットされました",
+    "resetFailed": "権限のリセットに失敗しました",
+    "accessDenied": "このページにアクセスする権限がありません",
+    "adminUser": "管理者ユーザー - 権限は編集できません"
+  },
+  "users": {
+    "title": "ユーザー管理",
+    "searchPlaceholder": "ユーザーを検索...",
+    "email": "メール",
+    "name": "名前",
+    "role": "役割",
+    "status": "ステータス",
+    "createdAt": "作成日",
+    "lastLogin": "最終ログイン",
+    "actions": "操作",
+    "noUsers": "ユーザーが見つかりません",
+    "fetchFailed": "ユーザーの取得に失敗しました",
+    "addUser": "ユーザーを追加",
+    "editUser": "ユーザーを編集",
+    "deleteUser": "ユーザーを削除",
+    "password": "パスワード",
+    "confirmPassword": "パスワード確認",
+    "isAdmin": "管理者",
+    "isActive": "有効",
+    "addFirstUser": "最初のユーザーを追加",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "saveSuccess": "正常に保存されました",
+    "saveFailed": "保存に失敗しました",
+    "deleteSuccess": "正常に削除されました",
+    "deleteFailed": "削除に失敗しました",
+    "deleteConfirm": "ユーザー \"{email}\" を削除してもよろしいですか？",
+    "deleteConfirmTitle": "削除の確認",
+    "cannotDeleteSelf": "自分のアカウントは削除できません",
+    "cannotDeactivateSelf": "自分のアカウントを無効にできません",
+    "cannotRemoveOwnAdmin": "自分の管理者権限を削除できません",
+    "passwordTooShort": "パスワードは8文字以上である必要があります",
+    "emailAlreadyExists": "メールは既に登録されています",
+    "invalidEmail": "メール形式が無効です",
+    "passwordMismatch": "パスワードが一致しません",
+    "roles": {
+      "admin": "管理者",
+      "user": "一般ユーザー"
+    },
+    "statusActive": "有効",
+    "statusInactive": "無効",
+    "managePermissions": "権限管理",
+    "newPassword": "新しいパスワード",
+    "newPasswordPlaceholder": "空欄のままにすると現在のパスワードを維持します"
+  },
+  "pagination": {
+    "page": "ページ",
+    "of": "/",
+    "itemsPerPage": "件/ページ",
+    "firstPage": "最初のページ",
+    "previousPage": "前のページ",
+    "nextPage": "次のページ",
+    "lastPage": "最後のページ",
+    "jumpTo": "ジャンプ"
   }
 }

@@ -7,6 +7,7 @@
     "home": "Accueil",
     "chat": "Chat",
     "providers": "Fournisseurs",
+    "users": "Utilisateurs",
     "apiKeys": "Clés API",
     "stats": "Statistiques",
     "health": "Santé",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Copié dans le presse-papiers",
     "copyFailed": "Échec de la copie, veuillez copier manuellement",
     "copyErrorMessage": "Copier le message d'erreur",
+    "accessDenied": "Accès refusé",
+    "saving": "Enregistrement...",
+    "back": "Retour",
+    "loginSuccess": "Bienvenue, ",
+    "redirecting": "Redirection...",
     "close": "Fermer"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Seuil d'échec",
     "failureThresholdHelp": "Nombre d'échecs consécutifs pour déclencher le disjoncteur (1-20)",
     "recoveryTimeout": "Délai de récupération (secondes)",
-    "recoveryTimeoutHelp": "Temps d'attente avant d'essayer de récupérer après l'ouverture du disjoncteur (10-600 secondes)"
+    "recoveryTimeoutHelp": "Temps d'attente avant d'essayer de récupérer après l'ouverture du disjoncteur (10-600 secondes)",
+    "retryOnZeroOutput": "Réessayer avec sortie token zéro",
+    "retryOnZeroOutputDesc": "Réessayer automatiquement avec un autre fournisseur lorsqu'une requête retourne zéro token de sortie"
   },
   "stats": {
     "title": "Statistiques d'utilisation",
@@ -657,5 +665,78 @@
     "step3Title": "Commencer à discuter",
     "step3Desc": "Accédez à la page Chat pour commencer votre conversation IA",
     "getStarted": "Commencer"
+  },
+  "permissions": {
+    "title": "Gestion des permissions",
+    "manage": "Gérer les permissions",
+    "categories": {
+      "feature": "Permissions des fonctionnalités",
+      "admin": "Permissions d'administration",
+      "system": "Permissions système"
+    },
+    "loadFailed": "Échec du chargement des permissions",
+    "saveFailed": "Échec de l'enregistrement des permissions",
+    "saved": "Permissions enregistrées",
+    "reset": "Réinitialiser par défaut",
+    "resetConfirm": "Êtes-vous sûr de vouloir réinitialiser les permissions par défaut ?",
+    "resetSuccess": "Permissions réinitialisées par défaut",
+    "resetFailed": "Échec de la réinitialisation des permissions",
+    "accessDenied": "Vous n'avez pas la permission d'accéder à cette page",
+    "adminUser": "Administrateur - Les permissions ne peuvent pas être modifiées"
+  },
+  "users": {
+    "title": "Gestion des utilisateurs",
+    "searchPlaceholder": "Rechercher des utilisateurs...",
+    "email": "Email",
+    "name": "Nom",
+    "role": "Rôle",
+    "status": "Statut",
+    "createdAt": "Créé le",
+    "lastLogin": "Dernière connexion",
+    "actions": "Actions",
+    "noUsers": "Aucun utilisateur trouvé",
+    "fetchFailed": "Échec de la récupération des utilisateurs",
+    "addUser": "Ajouter un utilisateur",
+    "editUser": "Modifier l'utilisateur",
+    "deleteUser": "Supprimer l'utilisateur",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "isAdmin": "Administrateur",
+    "isActive": "Actif",
+    "addFirstUser": "Ajouter le premier utilisateur",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "saveSuccess": "Enregistré avec succès",
+    "saveFailed": "Échec de l'enregistrement",
+    "deleteSuccess": "Supprimé avec succès",
+    "deleteFailed": "Échec de la suppression",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer l'utilisateur \"{email}\" ?",
+    "deleteConfirmTitle": "Confirmer la suppression",
+    "cannotDeleteSelf": "Vous ne pouvez pas supprimer votre propre compte",
+    "cannotDeactivateSelf": "Vous ne pouvez pas désactiver votre propre compte",
+    "cannotRemoveOwnAdmin": "Vous ne pouvez pas supprimer vos propres privilèges d'administrateur",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "emailAlreadyExists": "L'email est déjà enregistré",
+    "invalidEmail": "Format d'email invalide",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "roles": {
+      "admin": "Administrateur",
+      "user": "Utilisateur"
+    },
+    "statusActive": "Actif",
+    "statusInactive": "Inactif",
+    "managePermissions": "Gérer les permissions",
+    "newPassword": "Nouveau mot de passe",
+    "newPasswordPlaceholder": "Laissez vide pour conserver le mot de passe actuel"
+  },
+  "pagination": {
+    "page": "Page",
+    "of": "sur",
+    "itemsPerPage": "éléments/page",
+    "firstPage": "Première page",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "lastPage": "Dernière page",
+    "jumpTo": "Aller à"
   }
 }

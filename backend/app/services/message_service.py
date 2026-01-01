@@ -82,6 +82,7 @@ class MessageService:
         """
         request_id = str(uuid.uuid4())
         start_time = time.time()
+        req = None
 
         try:
             if isinstance(request, dict):
@@ -283,14 +284,16 @@ class MessageService:
 
         raise ValueError(f"All providers exhausted for model '{req.model}'")
 
-    async def _log_error(self, request_id: str, error: Exception, req: MessagesRequest):
+    async def _log_error(self, request_id: str, error: Exception, req: Optional[MessagesRequest]):
         """Log error to database."""
         try:
             db = get_database()
+            model = req.model if req else "unknown"
+            request_params = req.model_dump() if req else {}
             await db.log_request(
                 request_id=request_id,
                 provider_name="unknown",
-                model=req.model,
+                model=model,
                 request_params={},
                 status_code=500,
                 error_message=str(error),

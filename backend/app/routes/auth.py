@@ -2,14 +2,20 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+import json
+import logging
 
 from ..core.auth import (
     verify_password,
     hash_password,
     create_access_token,
-    require_admin
+    require_admin,
+    require_user
 )
 from ..database import get_database
+from ..core.permissions import DEFAULT_USER_PERMISSIONS, ADMIN_PERMISSIONS, PermissionCategory
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -145,16 +151,52 @@ async def register(
 
 @router.get("/me")
 async def get_current_user_info(
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_user())
 ):
-    """获取当前用户信息（需要管理员权限）"""
-    return current_user
+    """获取当前用户信息（需要用户登录权限）"""
+    db = get_database()
+
+    # Get full user data including permissions
+    user = await db.get_user_by_id(current_user["id"])
+
+    # Parse permissions from database
+    user_permissions = user.get("permissions") if user else None
+    has_stored_permissions = False
+    permissions = {}
+    if user_permissions:
+        try:
+            perms = json.loads(user_permissions)
+            # Only use stored permissions if not empty
+            if perms and len(perms) > 0:
+                has_stored_permissions = True
+                # perms is a dict with string keys (already converted from JSON)
+                # Ensure keys are lowercase for frontend compatibility
+                permissions = {k.lower(): v for k, v in perms.items()}
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+
+    if not has_stored_permissions:
+        # No stored permissions, use defaults based on admin status (use lowercase for frontend)
+        if user and user.get("is_admin"):
+            permissions = {k.value.lower(): v for k, v in ADMIN_PERMISSIONS.items()}
+        else:
+            permissions = {k.value.lower(): v for k, v in DEFAULT_USER_PERMISSIONS.items()}
+
+    # Return user info with permissions
+    logger.debug(f"User permissions for {current_user['email']}: {permissions}")
+    return {
+        "id": current_user["id"],
+        "email": current_user["email"],
+        "name": user.get("name") if user else None,
+        "is_admin": current_user.get("is_admin", False),
+        "permissions": permissions
+    }
 
 
 @router.put("/change-password", response_model=ChangePasswordResponse)
 async def change_password(
     request: ChangePasswordRequest,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_user())
 ):
     """修改密码"""
     db = get_database()

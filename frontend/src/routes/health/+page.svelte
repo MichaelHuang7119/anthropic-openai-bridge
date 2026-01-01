@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
@@ -13,9 +14,12 @@
   import { healthService } from '$services/health';
   import type { ProviderHealth, CategoryHealth } from '$types/health';
   import { tStore, language } from '$stores/language';
+  import { toast } from '$stores/toast';
+  import { authService } from '$services/auth';
 
   let loading = $state(false);
   let hasData = $state(false);
+  let hasPermission = $state(true);
 
   // 请求取消控制器（用于组件卸载时取消请求）
   let abortController: AbortController | null = null;
@@ -79,6 +83,16 @@
   ));
 
   onMount(async () => {
+    // 检查权限
+    if (!authService.hasPermission('health')) {
+      hasPermission = false;
+      loading = false;
+      toast.error(t('common.accessDenied'));
+      // 延迟跳转，让用户看到 toast
+      setTimeout(() => goto('/chat'), 1000);
+      return;
+    }
+
     abortController = new AbortController();
     // 页面加载时不自动进行新的健康检查
     // 首先检查localStorage中是否有数据
@@ -112,6 +126,8 @@
         return;
       }
       console.error('Failed to load health status:', error);
+      const message = error instanceof Error ? error.message : 'Failed to load health status';
+      toast.error(message);
       // 即使加载失败，也保持localStorage中的数据
     }
   });
@@ -141,6 +157,8 @@
         return;
       }
       console.error('Failed to load health status:', error);
+      const message = error instanceof Error ? error.message : 'Failed to load health status';
+      toast.error(message);
     } finally {
       if (!abortController?.signal.aborted) {
         loading = false;
@@ -283,6 +301,16 @@
 </script>
 
 <div class="container">
+  {#if !hasPermission}
+    <div class="access-denied">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+      </svg>
+      <p>{t('common.accessDenied')}</p>
+      <p class="redirect-hint">{t('common.redirecting')}</p>
+    </div>
+  {:else}
   <div class="page-header">
     <div class="actions">
       <Button variant="primary" onclick={loadHealth} disabled={loading} title={t('health.checkNow')} class="icon-button {loading ? 'spinning' : ''}">
@@ -536,6 +564,7 @@
       </div>
     {/if}
   {/if}
+  {/if}
 </div>
 
 <!-- Error Message Modal -->
@@ -557,6 +586,32 @@
   .actions {
     display: flex;
     gap: 1rem;
+  }
+
+  .access-denied {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .access-denied svg {
+    color: var(--danger-color, #dc3545);
+    margin-bottom: 1rem;
+  }
+
+  .access-denied p {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .access-denied .redirect-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
   }
 
   .realtime-status {

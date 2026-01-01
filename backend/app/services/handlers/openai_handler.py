@@ -279,14 +279,20 @@ class OpenAIMessageHandler(BaseRequestHandler):
                         messages_list.append(msg)
                 initial_input_tokens = count_tokens_estimate(messages_list, actual_model)
 
-                max_retries = provider_config.max_retries
-                retry_count = 0
+                # Zero output tokens retry: use config retry count
+                max_zero_output_retries = config.app_config.retry_on_zero_output_tokens_retries if config.app_config.retry_on_zero_output_tokens else 0
+                zero_output_retry_count = 0
 
-                while retry_count <= max_retries:
+                # Network error retry: use provider max_retries
+                max_network_retries = provider_config.max_retries if hasattr(provider_config, 'max_retries') else 3
+                network_error_retries = 0
+
+                while zero_output_retry_count <= max_zero_output_retries:
                     try:
                         async def make_stream_request():
                             return await client.chat_completion_async(**api_params)
 
+                        # Network errors are handled separately, so pass max_retries=0 here
                         openai_stream = await retry_with_backoff(
                             make_stream_request,
                             max_retries=0,
@@ -396,22 +402,58 @@ class OpenAIMessageHandler(BaseRequestHandler):
                         await self._update_token_usage(
                             provider_config.name, actual_model, final_input_tokens, final_output_tokens, cost_estimate
                         )
+                        
+                        # Check for zero output tokens and trigger retry if configured
+                        if final_output_tokens == 0 and config.app_config.retry_on_zero_output_tokens:
+                            if zero_output_retry_count < max_zero_output_retries:
+                                logger.warning(
+                                    f"Zero output tokens from {provider_config.name} for model {actual_model}. "
+                                    f"Request ID: {request_id}. Retrying ({zero_output_retry_count + 1}/{max_zero_output_retries})..."
+                                )
+                                # Notify client about retry
+                                retry_notification = {
+                                    "type": "error",
+                                    "error": {
+                                        "type": "zero_output_tokens",
+                                        "message": f"Provider '{provider_config.name}' returned zero output tokens. Retrying ({zero_output_retry_count + 1}/{max_zero_output_retries})...",
+                                        "code": "retrying",
+                                        "provider": provider_config.name,
+                                        "model": actual_model,
+                                        "retry_count": zero_output_retry_count + 1,
+                                        "max_retries": max_zero_output_retries
+                                    }
+                                }
+                                yield f"event: error\ndata: {json.dumps(retry_notification)}\n\n"
+                                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                                zero_output_retry_count += 1
+                                continue  # Retry the request
+                            else:
+                                # Max retries reached, log and return
+                                logger.warning(
+                                    f"Max retries ({max_zero_output_retries}) reached for zero output tokens from {provider_config.name}. "
+                                    f"Model: {actual_model}, Request ID: {request_id}"
+                                )
 
                         break
 
                     except (httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, APIConnectionError) as e:
-                        retry_count += 1
-                        if retry_count <= max_retries:
-                            delay = min(1.0 * (2.0 ** (retry_count - 1)), 60.0)
+                        network_error_retries += 1
+                        if network_error_retries <= max_network_retries:
+                            delay = min(1.0 * (2.0 ** (network_error_retries - 1)), 60.0)
                             error_type = "connection_timeout" if isinstance(e, (httpx.ConnectTimeout, httpx.PoolTimeout)) else \
                                          "read_timeout" if isinstance(e, (httpx.ReadTimeout, httpx.TimeoutException)) else \
                                          "connection_error"
-                            logger.warning(f"Streaming error ({error_type}) for {provider_config.name}, retry {retry_count}/{max_retries}")
+                            logger.warning(
+                                f"Streaming error ({error_type}) for {provider_config.name}, "
+                                f"retry {network_error_retries}/{max_network_retries}, will retry in {delay:.1f}s"
+                            )
                             await asyncio.sleep(delay)
                             continue
                         else:
+                            logger.error(f"Max network retries ({max_network_retries}) reached for streaming from {provider_config.name}")
                             yield f"event: error\ndata: {json.dumps({'type': 'error', 'error': {'type': 'connection_error', 'message': str(e)}})}\n\n"
-                            raise
+                            yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                            break
 
             except Exception as e:
                 logger.error(f"Unexpected error in streaming: {e}", exc_info=True)
@@ -435,7 +477,7 @@ class OpenAIMessageHandler(BaseRequestHandler):
         request_id: str,
         start_time: float
     ) -> dict:
-        """Handle non-streaming OpenAI-format request.
+        """Handle non-streaming OpenAI-format request with automatic retry on zero output tokens.
 
         Args:
             req: The request object
@@ -454,225 +496,270 @@ class OpenAIMessageHandler(BaseRequestHandler):
         self._filter_unsupported_params(provider_config, openai_request)
         self._validate_max_tokens(openai_request, provider_config, actual_model)
 
-        client = OpenAIClient(provider_config)
+        # Zero output tokens retry: use config retry count
+        max_zero_output_retries = config.app_config.retry_on_zero_output_tokens_retries if config.app_config.retry_on_zero_output_tokens else 0
+        zero_output_retry_count = 0
+        max_network_retries = provider_config.max_retries if hasattr(provider_config, 'max_retries') else 3
 
-        try:
-            api_params = {
-                "model": actual_model,
-                "messages": openai_request["messages"],
-                "stream": False,
-            }
-            if "temperature" in openai_request:
-                api_params["temperature"] = openai_request["temperature"]
-            if "tools" in openai_request:
-                api_params["tools"] = openai_request["tools"]
-            if "max_tokens" in openai_request:
-                api_params["max_tokens"] = openai_request["max_tokens"]
-            if "tool_choice" in openai_request:
-                api_params["tool_choice"] = openai_request["tool_choice"]
-            if "enable_thinking" in openai_request:
-                del openai_request["enable_thinking"]
-            if "enable_thinking" in api_params:
-                del api_params["enable_thinking"]
+        while zero_output_retry_count <= max_zero_output_retries:
+            client = OpenAIClient(provider_config)
 
-            async def make_request():
-                return await asyncio.to_thread(client.chat_completion, **api_params)
+            try:
+                api_params = {
+                    "model": actual_model,
+                    "messages": openai_request["messages"],
+                    "stream": False,
+                }
+                if "temperature" in openai_request:
+                    api_params["temperature"] = openai_request["temperature"]
+                if "tools" in openai_request:
+                    api_params["tools"] = openai_request["tools"]
+                if "max_tokens" in openai_request:
+                    api_params["max_tokens"] = openai_request["max_tokens"]
+                if "tool_choice" in openai_request:
+                    api_params["tool_choice"] = openai_request["tool_choice"]
+                if "enable_thinking" in openai_request:
+                    del openai_request["enable_thinking"]
+                if "enable_thinking" in api_params:
+                    del api_params["enable_thinking"]
 
-            openai_response = await retry_with_backoff(
-                make_request,
-                max_retries=provider_config.max_retries,
-                initial_delay=1.0,
-                max_delay=60.0,
-                exponential_base=2.0,
-                retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, APIConnectionError),
-                provider_name=provider_config.name
-            )
-        except RateLimitError as e:
-            logger.warning(f"Rate limit error from provider {provider_config.name}: {e}")
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "type": "rate_limit_error",
-                    "message": f"Rate limit exceeded for provider '{provider_config.name}'. Please try again later.",
-                    "provider": provider_config.name
-                }
-            )
-        except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
-            logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "type": "connection_timeout",
-                    "message": f"Unable to connect to provider '{provider_config.name}'. Connection timeout.",
-                    "provider": provider_config.name
-                }
-            )
-        except APIConnectionError as e:
-            logger.error(f"Connection error from provider {provider_config.name}: {e}")
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "type": "connection_error",
-                    "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
-                    "provider": provider_config.name
-                }
-            )
-        except (httpx.ReadTimeout, httpx.TimeoutException) as e:
-            logger.error(f"Timeout error from provider {provider_config.name}: {e}")
-            raise HTTPException(
-                status_code=504,
-                detail={
-                    "type": "timeout_error",
-                    "message": f"Request timeout for provider '{provider_config.name}'.",
-                    "provider": provider_config.name
-                }
-            )
-        except APIError as e:
-            error_detail = str(e)
-            logger.error(f"API error from provider {provider_config.name}: {e}")
-            if provider_config.name == "modelscope":
-                self._log_modelscope_error(api_params, actual_model)
-            raise HTTPException(
-                status_code=502,
-                detail={
-                    "type": "api_error",
-                    "message": f"API error from provider '{provider_config.name}': {error_detail}",
-                    "provider": provider_config.name
-                }
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error during API call to {provider_config.name}: {type(e).__name__}: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=502,
-                detail={
-                    "type": "api_error",
-                    "message": f"Unexpected error from provider '{provider_config.name}': {str(e)}",
-                    "provider": provider_config.name
-                }
-            )
+                async def make_request():
+                    return await asyncio.to_thread(client.chat_completion, **api_params)
 
-        # Convert response
-        try:
-            openai_dict = openai_response_to_dict(openai_response)
-        except Exception as e:
-            logger.error(f"Failed to convert response from {provider_config.name}: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=502,
-                detail={
-                    "type": "api_error",
-                    "message": f"Failed to process response from provider '{provider_config.name}': {str(e)}",
-                    "provider": provider_config.name
-                }
-            )
-
-        if not isinstance(openai_dict, dict):
-            logger.error(f"Invalid response type from {provider_config.name}: {type(openai_dict)}")
-            raise HTTPException(
-                status_code=502,
-                detail={
-                    "type": "api_error",
-                    "message": f"Invalid response format from provider '{provider_config.name}'",
-                    "provider": provider_config.name
-                }
-            )
-
-        choices = openai_dict.get('choices')
-
-        if choices is None or (isinstance(choices, list) and len(choices) == 0):
-            error_info = openai_dict.get('error', {})
-            if error_info:
-                error_msg = error_info.get('message', 'Unknown API error')
-                error_type = error_info.get('type', 'api_error')
-                logger.error(f"API returned error response from {provider_config.name}: {error_type}: {error_msg}")
+                openai_response = await retry_with_backoff(
+                    make_request,
+                    max_retries=max_network_retries,
+                    initial_delay=1.0,
+                    max_delay=60.0,
+                    exponential_base=2.0,
+                    retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, APIConnectionError),
+                    provider_name=provider_config.name
+                )
+            except RateLimitError as e:
+                await client.close_async()
+                logger.warning(f"Rate limit error from provider {provider_config.name}: {e}")
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "type": "rate_limit_error",
+                        "message": f"Rate limit exceeded for provider '{provider_config.name}'. Please try again later.",
+                        "provider": provider_config.name
+                    }
+                )
+            except (httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+                await client.close_async()
+                logger.error(f"Connection timeout from provider {provider_config.name}: {e}")
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "type": "connection_timeout",
+                        "message": f"Unable to connect to provider '{provider_config.name}'. Connection timeout.",
+                        "provider": provider_config.name
+                    }
+                )
+            except APIConnectionError as e:
+                await client.close_async()
+                logger.error(f"Connection error from provider {provider_config.name}: {e}")
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "type": "connection_error",
+                        "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
+                        "provider": provider_config.name
+                    }
+                )
+            except (httpx.ReadTimeout, httpx.TimeoutException) as e:
+                await client.close_async()
+                logger.error(f"Timeout error from provider {provider_config.name}: {e}")
+                raise HTTPException(
+                    status_code=504,
+                    detail={
+                        "type": "timeout_error",
+                        "message": f"Request timeout for provider '{provider_config.name}'.",
+                        "provider": provider_config.name
+                    }
+                )
+            except APIError as e:
+                await client.close_async()
+                error_detail = str(e)
+                logger.error(f"API error from provider {provider_config.name}: {e}")
+                if provider_config.name == "modelscope":
+                    self._log_modelscope_error(api_params, actual_model)
                 raise HTTPException(
                     status_code=502,
                     detail={
                         "type": "api_error",
-                        "message": f"API error from provider '{provider_config.name}': {error_msg}",
+                        "message": f"API error from provider '{provider_config.name}': {error_detail}",
+                        "provider": provider_config.name
+                    }
+                )
+            except Exception as e:
+                await client.close_async()
+                logger.error(f"Unexpected error during API call to {provider_config.name}: {type(e).__name__}: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Unexpected error from provider '{provider_config.name}': {str(e)}",
+                        "provider": provider_config.name
+                    }
+                )
+            finally:
+                try:
+                    await client.close_async()
+                except Exception:
+                    pass
+
+            # Convert response
+            try:
+                openai_dict = openai_response_to_dict(openai_response)
+            except Exception as e:
+                logger.error(f"Failed to convert response from {provider_config.name}: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Failed to process response from provider '{provider_config.name}': {str(e)}",
                         "provider": provider_config.name
                     }
                 )
 
-            logger.error(f"Invalid response from {provider_config.name}: choices is None or empty")
-            raise HTTPException(
-                status_code=502,
-                detail={
-                    "type": "api_error",
-                    "message": f"Provider '{provider_config.name}' returned an invalid response",
-                    "provider": provider_config.name,
-                    "model": actual_model
-                }
+            if not isinstance(openai_dict, dict):
+                logger.error(f"Invalid response type from {provider_config.name}: {type(openai_dict)}")
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Invalid response format from provider '{provider_config.name}'",
+                        "provider": provider_config.name
+                    }
+                )
+
+            choices = openai_dict.get('choices')
+
+            if choices is None or (isinstance(choices, list) and len(choices) == 0):
+                error_info = openai_dict.get('error', {})
+                if error_info:
+                    error_msg = error_info.get('message', 'Unknown API error')
+                    error_type = error_info.get('type', 'api_error')
+                    logger.error(f"API returned error response from {provider_config.name}: {error_type}: {error_msg}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail={
+                            "type": "api_error",
+                            "message": f"API error from provider '{provider_config.name}': {error_msg}",
+                            "provider": provider_config.name
+                        }
+                    )
+
+                logger.error(f"Invalid response from {provider_config.name}: choices is None or empty")
+                raise HTTPException(
+                    status_code=502,
+                    detail={
+                        "type": "api_error",
+                        "message": f"Provider '{provider_config.name}' returned an invalid response",
+                        "provider": provider_config.name,
+                        "model": actual_model
+                    }
+                )
+
+            # Cache response if enabled
+            cache_enabled = config.app_config.cache.enabled
+            if cache_enabled:
+                cache_manager = get_cache_manager()
+                cache_key = f"response:{provider_config.name}:{actual_model}:{hash(json.dumps(openai_request, sort_keys=True))}"
+                await cache_manager.set(cache_key, openai_dict, ttl=config.app_config.cache.default_ttl)
+
+            # Convert to Anthropic format
+            anthropic_response = self._convert_response(openai_dict, req.model)
+
+            # Extract token usage using unified extractor
+            input_tokens, output_tokens = extract_tokens_from_usage(anthropic_response.get("usage"))
+
+            # 如果没有获取到或为0，再从原始 OpenAI 响应获取
+            if (input_tokens is None or output_tokens is None or
+                (input_tokens == 0 and output_tokens == 0 and openai_dict.get('usage'))):
+                openai_input, openai_output = extract_tokens_from_usage(openai_dict.get('usage'))
+                input_tokens = input_tokens or openai_input
+                output_tokens = output_tokens or openai_output
+
+            # 确保有默认值
+            input_tokens = input_tokens if input_tokens is not None else 0
+            output_tokens = output_tokens if output_tokens is not None else 0
+
+
+            # Log and update stats
+            response_time_ms = (time.time() - start_time) * 1000
+            await self._log_request(
+                request_id=request_id,
+                provider_name=provider_config.name,
+                model=actual_model,
+                request_params=openai_request,
+                response_data=anthropic_response,
+                status_code=200,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                response_time_ms=response_time_ms
             )
 
-        # Cache response if enabled
-        cache_enabled = config.app_config.cache.enabled
-        if cache_enabled:
-            cache_manager = get_cache_manager()
-            cache_key = f"response:{provider_config.name}:{actual_model}:{hash(json.dumps(openai_request, sort_keys=True))}"
-            await cache_manager.set(cache_key, openai_dict, ttl=config.app_config.cache.default_ttl)
+            if input_tokens or output_tokens:
+                cost_estimate = (input_tokens or 0) * COST_PER_INPUT_TOKEN + (output_tokens or 0) * COST_PER_OUTPUT_TOKEN
+                await self._update_token_usage(
+                    provider_config.name, actual_model, input_tokens or 0, output_tokens or 0, cost_estimate
+                )
 
-        # Convert to Anthropic format
-        anthropic_response = self._convert_response(openai_dict, req.model)
-
-        # Extract token usage using unified extractor
-        # 先尝试从转换后的 Anthropic 响应获取
-        input_tokens, output_tokens = extract_tokens_from_usage(anthropic_response.get("usage"))
-
-        # 如果没有获取到或为0，再从原始 OpenAI 响应获取
-        if (input_tokens is None or output_tokens is None or
-            (input_tokens == 0 and output_tokens == 0 and openai_dict.get('usage'))):
-            openai_input, openai_output = extract_tokens_from_usage(openai_dict.get('usage'))
-            input_tokens = input_tokens or openai_input
-            output_tokens = output_tokens or openai_output
-
-        # 确保有默认值
-        input_tokens = input_tokens if input_tokens is not None else 0
-        output_tokens = output_tokens if output_tokens is not None else 0
-
-        # Log and update stats
-        response_time_ms = (time.time() - start_time) * 1000
-        await self._log_request(
-            request_id=request_id,
-            provider_name=provider_config.name,
-            model=actual_model,
-            request_params=openai_request,
-            response_data=anthropic_response,
-            status_code=200,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            response_time_ms=response_time_ms
-        )
-
-        if input_tokens or output_tokens:
-            cost_estimate = (input_tokens or 0) * COST_PER_INPUT_TOKEN + (output_tokens or 0) * COST_PER_OUTPUT_TOKEN
-            await self._update_token_usage(
-                provider_config.name, actual_model, input_tokens or 0, output_tokens or 0, cost_estimate
+            # Log completion for non-streaming
+            import datetime
+            display_provider = anthropic_response.get("provider") or provider_config.name or "unknown"
+            provider_width = calculate_display_width(display_provider)
+            actual_message_id = anthropic_response.get("id")
+            total_width = 35
+            padding_needed = total_width - provider_width - 4
+            padding = " " * padding_needed
+            end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            logger.info(
+                f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+                f"  API Format: openai\n"
+                f"  Stream: False\n"
+                f"  Provider: {provider_config.name}\n"
+                f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
+                f"  Model: {actual_model}\n"
+                f"  Actual Provider Message ID: {actual_message_id}\n"
+                f"  Input Tokens: {input_tokens}\n"
+                f"  Output Tokens: {output_tokens}\n"
+                f"  Response Time: {response_time_ms:.2f}ms"
             )
 
-        # Log completion for non-streaming
-        import datetime
-        # Use actual_provider_from_response if available, fallback to provider_config.name
-        display_provider = anthropic_response.get("provider") or provider_config.name or "unknown"
-        provider_width = calculate_display_width(display_provider)
-        actual_message_id = anthropic_response.get("id")
-        total_width = 35
-        padding_needed = total_width - provider_width - 4
-        padding = " " * padding_needed
-        end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        logger.info(
-            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-            f"  API Format: openai\n"
-            f"  Stream: False\n"
-            f"  Provider: {provider_config.name}\n"
-            f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
-            f"  Model: {actual_model}\n"
-            f"  Actual Provider Message ID: {actual_message_id}\n"
-            f"  Input Tokens: {input_tokens}\n"
-            f"  Output Tokens: {output_tokens}\n"
-            f"  Response Time: {response_time_ms:.2f}ms"
-        )
+            # Check for zero output tokens and trigger retry
+            if output_tokens == 0 and config.app_config.retry_on_zero_output_tokens:
+                if zero_output_retry_count < max_zero_output_retries:
+                    logger.warning(
+                        f"Zero output tokens from {provider_config.name} for model {actual_model}. "
+                        f"Request ID: {request_id}. Retrying ({zero_output_retry_count + 1}/{max_zero_output_retries})..."
+                    )
+                    zero_output_retry_count += 1
+                    continue  # Retry the request
+                else:
+                    # Max retries reached, log and return
+                    logger.warning(
+                        f"Max retries ({max_zero_output_retries}) reached for zero output tokens from {provider_config.name}. "
+                        f"Model: {actual_model}, Request ID: {request_id}"
+                    )
+                    break
 
-        return anthropic_response
+            # Success - return response
+            return anthropic_response
+
+        # Max zero output retries exceeded, raise error
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "type": "zero_output_tokens",
+                "message": f"Provider '{provider_config.name}' returned zero output tokens after {max_zero_output_retries} retries",
+                "provider": provider_config.name,
+                "model": actual_model
+            }
+        )

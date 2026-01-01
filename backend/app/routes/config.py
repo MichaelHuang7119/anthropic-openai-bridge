@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 import json
 import os
 from pydantic import BaseModel
-from ..core.auth import require_admin
+from ..core.auth import require_admin, require_config
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
@@ -16,6 +16,8 @@ class GlobalConfigModel(BaseModel):
     """全局配置模型"""
     fallback_strategy: str = "priority"
     circuit_breaker: CircuitBreakerConfig
+    retry_on_zero_output_tokens: bool = True
+    retry_on_zero_output_tokens_retries: int = 3
 
 def get_config_path():
     """获取配置文件路径"""
@@ -37,7 +39,7 @@ def save_config(data):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 @router.get("", response_model=dict)
-async def get_global_config(user: dict = Depends(require_admin())):
+async def get_global_config(user: dict = Depends(require_config())):
     """获取全局配置"""
     try:
         config = load_config()
@@ -48,7 +50,9 @@ async def get_global_config(user: dict = Depends(require_admin())):
             "circuit_breaker": config.get("circuit_breaker", {
                 "failure_threshold": 5,
                 "recovery_timeout": 60
-            })
+            }),
+            "retry_on_zero_output_tokens": config.get("retry_on_zero_output_tokens", True),
+            "retry_on_zero_output_tokens_retries": config.get("retry_on_zero_output_tokens_retries", 3)
         }
 
         return global_config
@@ -56,7 +60,7 @@ async def get_global_config(user: dict = Depends(require_admin())):
         raise HTTPException(status_code=500, detail=f"Failed to load config: {str(e)}")
 
 @router.put("")
-async def update_global_config(config_model: GlobalConfigModel, user: dict = Depends(require_admin())):
+async def update_global_config(config_model: GlobalConfigModel, user: dict = Depends(require_config())):
     """更新全局配置"""
     try:
         config = load_config()
@@ -64,6 +68,8 @@ async def update_global_config(config_model: GlobalConfigModel, user: dict = Dep
         # 更新全局配置
         config["fallback_strategy"] = config_model.fallback_strategy
         config["circuit_breaker"] = config_model.circuit_breaker.model_dump()
+        config["retry_on_zero_output_tokens"] = config_model.retry_on_zero_output_tokens
+        config["retry_on_zero_output_tokens_retries"] = config_model.retry_on_zero_output_tokens_retries
 
         # 保存
         save_config(config)

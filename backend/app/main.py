@@ -14,8 +14,10 @@ from .routes.api_keys import router as api_keys_router
 from .routes.conversations import router as conversations_router
 from .routes.preferences import router as preferences_router
 from .routes.messages import create_messages_router
+from .routes.oauth import router as oauth_router
 from .routes.health import router as health_router
 from .routes.event_logging import router as event_logging_router
+from .routes.admin_permissions import router as admin_permissions_router
 from .core.lifecycle import startup_event, shutdown_event
 from .services.message_service import MessageService
 from .services.health_service import HealthService
@@ -126,7 +128,9 @@ app.include_router(config_router)
 app.include_router(stats_router)
 app.include_router(conversations_router)
 app.include_router(preferences_router)
+app.include_router(oauth_router)
 app.include_router(event_logging_router)
+app.include_router(admin_permissions_router)
 
 
 @app.on_event("startup")

@@ -40,8 +40,8 @@
   // Get default slot content - use $derived to ensure reactivity
   const defaultSlot = $derived(children);
 
-  // Compute padding value
-  const paddingValue = $derived(() => {
+  // Compute padding value - use $derived.by for function-based computation
+  const paddingValue = $derived.by(() => {
     switch (padding) {
       case 'none': return '0';
       case 'sm': return 'var(--space-4)';

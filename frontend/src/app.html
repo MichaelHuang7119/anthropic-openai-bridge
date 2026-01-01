@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <!-- Favicon - 使用相对路径避免 404 -->
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
@@ -17,10 +18,57 @@
     <meta name="theme-color" content="#3b82f6" />
     <!-- 禁用 PWA 导航手势 -->
     <meta name="mobile-web-app-capable" content="no" />
-    <meta name="apple-mobile-web-app-capable" content="no" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="AOB" />
     <title>Anthropic OpenAI Bridge</title>
+    <!-- 防止 beforeunload 弹窗 - 在任何其他脚本之前设置 -->
+    <script>
+      (function() {
+        // 拦截 beforeunload 事件，防止刷新/关闭时弹出确认对话框
+        var originalAddEventListener = window.addEventListener;
+        var originalRemoveEventListener = window.removeEventListener;
+        var originalOnBeforeUnload = null;
+
+        window.addEventListener = function(type, listener, options) {
+          if (type === 'beforeunload') {
+            // 不注册任何 beforeunload 监听器，直接返回
+            return undefined;
+          }
+          return originalAddEventListener.apply(this, arguments);
+        };
+
+        window.removeEventListener = function(type, listener, options) {
+          if (type === 'beforeunload') {
+            // 不移除任何 beforeunload 监听器（因为我们根本没注册）
+            return undefined;
+          }
+          return originalRemoveEventListener.apply(this, arguments);
+        };
+
+        // 完全阻止 window.onbeforeunload
+        Object.defineProperty(window, 'onbeforeunload', {
+          get: function() {
+            return originalOnBeforeUnload;
+          },
+          set: function(val) {
+            // 忽略任何设置，always return null
+            originalOnBeforeUnload = null;
+          },
+          configurable: false,
+          enumerable: true
+        });
+
+        // 确保事件不会被触发
+        var originalDispatchEvent = window.dispatchEvent;
+        window.dispatchEvent = function(event) {
+          if (event && event.type === 'beforeunload') {
+            // 静默丢弃 beforeunload 事件
+            return true;
+          }
+          return originalDispatchEvent.apply(this, arguments);
+        };
+      })();
+    </script>
     <style>
       /* 禁用浏览器滑动导航手势 */
       html,

@@ -7,6 +7,7 @@
     "home": "首页",
     "chat": "对话",
     "providers": "提供商",
+    "users": "用户管理",
     "apiKeys": "API密钥",
     "stats": "统计",
     "health": "健康检查",
@@ -57,7 +58,12 @@
     "clickToViewFullError": "点击查看完整错误信息",
     "copiedToClipboard": "已复制到剪贴板",
     "copyFailed": "复制失败，请手动复制",
-    "copyErrorMessage": "复制错误信息"
+    "copyErrorMessage": "复制错误信息",
+    "accessDenied": "访问被拒绝",
+    "saving": "保存中...",
+    "back": "返回",
+    "loginSuccess": "欢迎，",
+    "redirecting": "正在跳转..."
   },
   "header": {
     "logout": "退出登录",
@@ -432,7 +438,11 @@
     "failureThreshold": "失败阈值",
     "failureThresholdHelp": "连续失败多少次后触发熔断（1-20次）",
     "recoveryTimeout": "恢复超时（秒）",
-    "recoveryTimeoutHelp": "熔断后等待多长时间再尝试恢复（10-600秒）"
+    "recoveryTimeoutHelp": "熔断后等待多长时间再尝试恢复（10-600秒）",
+    "retryOnZeroOutput": "零输出 Token 时重试",
+    "retryOnZeroOutputDesc": "当请求返回零输出 Token 时，自动切换到其他供应商重试",
+    "retryOnZeroOutputRetries": "重试次数",
+    "retryOnZeroOutputRetriesDesc": "当输出 Token 为 0 时的最大重试次数 (1-10)"
   },
   "stats": {
     "title": "使用统计",
@@ -656,5 +666,78 @@
     "searchLanguage": "搜索语言...",
     "noLanguagesFound": "未找到匹配的语言",
     "languages": "语言"
+  },
+  "permissions": {
+    "title": "权限管理",
+    "manage": "管理权限",
+    "categories": {
+      "feature": "功能权限",
+      "admin": "管理权限",
+      "system": "系统权限"
+    },
+    "loadFailed": "加载权限失败",
+    "saveFailed": "保存权限失败",
+    "saved": "权限已保存",
+    "reset": "重置为默认",
+    "resetConfirm": "确定要重置该用户的权限为默认值吗？",
+    "resetSuccess": "权限已重置为默认值",
+    "resetFailed": "重置权限失败",
+    "accessDenied": "您没有权限访问此页面",
+    "adminUser": "管理员用户 - 权限不可编辑"
+  },
+  "users": {
+    "title": "用户管理",
+    "searchPlaceholder": "搜索用户...",
+    "email": "邮箱",
+    "name": "名称",
+    "role": "角色",
+    "status": "状态",
+    "createdAt": "创建时间",
+    "lastLogin": "最后登录",
+    "actions": "操作",
+    "noUsers": "未找到用户",
+    "fetchFailed": "获取用户列表失败",
+    "addUser": "添加用户",
+    "editUser": "编辑用户",
+    "deleteUser": "删除用户",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "isAdmin": "管理员",
+    "isActive": "启用",
+    "addFirstUser": "添加第一个用户",
+    "save": "保存",
+    "cancel": "取消",
+    "saveSuccess": "保存成功",
+    "saveFailed": "保存失败",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "deleteConfirm": "确定要删除用户 \"{email}\" 吗？",
+    "deleteConfirmTitle": "确认删除",
+    "cannotDeleteSelf": "不能删除自己的账号",
+    "cannotDeactivateSelf": "不能停用自己的账号",
+    "cannotRemoveOwnAdmin": "不能撤销自己的管理员权限",
+    "passwordTooShort": "密码至少需要8个字符",
+    "emailAlreadyExists": "邮箱已被注册",
+    "invalidEmail": "邮箱格式不正确",
+    "passwordMismatch": "两次输入的密码不一致",
+    "roles": {
+      "admin": "管理员",
+      "user": "普通用户"
+    },
+    "statusActive": "启用",
+    "statusInactive": "禁用",
+    "managePermissions": "管理权限",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "留空则保持当前密码不变"
+  },
+  "pagination": {
+    "page": "页",
+    "of": "共",
+    "itemsPerPage": "条/页",
+    "firstPage": "首页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "lastPage": "末页",
+    "jumpTo": "跳至"
   }
 }

@@ -7,6 +7,7 @@
     "home": "Inicio",
     "chat": "Chat",
     "providers": "Proveedores",
+    "users": "Usuarios",
     "apiKeys": "Claves API",
     "stats": "Estadísticas",
     "health": "Salud",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Copiado al portapapeles",
     "copyFailed": "Error al copiar, por favor copie manualmente",
     "copyErrorMessage": "Copiar mensaje de error",
+    "accessDenied": "Acceso denegado",
+    "saving": "Guardando...",
+    "back": "Volver",
+    "loginSuccess": "Bienvenido, ",
+    "redirecting": "Redirigiendo...",
     "close": "Cerrar"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Umbral de fallo",
     "failureThresholdHelp": "Cuántos fallos consecutivos para activar el interruptor de circuito (1-20)",
     "recoveryTimeout": "Tiempo de recuperación (segundos)",
-    "recoveryTimeoutHelp": "Cuánto esperar antes de intentar la recuperación después de que se active el interruptor (10-600 segundos)"
+    "recoveryTimeoutHelp": "Cuánto esperar antes de intentar la recuperación después de que se active el interruptor (10-600 segundos)",
+    "retryOnZeroOutput": "Reintentar con salida token cero",
+    "retryOnZeroOutputDesc": "Reintentar automáticamente con otro proveedor cuando una solicitud devuelve cero tokens de salida"
   },
   "stats": {
     "title": "Estadísticas de uso",
@@ -657,5 +665,78 @@
     "step3Title": "Comenzar a chatear",
     "step3Desc": "Vaya a la página Chat para comenzar su conversación de IA",
     "getStarted": "Comenzar"
+  },
+  "permissions": {
+    "title": "Gestión de permisos",
+    "manage": "Gestionar permisos",
+    "categories": {
+      "feature": "Permisos de funciones",
+      "admin": "Permisos de administrador",
+      "system": "Permisos del sistema"
+    },
+    "loadFailed": "Error al cargar permisos",
+    "saveFailed": "Error al guardar permisos",
+    "saved": "Permisos guardados",
+    "reset": "Restablecer por defecto",
+    "resetConfirm": "¿Está seguro de que desea restablecer los permisos por defecto?",
+    "resetSuccess": "Permisos restablecidos por defecto",
+    "resetFailed": "Error al restablecer permisos",
+    "accessDenied": "No tiene permiso para acceder a esta página",
+    "adminUser": "Usuario Administrador - Permisos no editables"
+  },
+  "users": {
+    "title": "Gestión de usuarios",
+    "searchPlaceholder": "Buscar usuarios...",
+    "email": "Email",
+    "name": "Nombre",
+    "role": "Rol",
+    "status": "Estado",
+    "createdAt": "Creado el",
+    "lastLogin": "Último inicio de sesión",
+    "actions": "Acciones",
+    "noUsers": "No se encontraron usuarios",
+    "fetchFailed": "Error al obtener usuarios",
+    "addUser": "Añadir usuario",
+    "editUser": "Editar usuario",
+    "deleteUser": "Eliminar usuario",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "isAdmin": "Administrador",
+    "isActive": "Activo",
+    "addFirstUser": "Añadir el primer usuario",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saveSuccess": "Guardado correctamente",
+    "saveFailed": "Error al guardar",
+    "deleteSuccess": "Eliminado correctamente",
+    "deleteFailed": "Error al eliminar",
+    "deleteConfirm": "¿Está seguro de que desea eliminar al usuario \"{email}\"?",
+    "deleteConfirmTitle": "Confirmar eliminación",
+    "cannotDeleteSelf": "No puede eliminar su propia cuenta",
+    "cannotDeactivateSelf": "No puede desactivar su propia cuenta",
+    "cannotRemoveOwnAdmin": "No puede eliminar sus propios privilegios de administrador",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "emailAlreadyExists": "El email ya está registrado",
+    "invalidEmail": "Formato de email inválido",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "roles": {
+      "admin": "Administrador",
+      "user": "Usuario"
+    },
+    "statusActive": "Activo",
+    "statusInactive": "Inactivo",
+    "managePermissions": "Gestionar permisos",
+    "newPassword": "Nueva contraseña",
+    "newPasswordPlaceholder": "Dejar en blanco para mantener la contraseña actual"
+  },
+  "pagination": {
+    "page": "Página",
+    "of": "de",
+    "itemsPerPage": "elementos/página",
+    "firstPage": "Primera página",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "lastPage": "Última página",
+    "jumpTo": "Ir a"
   }
 }

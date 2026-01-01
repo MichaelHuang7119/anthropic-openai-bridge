@@ -7,6 +7,7 @@
     "home": "Home",
     "chat": "Chat",
     "providers": "Provider",
+    "users": "Utenti",
     "apiKeys": "Chiavi API",
     "stats": "Statistiche",
     "health": "Salute",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Copiato negli appunti",
     "copyFailed": "Copia fallita, si prega di copiare manualmente",
     "copyErrorMessage": "Copia messaggio di errore",
+    "accessDenied": "Accesso negato",
+    "saving": "Salvataggio...",
+    "back": "Indietro",
+    "loginSuccess": "Benvenuto, ",
+    "redirecting": "Reindirizzamento...",
     "close": "Chiudi"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Soglia di errore",
     "failureThresholdHelp": "Quanti errori consecutivi per attivare l'interruttore automatico (1-20)",
     "recoveryTimeout": "Timeout di recupero (secondi)",
-    "recoveryTimeoutHelp": "Quanto aspettare prima di tentare il recupero dopo l'apertura dell'interruttore automatico (10-600 secondi)"
+    "recoveryTimeoutHelp": "Quanto aspettare prima di tentare il recupero dopo l'apertura dell'interruttore automatico (10-600 secondi)",
+    "retryOnZeroOutput": "Riprova su output token zero",
+    "retryOnZeroOutputDesc": "Riprova automaticamente con un altro provider quando una richiesta restituisce zero token di output"
   },
   "stats": {
     "title": "Statistiche di utilizzo",
@@ -657,5 +665,78 @@
     "step3Title": "Inizia a chattare",
     "step3Desc": "Vai alla pagina Chat per iniziare la tua conversazione AI",
     "getStarted": "Inizia"
+  },
+  "permissions": {
+    "title": "Gestione autorizzazioni",
+    "manage": "Gestisci autorizzazioni",
+    "categories": {
+      "feature": "Autorizzazioni funzionalità",
+      "admin": "Autorizzazioni amministratore",
+      "system": "Autorizzazioni sistema"
+    },
+    "loadFailed": "Caricamento autorizzazioni non riuscito",
+    "saveFailed": "Salvataggio autorizzazioni non riuscito",
+    "saved": "Autorizzazioni salvate",
+    "reset": "Ripristina predefinito",
+    "resetConfirm": "Sei sicuro di voler ripristinare le autorizzazioni al predefinito?",
+    "resetSuccess": "Autorizzazioni ripristinate al predefinito",
+    "resetFailed": "Ripristino autorizzazioni non riuscito",
+    "accessDenied": "Non hai l'autorizzazione per accedere a questa pagina",
+    "adminUser": "Amministratore - Permessi non modificabili"
+  },
+  "users": {
+    "title": "Gestione utenti",
+    "searchPlaceholder": "Cerca utenti...",
+    "email": "Email",
+    "name": "Nome",
+    "role": "Ruolo",
+    "status": "Stato",
+    "createdAt": "Creato",
+    "lastLogin": "Ultimo accesso",
+    "actions": "Azioni",
+    "noUsers": "Nessun utente trovato",
+    "fetchFailed": "Recupero utenti non riuscito",
+    "addUser": "Aggiungi utente",
+    "editUser": "Modifica utente",
+    "deleteUser": "Elimina utente",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "isAdmin": "Amministratore",
+    "isActive": "Attivo",
+    "addFirstUser": "Aggiungi il primo utente",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "saveSuccess": "Salvato con successo",
+    "saveFailed": "Salvataggio non riuscito",
+    "deleteSuccess": "Eliminato con successo",
+    "deleteFailed": "Eliminazione non riuscita",
+    "deleteConfirm": "Sei sicuro di voler eliminare l'utente \"{email}\"?",
+    "deleteConfirmTitle": "Conferma eliminazione",
+    "cannotDeleteSelf": "Non puoi eliminare il tuo account",
+    "cannotDeactivateSelf": "Non puoi disattivare il tuo account",
+    "cannotRemoveOwnAdmin": "Non puoi rimuovere i tuoi privilegi di amministratore",
+    "passwordTooShort": "La password deve essere di almeno 8 caratteri",
+    "emailAlreadyExists": "L'email è già registrata",
+    "invalidEmail": "Formato email non valido",
+    "passwordMismatch": "Le password non corrispondono",
+    "roles": {
+      "admin": "Amministratore",
+      "user": "Utente"
+    },
+    "statusActive": "Attivo",
+    "statusInactive": "Inattivo",
+    "managePermissions": "Gestisci permessi",
+    "newPassword": "Nuova password",
+    "newPasswordPlaceholder": "Lascia vuoto per mantenere la password attuale"
+  },
+  "pagination": {
+    "page": "Pagina",
+    "of": "di",
+    "itemsPerPage": "elementi/pagina",
+    "firstPage": "Prima pagina",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva",
+    "lastPage": "Ultima pagina",
+    "jumpTo": "Vai a"
   }
 }

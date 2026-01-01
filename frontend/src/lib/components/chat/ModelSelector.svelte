@@ -736,23 +736,21 @@
     display: flex;
     gap: 1rem;
     align-items: flex-end;
-    /* 移除内部滚动，由弹窗容器处理滚动 */
     flex-wrap: nowrap;
     overflow: visible;
     padding: 0.5rem 0;
     position: relative;
-    /* 为滚动优化 - 防止收缩，确保内容可见 */
-    min-width: max-content;
+    min-width: 0;
   }
 
   .selector-group {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    min-width: 240px; /* 桌面端稍微缩小 */
-    flex: 0 0 auto; /* 防止收缩，保持固定宽度 */
-    width: 240px; /* 设置固定宽度 */
-    scroll-snap-align: start;
+    /* 使用 flex: 1 使三个选择器平分容器空间 */
+    flex: 1 1 0;
+    min-width: 0;
+    width: 0; /* 让flex分配空间，width: 0 确保内容不会撑开 */
   }
 
   .selector-group label {

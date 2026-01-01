@@ -7,6 +7,7 @@
     "home": "Home",
     "chat": "Chat",
     "providers": "Providers",
+    "users": "Gebruikers",
     "apiKeys": "API-sleutels",
     "stats": "Statistieken",
     "health": "Gezondheid",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Gekopieerd naar klembord",
     "copyFailed": "Kopiëren mislukt, kopieer handmatig",
     "copyErrorMessage": "Foutmelding kopiëren",
+    "accessDenied": "Toegang geweigerd",
+    "saving": "Opslaan...",
+    "back": "Terug",
+    "loginSuccess": "Welkom, ",
+    "redirecting": "Omleiden...",
     "close": "Sluiten"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Foutdrempel",
     "failureThresholdHelp": "Hoeveel opeenvolgende fouten om circuit breaker te activeren (1-20)",
     "recoveryTimeout": "herstel-timeout (seconden)",
-    "recoveryTimeoutHelp": "Hoe lang wachten voordat herstel wordt geprobeerd na het activeren van circuit breaker (10-600 seconden)"
+    "recoveryTimeoutHelp": "Hoe lang wachten voordat herstel wordt geprobeerd na het activeren van circuit breaker (10-600 seconden)",
+    "retryOnZeroOutput": "Opnieuw proberen bij nul output tokens",
+    "retryOnZeroOutputDesc": "Automatisch opnieuw proberen met een andere provider wanneer een aanvraag nul output tokens retourneert"
   },
   "stats": {
     "title": "Gebruiksstatistieken",
@@ -657,5 +665,78 @@
     "step3Title": "Chatten starten",
     "step3Desc": "Ga naar de Chat pagina om uw AI-gesprek te starten",
     "getStarted": "Aan de slag"
+  },
+  "permissions": {
+    "title": "Machtigingenbeheer",
+    "manage": "Machtigingen beheren",
+    "categories": {
+      "feature": "Functiemachtigingen",
+      "admin": "Beheerdersmachtigingen",
+      "system": "Systeemmachtigingen"
+    },
+    "loadFailed": "Machtigingen laden mislukt",
+    "saveFailed": "Machtigingen opslaan mislukt",
+    "saved": "Machtigingen opgeslagen",
+    "reset": "Resetten naar standaard",
+    "resetConfirm": "Weet u zeker dat u de machtigingen wilt resetten naar standaard?",
+    "resetSuccess": "Machtigingen gereset naar standaard",
+    "resetFailed": "Machtigingen resetten mislukt",
+    "accessDenied": "U heeft geen toegang tot deze pagina",
+    "adminUser": "Administrator - Machtigingen kunnen niet worden bewerkt"
+  },
+  "users": {
+    "title": "Gebruikersbeheer",
+    "searchPlaceholder": "Gebruikers zoeken...",
+    "email": "E-mail",
+    "name": "Naam",
+    "role": "Rol",
+    "status": "Status",
+    "createdAt": "Gemaakt op",
+    "lastLogin": "Laatste login",
+    "actions": "Acties",
+    "noUsers": "Geen gebruikers gevonden",
+    "fetchFailed": "Gebruikers ophalen mislukt",
+    "addUser": "Gebruiker toevoegen",
+    "editUser": "Gebruiker bewerken",
+    "deleteUser": "Gebruiker verwijderen",
+    "password": "Wachtwoord",
+    "confirmPassword": "Wachtwoord bevestigen",
+    "isAdmin": "Beheerder",
+    "isActive": "Actief",
+    "addFirstUser": "Eerste gebruiker toevoegen",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "saveSuccess": "Succesvol opgeslagen",
+    "saveFailed": "Opslaan mislukt",
+    "deleteSuccess": "Succesvol verwijderd",
+    "deleteFailed": "Verwijderen mislukt",
+    "deleteConfirm": "Weet u zeker dat u gebruiker \"{email}\" wilt verwijderen?",
+    "deleteConfirmTitle": "Verwijderen bevestigen",
+    "cannotDeleteSelf": "U kunt uw eigen account niet verwijderen",
+    "cannotDeactivateSelf": "U kunt uw eigen account niet deactiveren",
+    "cannotRemoveOwnAdmin": "U kunt uw eigen beheerdersrechten niet verwijderen",
+    "passwordTooShort": "Wachtwoord moet minstens 8 tekens bevatten",
+    "emailAlreadyExists": "E-mail is al geregistreerd",
+    "invalidEmail": "Ongeldig e-mailformaat",
+    "passwordMismatch": "Wachtwoorden komen niet overeen",
+    "roles": {
+      "admin": "Beheerder",
+      "user": "Gebruiker"
+    },
+    "statusActive": "Actief",
+    "statusInactive": "Inactief",
+    "managePermissions": "Machtigingen beheren",
+    "newPassword": "Nieuw wachtwoord",
+    "newPasswordPlaceholder": "Leeg laten om huidig wachtwoord te behouden"
+  },
+  "pagination": {
+    "page": "Pagina",
+    "of": "van",
+    "itemsPerPage": "items/pagina",
+    "firstPage": "Eerste pagina",
+    "previousPage": "Vorige pagina",
+    "nextPage": "Volgende pagina",
+    "lastPage": "Laatste pagina",
+    "jumpTo": "Ga naar"
   }
 }

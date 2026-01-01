@@ -1,28 +1,76 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
   import { page } from '$app/stores';
   import Header from '$components/layout/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
   import { theme } from '$stores/theme';
   import { language, tStore } from '$stores/language';
   import { authService } from '$services/auth';
+  import {
+    initAuthState,
+    getAuthState,
+    subscribeAuth,
+    checkPermission,
+    type AuthState
+  } from '$stores/auth.svelte';
   import { handleKeyboardEvent } from '$lib/config/keyboardShortcuts';
+  import { toast } from '$stores/toast';
   import '../lib/styles/global.css';
 
   // 获取翻译函数（响应式）
   const t = $derived($tStore);
 
-  // 导航项配置
-  const navItems = [
-    { href: '/', label: 'nav.home' },
-    { href: '/chat', label: 'nav.chat' },
-    { href: '/providers', label: 'nav.providers' },
-    { href: '/config', label: 'nav.config' },
-    { href: '/health', label: 'nav.health' },
-    { href: '/stats', label: 'nav.stats' },
-    { href: '/api-keys', label: 'nav.apiKeys' }
-  ];
+  // 使用响应式的 auth store
+  let authState = $state<AuthState>({ isAuthenticated: false, user: null });
+
+  // 初始化 auth store 并订阅状态变化
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      // 初始化 auth 状态
+      initAuthState();
+
+      // 订阅 auth 状态变化（登录/登出时自动更新导航栏）
+      const unsubscribe = subscribeAuth((state) => {
+        authState = state;
+      });
+
+      return unsubscribe;
+    }
+  });
+
+  // 导航项配置（根据权限动态显示 - 使用响应式 authState）
+  let navItems = $derived.by(() => {
+    const items = [
+      { href: '/', label: 'nav.home', permission: 'providers' },
+      { href: '/chat', label: 'nav.chat', permission: 'chat' },
+      { href: '/providers', label: 'nav.providers', permission: 'providers' },
+      { href: '/admin/users', label: 'nav.users', permission: 'users' },
+      { href: '/config', label: 'nav.config', permission: 'config' },
+      { href: '/health', label: 'nav.health', permission: 'health' },
+      { href: '/stats', label: 'nav.stats', permission: 'stats' },
+      { href: '/api-keys', label: 'nav.apiKeys', permission: 'api_keys' }
+    ];
+
+    // 如果未登录，只显示登录选项（但登录页会处理跳转）
+    if (!authState.isAuthenticated) {
+      console.log('[Layout] Nav: not authenticated, showing all items');
+      return items;
+    }
+
+    // 调试日志
+    console.log('[Layout] Nav: user:', JSON.stringify(authState.user));
+
+    // 根据权限过滤导航项
+    return items.filter(item => {
+      // chat 是默认权限，始终显示
+      if (item.permission === 'chat') return true;
+      // 其他权限需要检查
+      const hasPerm = checkPermission(item.permission);
+      console.log('[Layout] Nav filter:', item.href, item.permission, hasPerm);
+      return hasPerm;
+    });
+  });
 
   // 获取当前路径名（增加空值检查）
   let currentPathname = $derived($page.url?.pathname || '');
@@ -35,27 +83,106 @@
     return currentPathname.startsWith(href);
   }
 
-  // 初始化主题和语言，以及认证检查
+  // 权限检查函数
+  function checkRoutePermission(pathname: string): boolean {
+    // 公开路由不需要权限检查
+    if (pathname === '/login' || pathname.startsWith('/oauth/')) {
+      return true;
+    }
+
+    // 未登录用户跳转到登录页
+    if (!authState.isAuthenticated) {
+      console.log('[Layout] Auth check failed, redirecting to login');
+      goto('/login');
+      return false;
+    }
+
+    // 权限检查（使用 auth store 中的权限检查）
+    if (!authService.canAccessRoute(pathname)) {
+      console.log('[Layout] Permission denied for route:', pathname);
+      const defaultRedirect = authService.getDefaultRedirectUrl();
+      if (pathname !== defaultRedirect) {
+        toast.error(t('common.accessDenied'));
+        goto(defaultRedirect);
+        return false;
+      }
+    }
+
+    console.log('[Layout] Auth check passed for:', pathname);
+    return true;
+  }
+
+  // 在导航前检查权限
+  beforeNavigate((nav) => {
+    const pathname = nav.to?.url.pathname || '';
+    console.log('[Layout] beforeNavigate to:', pathname);
+
+    // 公开路由跳过检查
+    if (pathname === '/login' || pathname.startsWith('/oauth/')) {
+      console.log('[Layout] Skipping auth check for public route:', pathname);
+      return;
+    }
+
+    // 未登录用户跳转到登录页（使用响应式 authState）
+    console.log('[Layout] Auth check for', pathname, ':', authState.isAuthenticated ? 'authenticated' : 'not authenticated');
+    if (!authState.isAuthenticated) {
+      console.log('[Layout] Not authenticated, redirecting to /login');
+      // 不使用 nav.cancel()，而是直接用 goto 重定向
+      // 这样可以避免触发浏览器的导航拦截对话框
+      goto('/login', { replaceState: true, keepFocus: true, noScroll: true });
+      return;
+    }
+
+    // 权限检查
+    const canAccess = authService.canAccessRoute(pathname);
+    console.log('[Layout] Permission check for', pathname, ':', canAccess ? 'allowed' : 'denied');
+    if (!canAccess) {
+      console.log('[Layout] Permission denied for:', pathname);
+      const defaultRedirect = authService.getDefaultRedirectUrl();
+      if (pathname !== defaultRedirect) {
+        console.log('[Layout] Redirecting to default:', defaultRedirect);
+        toast.error(t('common.accessDenied'));
+        // 不使用 nav.cancel()，直接用 goto 重定向
+        goto(defaultRedirect, { replaceState: true, keepFocus: true, noScroll: true });
+        return;
+      }
+    }
+  });
+
+  // 初始化主题和语言
   onMount(() => {
+    // 主动注销任何已有的 Service Worker，避免刷新弹窗问题
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (const registration of registrations) {
+          console.log('[Layout] Unregistering existing Service Worker');
+          registration.unregister().catch(err => {
+            console.warn('[Layout] Failed to unregister service worker:', err);
+          });
+        }
+      }).catch(err => {
+        console.warn('[Layout] Failed to check service workers:', err);
+      });
+    }
+
+    // 初始化主题（使用浏览器本地存储，不依赖用户登录状态）
     theme.init();
 
     // 初始化语言设置（会尝试从后端获取，如果已登录的话）
-    language.init().catch(console.error);
+    // 添加超时避免长时间等待
+    const languagePromise = language.init();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Language init timeout')), 5000)
+    );
+    Promise.race([languagePromise, timeoutPromise]).catch(console.error);
 
-    // 注册 Service Worker for PWA (但禁用 PWA 导航手势)
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then((registration) => {
-          console.log('Service Worker registered:', registration);
-        })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
-        });
-    }
+    // auth store 会在 $effect 中自动初始化，这里不需要额外处理
+    // 轮询机制已经在 auth.svelte.ts 中实现
 
-    // 检查认证状态（排除登录页）
-    if (currentPathname !== '/login' && !authService.isAuthenticated()) {
-      goto('/login');
+    // 未登录且不在登录页，重定向到登录页
+    if (!authState.isAuthenticated && currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')) {
+      console.log('[Layout] Not authenticated on load, redirecting to login');
+      goto('/login', { replaceState: true, noScroll: true });
     }
 
     // 添加全局键盘快捷键监听
@@ -65,9 +192,39 @@
 
     window.addEventListener('keydown', handleKeydown);
 
+    // 监听 OAuth 登录成功事件
+    const handleAuthLogin = (event: CustomEvent) => {
+      console.log('[Layout] Received auth:login event', event.detail);
+      // 重新验证认证状态（使用响应式 authState）
+      if (authState.isAuthenticated) {
+        console.log('[Layout] OAuth login successful, user is now authenticated');
+        // 如果当前在登录页，自动跳转到默认页面（不要直接跳转到 /，避免权限问题）
+        if (currentPathname === '/login') {
+          const redirectUrl = authService.getDefaultRedirectUrl();
+          console.log('[Layout] Redirecting to default page:', redirectUrl);
+          goto(redirectUrl);
+        }
+      }
+    };
+
+    window.addEventListener('auth:login', handleAuthLogin as EventListener);
+
+    // 监听 storage 变化（用于多标签页同步）
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'auth_token' && event.newValue === null) {
+        console.log('[Layout] Token cleared by another tab, logging out');
+        if (currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')) {
+          goto('/login', { replaceState: true, noScroll: true });
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     // 返回清理函数
     return () => {
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('auth:login', handleAuthLogin as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
     };
   });
 
@@ -79,7 +236,7 @@
 </script>
 
 <div class="app" class:chat-layout={currentPathname === '/chat'}>
-  {#if currentPathname !== '/login'}
+  {#if currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')}
     <Header title="Anthropic OpenAI Bridge">
       {#snippet nav()}
         <nav>
@@ -99,7 +256,7 @@
   <main class="main">
     {@render children()}
   </main>
-  {#if currentPathname !== '/login' && currentPathname !== '/chat'}
+  {#if currentPathname !== '/login' && currentPathname !== '/chat' && !currentPathname.startsWith('/oauth/')}
     <footer class="footer">
       <p>© 2025 Anthropic OpenAI Bridge.</p>
     </footer>

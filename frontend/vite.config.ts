@@ -3,7 +3,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
 // Get backend port from environment or use default
-const backendPort = process.env.BACKEND_PORT || "8000";
+const backendPort = process.env.BACKEND_PORT || "8001";
 
 export default defineConfig({
   plugins: [sveltekit()],
@@ -44,6 +44,19 @@ export default defineConfig({
       },
       // Also proxy the original /v1 endpoints
       "^/v1/": {
+        target: `http://localhost:${backendPort}`,
+        changeOrigin: true,
+      },
+      // Proxy OAuth endpoints
+      "^/oauth/providers": {
+        target: `http://localhost:${backendPort}`,
+        changeOrigin: true,
+      },
+      "^/oauth/([^/]+)/login": {
+        target: `http://localhost:${backendPort}`,
+        changeOrigin: true,
+      },
+      "^/oauth/([^/]+)/callback": {
         target: `http://localhost:${backendPort}`,
         changeOrigin: true,
       },

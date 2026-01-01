@@ -7,6 +7,7 @@
     "home": "Startseite",
     "chat": "Chat",
     "providers": "Anbieter",
+    "users": "Benutzer",
     "apiKeys": "API-Schlüssel",
     "stats": "Statistiken",
     "health": "Status",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "In die Zwischenablage kopiert",
     "copyFailed": "Kopieren fehlgeschlagen, bitte manuell kopieren",
     "copyErrorMessage": "Fehlermeldung kopieren",
+    "accessDenied": "Zugriff verweigert",
+    "saving": "Speichern...",
+    "back": "Zurück",
+    "loginSuccess": "Willkommen, ",
+    "redirecting": "Weiterleitung...",
     "close": "Schließen"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Fehlerschwellenwert",
     "failureThresholdHelp": "Wie viele aufeinanderfolgende Fehler, um den Circuit Breaker auszulösen (1-20)",
     "recoveryTimeout": "Wiederherstellungs-Timeout (Sekunden)",
-    "recoveryTimeoutHelp": "Wie lange warten, bevor nach Öffnung des Circuit Breakers eine Wiederherstellung versucht wird (10-600 Sekunden)"
+    "recoveryTimeoutHelp": "Wie lange warten, bevor nach Öffnung des Circuit Breakers eine Wiederherstellung versucht wird (10-600 Sekunden)",
+    "retryOnZeroOutput": "Wiederholen bei Null-Ausgabe-Token",
+    "retryOnZeroOutputDesc": "Automatisch mit einem anderen Anbieter wiederholen, wenn eine Anfrage Null-Ausgabe-Token zurückgibt"
   },
   "stats": {
     "title": "Nutzungsstatistiken",
@@ -657,5 +665,78 @@
     "step3Title": "Chatten beginnen",
     "step3Desc": "Gehen Sie zur Chat-Seite, um Ihr KI-Gespräch zu beginnen",
     "getStarted": "Loslegen"
+  },
+  "permissions": {
+    "title": "Berechtigungsverwaltung",
+    "manage": "Berechtigungen verwalten",
+    "categories": {
+      "feature": "Funktionsberechtigungen",
+      "admin": "Admin-Berechtigungen",
+      "system": "Systemberechtigungen"
+    },
+    "loadFailed": "Berechtigungen konnten nicht geladen werden",
+    "saveFailed": "Berechtigungen konnten nicht gespeichert werden",
+    "saved": "Berechtigungen gespeichert",
+    "reset": "Auf Standard zurücksetzen",
+    "resetConfirm": "Sind Sie sicher, dass Sie die Berechtigungen auf den Standard zurücksetzen möchten?",
+    "resetSuccess": "Berechtigungen wurden auf den Standard zurückgesetzt",
+    "resetFailed": "Zurücksetzen der Berechtigungen fehlgeschlagen",
+    "accessDenied": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen",
+    "adminUser": "Administrator - Berechtigungen können nicht bearbeitet werden"
+  },
+  "users": {
+    "title": "Benutzerverwaltung",
+    "searchPlaceholder": "Benutzer suchen...",
+    "email": "E-Mail",
+    "name": "Name",
+    "role": "Rolle",
+    "status": "Status",
+    "createdAt": "Erstellt am",
+    "lastLogin": "Letzte Anmeldung",
+    "actions": "Aktionen",
+    "noUsers": "Keine Benutzer gefunden",
+    "fetchFailed": "Benutzer konnten nicht abgerufen werden",
+    "addUser": "Benutzer hinzufügen",
+    "editUser": "Benutzer bearbeiten",
+    "deleteUser": "Benutzer löschen",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "isAdmin": "Administrator",
+    "isActive": "Aktiv",
+    "addFirstUser": "Ersten Benutzer hinzufügen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "saveSuccess": "Erfolgreich gespeichert",
+    "saveFailed": "Speichern fehlgeschlagen",
+    "deleteSuccess": "Erfolgreich gelöscht",
+    "deleteFailed": "Löschen fehlgeschlagen",
+    "deleteConfirm": "Sind Sie sicher, dass Sie den Benutzer \"{email}\" löschen möchten?",
+    "deleteConfirmTitle": "Löschen bestätigen",
+    "cannotDeleteSelf": "Sie können Ihr eigenes Konto nicht löschen",
+    "cannotDeactivateSelf": "Sie können Ihr eigenes Konto nicht deaktivieren",
+    "cannotRemoveOwnAdmin": "Sie können Ihre eigenen Administratorrechte nicht entfernen",
+    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "emailAlreadyExists": "E-Mail ist bereits registriert",
+    "invalidEmail": "Ungültiges E-Mail-Format",
+    "passwordMismatch": "Passwörter stimmen nicht überein",
+    "roles": {
+      "admin": "Administrator",
+      "user": "Benutzer"
+    },
+    "statusActive": "Aktiv",
+    "statusInactive": "Inaktiv",
+    "managePermissions": "Berechtigungen verwalten",
+    "newPassword": "Neues Passwort",
+    "newPasswordPlaceholder": "Leer lassen, um das aktuelle Passwort beizubehalten"
+  },
+  "pagination": {
+    "page": "Seite",
+    "of": "von",
+    "itemsPerPage": "Einträge/Seite",
+    "firstPage": "Erste Seite",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "lastPage": "Letzte Seite",
+    "jumpTo": "Springen zu"
   }
 }

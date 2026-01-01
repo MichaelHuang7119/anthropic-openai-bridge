@@ -386,10 +386,177 @@ async def get_current_api_user(
     )
 
 
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = None,
+    request: Optional[Request] = None
+) -> Dict[str, Any]:
+    """
+    Get current authenticated user (for user profile and settings).
+    Accepts JWT tokens for any authenticated user (admin or OAuth).
+
+    In development mode (DEV_MODE=true), allows access without authentication.
+
+    Raises:
+        HTTPException: If authentication fails
+    """
+    # Development mode: allow access without validation
+    if DEV_MODE:
+        logger.info("Development mode: Allowing user access without authentication")
+        return {
+            "user_id": 1,
+            "email": "admin@example.com",
+            "name": "Administrator",
+            "is_admin": True,
+            "type": "dev"
+        }
+
+    # Try Bearer token (JWT)
+    if credentials:
+        token = credentials.credentials
+        user = verify_jwt_token(token)
+        if user:
+            # Verify user is active
+            db = get_database()
+            user_data = await db.get_user_by_id(user["user_id"])
+            if user_data and user_data.get("is_active"):
+                logger.info(f"User authentication successful for user {user_data['email']}")
+                return {
+                    "id": user_data["id"],
+                    "email": user_data["email"],
+                    "name": user_data.get("name"),
+                    "is_admin": user_data.get("is_admin", False),
+                    "type": "jwt"
+                }
+        else:
+            logger.warning("JWT token verification failed")
+
+    # Check if Authorization header exists but wasn't parsed by HTTPBearer
+    if request:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            user = verify_jwt_token(token)
+            if user:
+                db = get_database()
+                user_data = await db.get_user_by_id(user["user_id"])
+                if user_data and user_data.get("is_active"):
+                    logger.info(f"User authentication successful via manual token extraction for {user_data['email']}")
+                    return {
+                        "id": user_data["id"],
+                        "email": user_data["email"],
+                        "name": user_data.get("name"),
+                        "is_admin": user_data.get("is_admin", False),
+                        "type": "jwt"
+                    }
+            else:
+                logger.warning("Manual token extraction failed")
+
+    # No valid authentication provided
+    logger.warning("No valid authentication token provided")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required",
+        headers={
+            "WWW-Authenticate": "Bearer",
+        },
+    )
+
+
+def require_user():
+    """
+    Dependency for requiring user authentication (for user profile and settings).
+    Accepts any authenticated user (admin or OAuth user).
+
+    Returns:
+        Dependency function
+    """
+    async def dependency(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    ):
+        return await get_current_user(credentials, request)
+
+    return dependency
+
+
+def require_permission(permission: "PermissionCategory"):
+    """
+    Dependency for requiring a specific permission.
+
+    Args:
+        permission: The permission category required
+
+    Returns:
+        Dependency function that checks for the specified permission
+    """
+    from .permissions import PermissionCategory, ADMIN_PERMISSIONS, DEFAULT_USER_PERMISSIONS
+    import json
+    import logging
+    from ..database import get_database
+
+    async def permission_checker(
+        current_user: dict = Depends(require_user())
+    ):
+        # Admins have all permissions
+        if current_user.get("is_admin"):
+            return current_user
+
+        # Load full user from database to check permissions
+        db = get_database()
+        user = await db.get_user_by_id(current_user["id"])
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Get user permissions
+        user_permissions = user.get("permissions")
+        if user_permissions:
+            try:
+                perms = json.loads(user_permissions)
+                # If permissions dict is empty, use defaults
+                if not perms:
+                    perms = DEFAULT_USER_PERMISSIONS.copy()
+            except (json.JSONDecodeError, AttributeError):
+                perms = DEFAULT_USER_PERMISSIONS.copy()
+        else:
+            perms = DEFAULT_USER_PERMISSIONS.copy()
+
+        # Check if user has the required permission
+        has_permission = perms.get(permission, False)
+        if not has_permission:
+            logging.warning(
+                f"Permission denied for user {user['email']}: "
+                f"requires {permission}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied: {permission} access required"
+            )
+
+        return current_user
+
+    return permission_checker
+
+
+# Convenience dependencies for common permission combinations
+require_chat = lambda: require_permission("chat")
+require_conversations = lambda: require_permission("conversations")
+require_preferences = lambda: require_permission("preferences")
+require_providers = lambda: require_permission("providers")
+require_api_keys = lambda: require_permission("api_keys")
+require_stats = lambda: require_permission("stats")
+require_health = lambda: require_permission("health")
+require_config = lambda: require_permission("config")
+require_users = lambda: require_permission("users")
+
+
 def require_admin():
     """
     Dependency for requiring admin authentication (for management panel).
-    
+
     Returns:
         Dependency function
     """
@@ -398,7 +565,7 @@ def require_admin():
         credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
     ):
         return await get_current_admin_user(credentials, request)
-    
+
     return dependency
 
 

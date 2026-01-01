@@ -7,6 +7,7 @@
     "home": "الرئيسية",
     "chat": "المحادثة",
     "providers": "مزودو الخدمة",
+    "users": "المستخدمون",
     "apiKeys": "مفاتيح API",
     "stats": "الإحصائيات",
     "health": "الحالة الصحية",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "تم النسخ إلى الحافظة",
     "copyFailed": "فشل النسخ، يرجى النسخ يدوياً",
     "copyErrorMessage": "نسخ رسالة الخطأ",
+    "accessDenied": "تم رفض الوصول",
+    "saving": "جاري الحفظ...",
+    "back": "رجوع",
+    "loginSuccess": "مرحباً، ",
+    "redirecting": "جاري إعادة التوجيه...",
     "close": "إغلاق"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "عتبة الفشل",
     "failureThresholdHelp": "كم عدد الفشل المتتالي لتشغيل قاطع الدائرة (1-20)",
     "recoveryTimeout": "مهلة الانتظار للاسترداد (ثواني)",
-    "recoveryTimeoutHelp": "كم من الوقت لانتظار محاولة الاسترداد بعد تشغيل قاطع الدائرة (10-600 ثانية)"
+    "recoveryTimeoutHelp": "كم من الوقت لانتظار محاولة الاسترداد بعد تشغيل قاطع الدائرة (10-600 ثانية)",
+    "retryOnZeroOutput": "إعادة المحاولة عند إنتاج صفر من الرموز",
+    "retryOnZeroOutputDesc": "إعادة المحاولة تلقائياً مع مزود خدمة آخر عندما يُرجع الطلب صفراً من رموز الإخراج"
   },
   "stats": {
     "title": "إحصائيات الاستخدام",
@@ -657,5 +665,78 @@
     "step3Title": "بدء المحادثة",
     "step3Desc": "انتقل إلى صفحة الدردشة لبدء محادثتك مع الذكاء الاصطناعي",
     "getStarted": "ابدأ"
+  },
+  "permissions": {
+    "title": "إدارة الأذونات",
+    "manage": "إدارة الأذونات",
+    "categories": {
+      "feature": "أذونات الميزات",
+      "admin": "أذونات المشرف",
+      "system": "أذونات النظام"
+    },
+    "loadFailed": "فشل تحميل الأذونات",
+    "saveFailed": "فشل حفظ الأذونات",
+    "saved": "تم حفظ الأذونات",
+    "reset": "إعادة التعيين إلى الافتراضي",
+    "resetConfirm": "هل أنت متأكد من أنك تريد إعادة تعيين الأذونات إلى الافتراضي؟",
+    "resetSuccess": "تم إعادة تعيين الأذونات إلى الافتراضي",
+    "resetFailed": "فشل إعادة تعيين الأذونات",
+    "accessDenied": "ليس لديك إذن للوصول إلى هذه الصفحة",
+    "adminUser": "مشرف - لا يمكن تعديل الأذونات"
+  },
+  "users": {
+    "title": "إدارة المستخدمين",
+    "searchPlaceholder": "البحث عن المستخدمين...",
+    "email": "البريد الإلكتروني",
+    "name": "الاسم",
+    "role": "الدور",
+    "status": "الحالة",
+    "createdAt": "تاريخ الإنشاء",
+    "lastLogin": "آخر تسجيل دخول",
+    "actions": "الإجراءات",
+    "noUsers": "لم يتم العثور على مستخدمين",
+    "fetchFailed": "فشل جلب المستخدمين",
+    "addUser": "إضافة مستخدم",
+    "editUser": "تعديل المستخدم",
+    "deleteUser": "حذف المستخدم",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "isAdmin": "المشرف",
+    "isActive": "نشط",
+    "addFirstUser": "إضافة أول مستخدم",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "saveSuccess": "تم الحفظ بنجاح",
+    "saveFailed": "فشل الحفظ",
+    "deleteSuccess": "تم الحذف بنجاح",
+    "deleteFailed": "فشل الحذف",
+    "deleteConfirm": "هل أنت متأكد من حذف المستخدم \"{email}\"",
+    "deleteConfirmTitle": "تأكيد الحذف",
+    "cannotDeleteSelf": "لا يمكنك حذف حسابك الخاص",
+    "cannotDeactivateSelf": "لا يمكنك تعطيل حسابك الخاص",
+    "cannotRemoveOwnAdmin": "لا يمكنك إزالة صلاحيات المشرف الخاصة بك",
+    "passwordTooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
+    "emailAlreadyExists": "البريد الإلكتروني مسجل بالفعل",
+    "invalidEmail": "تنسيق البريد الإلكتروني غير صالح",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين",
+    "roles": {
+      "admin": "المشرف",
+      "user": "المستخدم"
+    },
+    "statusActive": "نشط",
+    "statusInactive": "غير نشط",
+    "managePermissions": "إدارة الأذونات",
+    "newPassword": "كلمة مرور جديدة",
+    "newPasswordPlaceholder": "اتركه فارغاً للاحتفاظ بكلمة المرور الحالية"
+  },
+  "pagination": {
+    "page": "صفحة",
+    "of": "من",
+    "itemsPerPage": "عناصر/صفحة",
+    "firstPage": "الصفحة الأولى",
+    "previousPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "lastPage": "الصفحة الأخيرة",
+    "jumpTo": "انتقل إلى"
   }
 }

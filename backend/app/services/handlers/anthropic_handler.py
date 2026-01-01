@@ -1,4 +1,5 @@
 """Anthropic format message handler."""
+import asyncio
 import json
 import logging
 import time
@@ -10,6 +11,7 @@ from fastapi.responses import StreamingResponse
 import httpx
 
 from .base import BaseRequestHandler
+from ...config import config
 from ...core import MessagesRequest, ModelManager, COST_PER_INPUT_TOKEN, COST_PER_OUTPUT_TOKEN, COLOR_GREEN, COLOR_YELLOW, COLOR_RESET, COLOR_CYAN
 from ...infrastructure import AnthropicClient, retry_with_backoff
 from ..token_counter import count_tokens_estimate
@@ -332,149 +334,211 @@ class AnthropicMessageHandler(BaseRequestHandler):
             f"mapped model '{original_model}' -> '{actual_model}'"
         )
 
-        client = AnthropicClient(provider_config)
+        async def generate_with_retry():
+            """Generate streaming response with automatic retry on zero output tokens or network errors."""
+            # Zero output tokens retry: use config retry count
+            max_zero_output_retries = config.app_config.retry_on_zero_output_tokens_retries if config.app_config.retry_on_zero_output_tokens else 3
+            zero_output_retry_count = 0
 
-        async def generate():
-            chunk_count = 0
-            total_output_tokens = 0
-            total_input_tokens = 0
-            messages = anthropic_request.get("messages", [])
-            initial_input_tokens = count_tokens_estimate(messages, actual_model)
-            reasoning_flag = False
-            # Track provider_message_id
-            actual_message_id = None
-            # Track actual provider name from API response
-            actual_provider = None
+            # Network error retry: use provider max_retries
+            max_network_retries = provider_config.max_retries if hasattr(provider_config, 'max_retries') else 3
+            network_error_retries = 0
 
-            try:
-                async for chunk in client.messages_async(anthropic_request, stream=True):
-                    logger.debug(f"Anthropic streaming: {chunk}")
-                    chunk_count += 1
+            while zero_output_retry_count <= max_zero_output_retries:
+                chunk_count = 0
+                total_output_tokens = 0
+                total_input_tokens = 0
+                messages = anthropic_request.get("messages", [])
+                initial_input_tokens = count_tokens_estimate(messages, actual_model)
+                reasoning_flag = False
+                actual_message_id = None
+                actual_provider = None
+                first_chunk = True
 
-                    # Extract actual provider name from chunk
-                    if not actual_provider and isinstance(chunk, dict) and chunk.get("provider"):
-                        actual_provider = chunk.get("provider")
-                        logger.debug(f"Extracted actual provider: {actual_provider}")
+                client = AnthropicClient(provider_config)
 
-                    # Extract actual_message_id from chunk
-                    # For Anthropic, the id is in message_start event's message object
-                    if not actual_message_id and isinstance(chunk, dict):
-                        if chunk.get("type") == "message_start" and isinstance(chunk.get("message"), dict):
-                            actual_message_id = chunk.get("message", {}).get("id")
-                        elif chunk.get("id"):
-                            # Fallback to direct id if available
-                            actual_message_id = chunk.get("id")
-
-                        if actual_message_id:
-                            logger.debug(f"Extracted actual provider_message_id: {actual_message_id}")
-
-                    # Extract usage from chunk (message_start, message_delta events)
-                    chunk_usage = chunk.get("usage") if isinstance(chunk, dict) else None
-                    if chunk_usage:
-                        # 使用统一的 token 提取工具，支持多种 API 格式
-                        actual_input, actual_output = extract_tokens_from_usage(chunk_usage)
-                        if actual_input is not None:
-                            total_input_tokens = actual_input
-                        if actual_output is not None:
-                            total_input_tokens, total_output_tokens = update_token_tracking(
-                                total_input_tokens, total_output_tokens, actual_input, actual_output
-                            )
-
-                    # Handle thinking blocks (<thinking> tags)
-                    if isinstance(chunk, dict) and chunk.get("type") == "content_block_delta":
-                        events, reasoning_flag, total_output_tokens, skip_chunk = _handle_thinking_from_streaming_text(
-                            chunk, reasoning_flag, total_output_tokens
-                        )
-                        for event in events:
-                            yield event
-                        if skip_chunk:
+                try:
+                    async for chunk in client.messages_async(anthropic_request, stream=True):
+                        # Skip first chunk if this is a retry (it's the retry notification)
+                        if first_chunk and zero_output_retry_count > 0:
+                            first_chunk = False
                             continue
 
-                    json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
-                    event_type = chunk.get("type", "")
-                    if event_type:
-                        yield f"event: {event_type}\ndata: {json_str}\n\n"
+                        first_chunk = False
+                        logger.debug(f"Anthropic streaming: {chunk}")
+                        chunk_count += 1
+
+                        # Extract actual provider name from chunk
+                        if not actual_provider and isinstance(chunk, dict) and chunk.get("provider"):
+                            actual_provider = chunk.get("provider")
+                            logger.debug(f"Extracted actual provider: {actual_provider}")
+
+                        # Extract actual_message_id from chunk
+                        if not actual_message_id and isinstance(chunk, dict):
+                            if chunk.get("type") == "message_start" and isinstance(chunk.get("message"), dict):
+                                actual_message_id = chunk.get("message", {}).get("id")
+                            elif chunk.get("id"):
+                                actual_message_id = chunk.get("id")
+                            if actual_message_id:
+                                logger.debug(f"Extracted actual provider_message_id: {actual_message_id}")
+
+                        # Extract usage from chunk
+                        chunk_usage = chunk.get("usage") if isinstance(chunk, dict) else None
+                        if chunk_usage:
+                            actual_input, actual_output = extract_tokens_from_usage(chunk_usage)
+                            if actual_input is not None:
+                                total_input_tokens = actual_input
+                            if actual_output is not None:
+                                total_input_tokens, total_output_tokens = update_token_tracking(
+                                    total_input_tokens, total_output_tokens, actual_input, actual_output
+                                )
+
+                        # Handle thinking blocks
+                        if isinstance(chunk, dict) and chunk.get("type") == "content_block_delta":
+                            events, reasoning_flag, total_output_tokens, skip_chunk = _handle_thinking_from_streaming_text(
+                                chunk, reasoning_flag, total_output_tokens
+                            )
+                            for event in events:
+                                yield event
+                            if skip_chunk:
+                                continue
+
+                        json_str = json.dumps(chunk, ensure_ascii=False, separators=(',', ':'), sort_keys=False)
+                        event_type = chunk.get("type", "")
+                        if event_type:
+                            yield f"event: {event_type}\ndata: {json_str}\n\n"
+                        else:
+                            yield f"data: {json_str}\n\n"
+
+                    # Stream completed
+                    if chunk_count == 0:
+                        logger.warning(
+                            f"Streaming request to {provider_config.name} completed without any chunks. "
+                            f"Model: {actual_model}, Request ID: {request_id}"
+                        )
+                        yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
                     else:
-                        yield f"data: {json_str}\n\n"
+                        # Calculate logging variables
+                        import datetime
+                        response_time_ms = (time.time() - start_time) * 1000
+                        display_provider = actual_provider or provider_config.name
+                        provider_width = calculate_display_width(display_provider)
+                        total_width = 35
+                        padding_needed = total_width - provider_width - 4
+                        padding = " " * padding_needed
+                        final_input_tokens = total_input_tokens if total_input_tokens > 0 else initial_input_tokens
+                        end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-                # Check if we received any chunks
-                if chunk_count == 0:
-                    logger.warning(
-                        f"Streaming request to {provider_config.name} completed without any chunks. "
-                        f"Model: {actual_model}, Request ID: {request_id}"
-                    )
-                    yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
-                else:
-                    # Log success
-                    import datetime
-                    response_time_ms = (time.time() - start_time) * 1000
-                    # Use actual_provider from API response, fallback to provider_config.name
-                    display_provider = actual_provider or provider_config.name
-                    provider_width = calculate_display_width(display_provider)
-                    total_width = 35
-                    padding_needed = total_width - provider_width - 4
-                    padding = " " * padding_needed
-                    # 优先使用实际的 input_tokens，如果没有则使用估算值
-                    final_input_tokens = total_input_tokens if total_input_tokens > 0 else initial_input_tokens
-                    end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                        # Log the current request result (always log, including zero output tokens)
+                        logger.info(
+                            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                            f"  {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+                            f"  API Format: anthropic\n"
+                            f"  Stream: True\n"
+                            f"  Provider: {provider_config.name}\n"
+                            f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
+                            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
+                            f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
+                            f"  Model: {actual_model}\n"
+                            f"  Actual Provider Message ID: {actual_message_id}\n"
+                            f"  Input Tokens: {final_input_tokens}\n"
+                            f"  Output Tokens: {total_output_tokens}\n"
+                            f"  Response Time: {response_time_ms:.2f}ms\n"
+                            f"  Chunks Sent: {chunk_count}"
+                        )
 
-                    logger.debug(
-                        f"Received actual usage: input={final_input_tokens}, output={total_output_tokens}"
-                    )
+                        await self._log_request(
+                            request_id=request_id,
+                            provider_name=provider_config.name,
+                            model=actual_model,
+                            request_params=anthropic_request,
+                            status_code=200,
+                            input_tokens=final_input_tokens,
+                            output_tokens=total_output_tokens,
+                            response_time_ms=response_time_ms
+                        )
 
-                    logger.info(
-                        f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
-                        f"  {COLOR_GREEN}Streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-                        f"  API Format: anthropic\n"
-                        f"  Stream: True\n"
-                        f"  Provider: {provider_config.name}\n"
-                        f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-                        f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
-                        f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
-                        f"  Model: {actual_model}\n"
-                        f"  Actual Provider Message ID: {actual_message_id}\n"
-                        f"  Input Tokens: {final_input_tokens}\n"
-                        f"  Output Tokens: {total_output_tokens}\n"
-                        f"  Response Time: {response_time_ms:.2f}ms\n"
-                        f"  Chunks Sent: {chunk_count}"
-                    )
+                        cost_estimate = final_input_tokens * COST_PER_INPUT_TOKEN + total_output_tokens * COST_PER_OUTPUT_TOKEN
+                        await self._update_token_usage(
+                            provider_config.name, actual_model, final_input_tokens, total_output_tokens, cost_estimate
+                        )
 
-                    await self._log_request(
-                        request_id=request_id,
-                        provider_name=provider_config.name,
-                        model=actual_model,
-                        request_params=anthropic_request,
-                        status_code=200,
-                        input_tokens=final_input_tokens,
-                        output_tokens=total_output_tokens,
-                        response_time_ms=response_time_ms
-                    )
+                        # Check for zero output tokens and trigger retry
+                        if total_output_tokens == 0 and config.app_config.retry_on_zero_output_tokens:
+                            if zero_output_retry_count < max_zero_output_retries:
+                                logger.warning(
+                                    f"Zero output tokens from {provider_config.name} for model {actual_model}. "
+                                    f"Request ID: {request_id}. Retrying ({zero_output_retry_count + 1}/{max_zero_output_retries})..."
+                                )
+                                # Notify client about retry
+                                retry_notification = {
+                                    "type": "error",
+                                    "error": {
+                                        "type": "zero_output_tokens",
+                                        "message": f"Provider '{provider_config.name}' returned zero output tokens. Retrying ({zero_output_retry_count + 1}/{max_zero_output_retries})...",
+                                        "code": "retrying",
+                                        "provider": provider_config.name,
+                                        "model": actual_model,
+                                        "retry_count": zero_output_retry_count + 1,
+                                        "max_retries": max_zero_output_retries
+                                    }
+                                }
+                                yield f"event: error\ndata: {json.dumps(retry_notification)}\n\n"
+                                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                                zero_output_retry_count += 1
+                                continue  # Retry the request
+                            else:
+                                # Max retries reached, log and return
+                                logger.warning(
+                                    f"Max retries ({max_zero_output_retries}) reached for zero output tokens from {provider_config.name}. "
+                                    f"Model: {actual_model}, Request ID: {request_id}"
+                                )
 
-                    cost_estimate = final_input_tokens * COST_PER_INPUT_TOKEN + total_output_tokens * COST_PER_OUTPUT_TOKEN
-                    await self._update_token_usage(
-                        provider_config.name, actual_model, final_input_tokens, total_output_tokens, cost_estimate
-                    )
+                        yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
 
-            except Exception as e:
-                logger.error(f"Error in streaming response from {provider_config.name}: {e}", exc_info=True)
-                error_response = {
-                    "type": "error",
-                    "error": {
-                        "type": "api_error",
-                        "message": str(e),
-                        "code": "streaming_error"
+                    # Stream completed successfully, exit retry loop
+                    break
+
+                except (httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+                    network_error_retries += 1
+                    if network_error_retries <= max_network_retries:
+                        delay = min(1.0 * (2.0 ** (network_error_retries - 1)), 60.0)
+                        error_type = "connection_timeout" if isinstance(e, (httpx.ConnectTimeout, httpx.PoolTimeout)) else \
+                                     "read_timeout" if isinstance(e, (httpx.ReadTimeout, httpx.TimeoutException)) else \
+                                     "connection_error"
+                        logger.warning(
+                            f"Streaming error ({error_type}) for {provider_config.name}, "
+                            f"retry {network_error_retries}/{max_network_retries}, will retry in {delay:.1f}s"
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        logger.error(f"Max network retries ({max_network_retries}) reached for streaming from {provider_config.name}")
+                        yield f"event: error\ndata: {json.dumps({'type': 'error', 'error': {'type': 'connection_error', 'message': str(e)}})}\n\n"
+                        yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                        break
+
+                except Exception as e:
+                    logger.error(f"Error in streaming response from {provider_config.name}: {e}", exc_info=True)
+                    error_response = {
+                        "type": "error",
+                        "error": {
+                            "type": "api_error",
+                            "message": str(e),
+                            "code": "streaming_error"
+                        }
                     }
-                }
-                yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
-                yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
-            finally:
-                try:
-                    await client.close_async()
-                except Exception as close_error:
-                    logger.debug(f"Error closing client for {provider_config.name}: {close_error}")
+                    yield f"event: error\ndata: {json.dumps(error_response)}\n\n"
+                    yield f"event: message_stop\ndata: {{\"type\": \"message_stop\"}}\n\n"
+                    break
+                finally:
+                    try:
+                        await client.close_async()
+                    except Exception as close_error:
+                        logger.debug(f"Error closing client for {provider_config.name}: {close_error}")
 
         return StreamingResponse(
-            generate(),
+            generate_with_retry(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -490,7 +554,7 @@ class AnthropicMessageHandler(BaseRequestHandler):
         request_id: str,
         start_time: float
     ) -> dict:
-        """Handle non-streaming Anthropic-format request.
+        """Handle non-streaming Anthropic-format request with automatic retry on zero output tokens.
 
         Args:
             req: The request object
@@ -506,111 +570,153 @@ class AnthropicMessageHandler(BaseRequestHandler):
         anthropic_request = self._prepare_request(req)
         anthropic_request["model"] = actual_model
 
-        client = AnthropicClient(provider_config)
+        # Retry loop for zero output tokens
+        max_zero_output_retries = config.app_config.retry_on_zero_output_tokens_retries if config.app_config.retry_on_zero_output_tokens else 3
+        current_retry = 0
+        max_network_retries = provider_config.max_retries if hasattr(provider_config, 'max_retries') else 3
 
-        try:
-            async def make_request():
-                async for response in client.messages_async(anthropic_request, stream=False):
-                    return response
-                raise ValueError("No response received from provider")
+        while current_retry <= max_zero_output_retries:
+            client = AnthropicClient(provider_config)
 
-            response = await retry_with_backoff(
-                make_request,
-                max_retries=provider_config.max_retries,
-                initial_delay=1.0,
-                max_delay=60.0,
-                exponential_base=2.0,
-                retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.RequestError),
-                provider_name=provider_config.name
+            try:
+                async def make_request():
+                    async for response in client.messages_async(anthropic_request, stream=False):
+                        return response
+                    raise ValueError("No response received from provider")
+
+                response = await retry_with_backoff(
+                    make_request,
+                    max_retries=max_network_retries,
+                    initial_delay=1.0,
+                    max_delay=60.0,
+                    exponential_base=2.0,
+                    retryable_exceptions=(httpx.ReadTimeout, httpx.TimeoutException, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.RequestError),
+                    provider_name=provider_config.name
+                )
+
+                # Extract provider_message_id and actual provider from response
+                if isinstance(response, dict):
+                    provider_message_id = response.get("id")
+                    actual_provider = response.get("provider", provider_config.name)
+                    logger.debug(f"Extracted provider_message_id: {provider_message_id}")
+                    logger.debug(f"Extracted actual provider: {actual_provider}")
+                else:
+                    provider_message_id = None
+                    actual_provider = provider_config.name
+
+            except httpx.HTTPStatusError as e:
+                error_text = str(e.response.text) if hasattr(e.response, 'text') else ""
+                logger.error(f"HTTP error from {provider_config.name}: {e.response.status_code} - {error_text}")
+                await client.close_async()
+                raise HTTPException(
+                    status_code=503 if e.response.status_code >= 500 else e.response.status_code,
+                    detail={
+                        "type": "api_error",
+                        "message": f"API error from provider '{provider_config.name}': {error_text}",
+                        "provider": provider_config.name
+                    }
+                )
+            except httpx.RequestError as e:
+                logger.error(f"Request error from {provider_config.name}: {e}")
+                await client.close_async()
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "type": "connection_error",
+                        "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
+                        "provider": provider_config.name
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Unexpected error from {provider_config.name}: {e}", exc_info=True)
+                await client.close_async()
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "type": "internal_error",
+                        "message": f"Unexpected error: {str(e)}",
+                        "provider": provider_config.name
+                    }
+                )
+            finally:
+                try:
+                    await client.close_async()
+                except Exception:
+                    pass
+
+            # Extract usage and log
+            input_tokens, output_tokens = self._extract_usage_from_response(response)
+
+            response_time_ms = (time.time() - start_time) * 1000
+            await self._log_request(
+                request_id=request_id,
+                provider_name=provider_config.name,
+                model=actual_model,
+                request_params=anthropic_request,
+                response_data=response,
+                status_code=200,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                response_time_ms=response_time_ms
             )
 
-            # Extract provider_message_id and actual provider from response
-            if isinstance(response, dict):
-                provider_message_id = response.get("id")
-                actual_provider = response.get("provider", provider_config.name)
-                logger.debug(f"Extracted provider_message_id: {provider_message_id}")
-                logger.debug(f"Extracted actual provider: {actual_provider}")
-            else:
-                provider_message_id = None
-                actual_provider = provider_config.name
+            if input_tokens or output_tokens:
+                cost_estimate = (input_tokens or 0) * COST_PER_INPUT_TOKEN + (output_tokens or 0) * COST_PER_OUTPUT_TOKEN
+                await self._update_token_usage(
+                    provider_config.name, actual_model, input_tokens or 0, output_tokens or 0, cost_estimate
+                )
 
-        except httpx.HTTPStatusError as e:
-            error_text = str(e.response.text) if hasattr(e.response, 'text') else ""
-            logger.error(f"HTTP error from {provider_config.name}: {e.response.status_code} - {error_text}")
-            raise HTTPException(
-                status_code=503 if e.response.status_code >= 500 else e.response.status_code,
-                detail={
-                    "type": "api_error",
-                    "message": f"API error from provider '{provider_config.name}': {error_text}",
-                    "provider": provider_config.name
-                }
-            )
-        except httpx.RequestError as e:
-            logger.error(f"Request error from {provider_config.name}: {e}")
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "type": "connection_error",
-                    "message": f"Connection error to provider '{provider_config.name}': {str(e)}",
-                    "provider": provider_config.name
-                }
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error from {provider_config.name}: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "type": "internal_error",
-                    "message": f"Unexpected error: {str(e)}",
-                    "provider": provider_config.name
-                }
+            # Log completion for non-streaming
+            import datetime
+            display_provider = actual_provider or provider_config.name
+            provider_width = calculate_display_width(display_provider)
+            total_width = 35
+            padding_needed = total_width - provider_width - 4
+            padding = " " * padding_needed
+            end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            logger.info(
+                f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
+                f"  API Format: anthropic\n"
+                f"  Stream: False\n"
+                f"  Provider: {provider_config.name}\n"
+                f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
+                f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
+                f"  Model: {actual_model}\n"
+                f"  Actual Provider Message ID: {provider_message_id}\n"
+                f"  Input Tokens: {input_tokens}\n"
+                f"  Output Tokens: {output_tokens}\n"
+                f"  Response Time: {response_time_ms:.2f}ms"
             )
 
-        # Extract usage and log
-        input_tokens, output_tokens = self._extract_usage_from_response(response)
+            # Check for zero output tokens and trigger retry
+            if output_tokens == 0 and config.app_config.retry_on_zero_output_tokens:
+                if current_retry < max_zero_output_retries:
+                    logger.warning(
+                        f"Zero output tokens from {provider_config.name} for model {actual_model}. "
+                        f"Request ID: {request_id}. Retrying ({current_retry + 1}/{max_zero_output_retries})..."
+                    )
+                    current_retry += 1
+                    continue  # Retry the request
+                else:
+                    # Max retries reached, log and return
+                    logger.warning(
+                        f"Max retries ({max_zero_output_retries}) reached for zero output tokens from {provider_config.name}. "
+                        f"Model: {actual_model}, Request ID: {request_id}"
+                    )
+                    break
 
-        response_time_ms = (time.time() - start_time) * 1000
-        await self._log_request(
-            request_id=request_id,
-            provider_name=provider_config.name,
-            model=actual_model,
-            request_params=anthropic_request,
-            response_data=response,
-            status_code=200,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            response_time_ms=response_time_ms
+            # Success - return response
+            return response
+
+        # Max retries exceeded, raise error
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "type": "zero_output_tokens",
+                "message": f"Provider '{provider_config.name}' returned zero output tokens after {max_zero_output_retries} retries",
+                "provider": provider_config.name,
+                "model": actual_model
+            }
         )
-
-        if input_tokens or output_tokens:
-            cost_estimate = (input_tokens or 0) * COST_PER_INPUT_TOKEN + (output_tokens or 0) * COST_PER_OUTPUT_TOKEN
-            await self._update_token_usage(
-                provider_config.name, actual_model, input_tokens or 0, output_tokens or 0, cost_estimate
-            )
-
-        # Log completion for non-streaming
-        import datetime
-        # Use actual_provider from API response, fallback to provider_config.name
-        display_provider = actual_provider or provider_config.name
-        provider_width = calculate_display_width(display_provider)
-        total_width = 35
-        padding_needed = total_width - provider_width - 4
-        padding = " " * padding_needed
-        end_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        logger.info(
-            f"{COLOR_CYAN}[Request {request_id}]{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}Non-streaming completed at{COLOR_RESET} {COLOR_YELLOW}{end_timestamp}{COLOR_RESET}\n"
-            f"  API Format: anthropic\n"
-            f"  Stream: False\n"
-            f"  Provider: {provider_config.name}\n"
-            f"  {COLOR_GREEN}┌──────── Actual Provider ────────┐{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}│ {display_provider}{padding} │{COLOR_RESET}\n"
-            f"  {COLOR_GREEN}└─────────────────────────────────┘{COLOR_RESET}\n"
-            f"  Model: {actual_model}\n"
-            f"  Actual Provider Message ID: {provider_message_id}\n"
-            f"  Input Tokens: {input_tokens}\n"
-            f"  Output Tokens: {output_tokens}\n"
-            f"  Response Time: {response_time_ms:.2f}ms"
-        )
-
-        return response

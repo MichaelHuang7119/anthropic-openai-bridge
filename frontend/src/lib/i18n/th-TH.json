@@ -7,6 +7,7 @@
     "home": "หน้าแรก",
     "chat": "แชท",
     "providers": "ผู้ให้บริการ",
+    "users": "ผู้ใช้",
     "apiKeys": "คีย์ API",
     "stats": "สถิติ",
     "health": "สุขภาพ",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "คัดลอกไปยังคลิปบอร์ดแล้ว",
     "copyFailed": "การคัดลอกล้มเหลว กรุณาคัดลอกด้วยตนเอง",
     "copyErrorMessage": "คัดลอกข้อความแสดงข้อผิดพลาด",
+    "accessDenied": "ปฏิเสธการเข้าถึง",
+    "saving": "กำลังบันทึก...",
+    "back": "กลับ",
+    "loginSuccess": "ยินดีต้อนรับ ",
+    "redirecting": "กำลังนำไปยัง...",
     "close": "ปิด"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "เกณฑ์ความล้มเหลว",
     "failureThresholdHelp": "จำนวนความล้มเหลวต่อเนื่องที่จะทำให้วงจรตัดไฟทำงาน (1-20)",
     "recoveryTimeout": "ระยะเวลารอกู้คืน (วินาที)",
-    "recoveryTimeoutHelp": "ระยะเวลารอก่อนพยายามกู้คืนหลังจากวงจรตัดไฟเปิด (10-600 วินาที)"
+    "recoveryTimeoutHelp": "ระยะเวลารอก่อนพยายามกู้คืนหลังจากวงจรตัดไฟเปิด (10-600 วินาที)",
+    "retryOnZeroOutput": "ลองใหม่เมื่อโทเคนเอาต์พุตเป็นศูนย์",
+    "retryOnZeroOutputDesc": "ลองใหม่โดยอัตโนมัติกับผู้ให้บริการอื่นเมื่อคำขอส่งคืนโทเคนเอาต์พุตเป็นศูนย์"
   },
   "stats": {
     "title": "สถิติการใช้งาน",
@@ -657,5 +665,78 @@
     "step3Title": "เริ่มการแชท",
     "step3Desc": "ไปที่หน้าแชทเพื่อเริ่มบทสนทนา AI ของคุณ",
     "getStarted": "เริ่มต้น"
+  },
+  "permissions": {
+    "title": "การจัดการสิทธิ์",
+    "manage": "จัดการสิทธิ์",
+    "categories": {
+      "feature": "สิทธิ์ฟีเจอร์",
+      "admin": "สิทธิ์ผู้ดูแลระบบ",
+      "system": "สิทธิ์ระบบ"
+    },
+    "loadFailed": "โหลดสิทธิ์ไม่สำเร็จ",
+    "saveFailed": "บันทึกสิทธิ์ไม่สำเร็จ",
+    "saved": "บันทึกสิทธิ์แล้ว",
+    "reset": "รีเซ็ตเป็นค่าเริ่มต้น",
+    "resetConfirm": "คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตสิทธิ์เป็นค่าเริ่มต้น?",
+    "resetSuccess": "รีเซ็ตสิทธิ์เป็นค่าเริ่มต้นแล้ว",
+    "resetFailed": "รีเซ็ตสิทธิ์ไม่สำเร็จ",
+    "accessDenied": "คุณไม่มีสิทธิ์เข้าถึงหน้านี้",
+    "adminUser": "ผู้ดูแลระบบ - ไม่สามารถแก้ไขสิทธิ์ได้"
+  },
+  "users": {
+    "title": "การจัดการผู้ใช้",
+    "searchPlaceholder": "ค้นหาผู้ใช้...",
+    "email": "อีเมล",
+    "name": "ชื่อ",
+    "role": "บทบาท",
+    "status": "สถานะ",
+    "createdAt": "สร้างเมื่อ",
+    "lastLogin": "เข้าสู่ระบบล่าสุด",
+    "actions": "การดำเนินการ",
+    "noUsers": "ไม่พบผู้ใช้",
+    "fetchFailed": "ดึงข้อมูลผู้ใช้ไม่สำเร็จ",
+    "addUser": "เพิ่มผู้ใช้",
+    "editUser": "แก้ไขผู้ใช้",
+    "deleteUser": "ลบผู้ใช้",
+    "password": "รหัสผ่าน",
+    "confirmPassword": "ยืนยันรหัสผ่าน",
+    "isAdmin": "ผู้ดูแลระบบ",
+    "isActive": "ใช้งาน",
+    "addFirstUser": "เพิ่มผู้ใช้คนแรก",
+    "save": "บันทึก",
+    "cancel": "ยกเลิก",
+    "saveSuccess": "บันทึกสำเร็จ",
+    "saveFailed": "บันทึกไม่สำเร็จ",
+    "deleteSuccess": "ลบสำเร็จ",
+    "deleteFailed": "ลบไม่สำเร็จ",
+    "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ \"{email}\"",
+    "deleteConfirmTitle": "ยืนยันการลบ",
+    "cannotDeleteSelf": "ไม่สามารถลบบัญชีตัวเองได้",
+    "cannotDeactivateSelf": "ไม่สามารถปิดใช้งานบัญชีตัวเองได้",
+    "cannotRemoveOwnAdmin": "ไม่สามารถลบสิทธิ์ผู้ดูแลระบบของตัวเองได้",
+    "passwordTooShort": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+    "emailAlreadyExists": "อีเมลนี้ถูกลงทะเบียนแล้ว",
+    "invalidEmail": "รูปแบบอีเมลไม่ถูกต้อง",
+    "passwordMismatch": "รหัสผ่านไม่ตรงกัน",
+    "roles": {
+      "admin": "ผู้ดูแลระบบ",
+      "user": "ผู้ใช้"
+    },
+    "statusActive": "ใช้งาน",
+    "statusInactive": "ไม่ใช้งาน",
+    "managePermissions": "จัดการสิทธิ์",
+    "newPassword": "รหัสผ่านใหม่",
+    "newPasswordPlaceholder": "เว้นว่างไว้เพื่อรักษารหัสผ่านปัจจุบัน"
+  },
+  "pagination": {
+    "page": "หน้า",
+    "of": "จาก",
+    "itemsPerPage": "รายการ/หน้า",
+    "firstPage": "หน้าแรก",
+    "previousPage": "หน้าก่อน",
+    "nextPage": "หน้าถัดไป",
+    "lastPage": "หน้าสุดท้าย",
+    "jumpTo": "ไปยัง"
   }
 }

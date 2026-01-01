@@ -48,7 +48,6 @@ provider.json
 .env
 .env.local
 .env.*.local
-.env.*
 
 # 数据库文件
 *.db

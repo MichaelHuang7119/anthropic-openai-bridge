@@ -9,6 +9,7 @@ from .token_usage import TokenUsageManager
 from .users import UsersManager
 from .api_keys import APIKeysManager
 from .conversations import ConversationsManager
+from .oauth_accounts import OAuthAccountsManager
 
 
 class DatabaseManager:
@@ -33,6 +34,7 @@ class DatabaseManager:
         self.users = UsersManager(self.core)
         self.api_keys = APIKeysManager(self.core)
         self.conversations = ConversationsManager(self.core)
+        self.oauth_accounts = OAuthAccountsManager(self.core)
     
     async def initialize(self):
         """Initialize database schema asynchronously."""
@@ -123,6 +125,18 @@ class DatabaseManager:
         """Update user password (delegates to users manager)."""
         return await self.users.update_user_password(*args, **kwargs)
 
+    async def update_user(self, *args, **kwargs):
+        """Update user (delegates to users manager)."""
+        return await self.users.update_user(*args, **kwargs)
+
+    async def delete_user(self, *args, **kwargs):
+        """Delete user (delegates to users manager)."""
+        return await self.users.delete_user(*args, **kwargs)
+
+    async def get_all_users(self, *args, **kwargs):
+        """Get all users (delegates to users manager)."""
+        return await self.users.get_all_users(*args, **kwargs)
+
     async def create_api_key(self, *args, **kwargs):
         """Create API key (delegates to api_keys manager)."""
         return await self.api_keys.create_api_key(*args, **kwargs)
@@ -203,5 +217,6 @@ __all__ = [
     "UsersManager",
     "APIKeysManager",
     "ConversationsManager",
+    "OAuthAccountsManager",
 ]
 

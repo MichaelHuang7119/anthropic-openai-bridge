@@ -7,6 +7,7 @@
     "home": "Home",
     "chat": "Chat",
     "providers": "Providers",
+    "users": "Users",
     "apiKeys": "API Keys",
     "stats": "Statistics",
     "health": "Health",
@@ -57,7 +58,12 @@
     "close": "Close",
     "copiedToClipboard": "Copied to clipboard",
     "copyFailed": "Copy failed, please copy manually",
-    "copyErrorMessage": "Copy Error Message"
+    "copyErrorMessage": "Copy Error Message",
+    "accessDenied": "Access denied",
+    "saving": "Saving...",
+    "back": "Back",
+    "loginSuccess": "Welcome, ",
+    "redirecting": "Redirecting..."
   },
   "header": {
     "logout": "Logout",
@@ -433,7 +439,11 @@
     "failureThreshold": "Failure Threshold",
     "failureThresholdHelp": "How many consecutive failures to trigger circuit breaker (1-20)",
     "recoveryTimeout": "Recovery Timeout (seconds)",
-    "recoveryTimeoutHelp": "How long to wait before attempting recovery after circuit breaker opens (10-600 seconds)"
+    "recoveryTimeoutHelp": "How long to wait before attempting recovery after circuit breaker opens (10-600 seconds)",
+    "retryOnZeroOutput": "Retry on Zero Output Tokens",
+    "retryOnZeroOutputDesc": "Automatically retry with another provider when a request returns zero output tokens",
+    "retryOnZeroOutputRetries": "Retry Count",
+    "retryOnZeroOutputRetriesDesc": "Maximum number of retries when output tokens is 0 (1-10)"
   },
   "stats": {
     "title": "Usage Statistics",
@@ -657,5 +667,78 @@
     "searchLanguage": "Search languages...",
     "noLanguagesFound": "No languages found",
     "languages": "languages"
+  },
+  "permissions": {
+    "title": "Permission Management",
+    "manage": "Manage Permissions",
+    "categories": {
+      "feature": "Feature Permissions",
+      "admin": "Admin Permissions",
+      "system": "System Permissions"
+    },
+    "loadFailed": "Failed to load permissions",
+    "saveFailed": "Failed to save permissions",
+    "saved": "Permissions saved successfully",
+    "reset": "Reset to Default",
+    "resetConfirm": "Are you sure you want to reset permissions to default?",
+    "resetSuccess": "Permissions reset to default",
+    "resetFailed": "Failed to reset permissions",
+    "accessDenied": "You don't have permission to access this page",
+    "adminUser": "Admin User - Permissions Cannot Be Edited"
+  },
+  "users": {
+    "title": "User Management",
+    "searchPlaceholder": "Search users...",
+    "email": "Email",
+    "name": "Name",
+    "role": "Role",
+    "status": "Status",
+    "createdAt": "Created",
+    "lastLogin": "Last Login",
+    "actions": "Actions",
+    "noUsers": "No users found",
+    "fetchFailed": "Failed to fetch users",
+    "addUser": "Add User",
+    "editUser": "Edit User",
+    "deleteUser": "Delete User",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "isAdmin": "Admin",
+    "isActive": "Active",
+    "addFirstUser": "Add the first user",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveSuccess": "Saved successfully",
+    "saveFailed": "Failed to save",
+    "deleteSuccess": "Deleted successfully",
+    "deleteFailed": "Failed to delete",
+    "deleteConfirm": "Are you sure you want to delete user \"{email}\"?",
+    "deleteConfirmTitle": "Confirm Delete",
+    "cannotDeleteSelf": "Cannot delete your own account",
+    "cannotDeactivateSelf": "Cannot deactivate your own account",
+    "cannotRemoveOwnAdmin": "Cannot remove your own admin privileges",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "emailAlreadyExists": "Email is already registered",
+    "invalidEmail": "Invalid email format",
+    "passwordMismatch": "Passwords do not match",
+    "roles": {
+      "admin": "Admin",
+      "user": "User"
+    },
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "managePermissions": "Manage Permissions",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Leave blank to keep current password"
+  },
+  "pagination": {
+    "page": "Page",
+    "of": "of",
+    "itemsPerPage": "items per page",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "jumpTo": "Jump to"
   }
 }

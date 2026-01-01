@@ -7,10 +7,18 @@ import type {
 } from "$types/provider";
 
 export const providerService = {
+  /**
+   * Get all providers (public endpoint, no sensitive info)
+   * Used by chat page for model selection - no admin permissions required
+   */
   async getAll(options?: RequestOptions): Promise<Provider[]> {
-    return apiClient.get<Provider[]>("/api/providers", options);
+    return apiClient.get<Provider[]>("/api/providers/public", options);
   },
 
+  /**
+   * Get all providers for editing (requires providers admin permission)
+   * Includes sensitive info like API keys
+   */
   async getAllForEdit(options?: RequestOptions): Promise<Provider[]> {
     return apiClient.get<Provider[]>(
       "/api/providers?include_secrets=true",

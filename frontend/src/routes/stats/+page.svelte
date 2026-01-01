@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
   import Card from '$components/ui/Card.svelte';
   import Badge from '$components/ui/Badge.svelte';
   import Button from '$components/ui/Button.svelte';
@@ -13,6 +14,7 @@
   import type { Provider } from '$types/provider';
   import { toast } from '$stores/toast';
   import { tStore, language } from '$stores/language';
+  import { authService } from '$services/auth';
 
   // 获取翻译函数（响应式）
   const t = $derived($tStore);
@@ -21,6 +23,7 @@
   const currentLanguage = $derived($language);
 
   let loading = $state(true);
+  let hasPermission = $state(true);
   let summary: PerformanceSummary | null = $state(null);
   let tokenUsage: TokenUsage[] = $state([]);
   let dateFilter = $state('7d'); // 7d, 30d, all
@@ -78,6 +81,15 @@
   let abortController: AbortController | null = $state(null);
 
   onMount(async () => {
+    // 检查权限
+    if (!authService.hasPermission('stats')) {
+      hasPermission = false;
+      loading = false;
+      toast.error(t('common.accessDenied'));
+      setTimeout(() => goto('/chat'), 1000);
+      return;
+    }
+
     abortController = new AbortController();
     try {
       await Promise.all([loadData(), loadProviders()]);
@@ -694,7 +706,16 @@
     </div>
   </div>
 
-  {#if loading}
+  {#if !hasPermission}
+    <div class="access-denied">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+      </svg>
+      <p>{t('common.accessDenied')}</p>
+      <p class="redirect-hint">{t('common.redirecting')}</p>
+    </div>
+  {:else if loading}
     <div class="loading">
       <p>{t('stats.loading')}</p>
     </div>
@@ -1650,5 +1671,31 @@
     .stats-table td {
       padding: 0.5rem 0.5rem;
     }
+  }
+
+  .access-denied {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .access-denied svg {
+    color: var(--danger-color, #dc3545);
+    margin-bottom: 1rem;
+  }
+
+  .access-denied p {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .access-denied .redirect-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
   }
 </style>

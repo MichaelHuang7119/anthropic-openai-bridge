@@ -72,8 +72,8 @@ class ToolDefinition(BaseModel):
     """Tool definition."""
 
     name: str
-    description: str
-    input_schema: Dict[str, Any] = Field(alias="input_schema")
+    description: Optional[str] = None
+    input_schema: Optional[Dict[str, Any]] = Field(None, alias="input_schema")
 
 
 class MessagesRequest(BaseModel):

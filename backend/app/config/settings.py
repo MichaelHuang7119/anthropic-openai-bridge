@@ -89,6 +89,8 @@ class AppConfig(BaseModel):
     circuit_breaker: CircuitBreakerConfig = Field(default_factory=CircuitBreakerConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+    retry_on_zero_output_tokens: bool = Field(default=True, description="Whether to retry requests when output tokens is 0")
+    retry_on_zero_output_tokens_retries: int = Field(default=3, description="Maximum number of retries when output tokens is 0")
 
 
 class Config:
@@ -137,6 +139,21 @@ class Config:
 
         # Validate and create app_config from data
         self.app_config = AppConfig(**data)
+
+        # Override from environment variables
+        retry_zero_output_str = os.getenv("RETRY_ZERO_OUTPUT_TOKENS", "")
+        if retry_zero_output_str.lower() in ("true", "1", "yes"):
+            self.app_config.retry_on_zero_output_tokens = True
+        elif retry_zero_output_str.lower() in ("false", "0", "no"):
+            self.app_config.retry_on_zero_output_tokens = False
+
+        retry_zero_output_retries_str = os.getenv("RETRY_ZERO_OUTPUT_TOKENS_RETRIES", "")
+        if retry_zero_output_retries_str:
+            try:
+                self.app_config.retry_on_zero_output_tokens_retries = int(retry_zero_output_retries_str)
+            except ValueError:
+                pass
+
         return self.app_config
 
     def get_enabled_providers(self) -> List[ProviderConfig]:

@@ -7,6 +7,7 @@
     "home": "홈",
     "chat": "채팅",
     "providers": "프로바이더",
+    "users": "사용자 관리",
     "apiKeys": "API 키",
     "stats": "통계",
     "health": "상태",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "클립보드에 복사됨",
     "copyFailed": "복사 실패, 수동으로 복사해주세요",
     "copyErrorMessage": "오류 메시지 복사",
+    "accessDenied": "액세스가 거부되었습니다",
+    "saving": "저장 중...",
+    "back": "뒤로",
+    "loginSuccess": "환영합니다, ",
+    "redirecting": "리다이렉트 중...",
     "close": "닫기"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "실패 임계값",
     "failureThresholdHelp": "회로 차단기를 트리거할 연속 실패 횟수 (1-20)",
     "recoveryTimeout": "복구 타임아웃(초)",
-    "recoveryTimeoutHelp": "회로 차단기가 열린 후 복구 시도 전 대기 시간 (10-600초)"
+    "recoveryTimeoutHelp": "회로 차단기가 열린 후 복구 시도 전 대기 시간 (10-600초)",
+    "retryOnZeroOutput": "제로 출력 토큰 재시도",
+    "retryOnZeroOutputDesc": "요청이 제로 출력 토큰을 반환하면 다른 프로바이더로 자동 재시도"
   },
   "stats": {
     "title": "사용 통계",
@@ -657,5 +665,78 @@
     "step3Title": "채팅 시작",
     "step3Desc": "채팅 페이지로 이동하여 AI 대화를 시작하세요",
     "getStarted": "시작하기"
+  },
+  "permissions": {
+    "title": "권한 관리",
+    "manage": "권한 관리",
+    "categories": {
+      "feature": "기능 권한",
+      "admin": "관리자 권한",
+      "system": "시스템 권한"
+    },
+    "loadFailed": "권한 로드 실패",
+    "saveFailed": "권한 저장 실패",
+    "saved": "권한이 저장되었습니다",
+    "reset": "기본값으로 재설정",
+    "resetConfirm": "권한을 기본값으로 재설정하시겠습니까?",
+    "resetSuccess": "권한이 기본값으로 재설정되었습니다",
+    "resetFailed": "권한 재설정 실패",
+    "accessDenied": "이 페이지에 접근할 권한이 없습니다",
+    "adminUser": "관리자 사용자 - 권한을 편집할 수 없습니다"
+  },
+  "users": {
+    "title": "사용자 관리",
+    "searchPlaceholder": "사용자 검색...",
+    "email": "이메일",
+    "name": "이름",
+    "role": "역할",
+    "status": "상태",
+    "createdAt": "생성일",
+    "lastLogin": "마지막 로그인",
+    "actions": "작업",
+    "noUsers": "사용자를 찾을 수 없습니다",
+    "fetchFailed": "사용자 가져오기 실패",
+    "addUser": "사용자 추가",
+    "editUser": "사용자 수정",
+    "deleteUser": "사용자 삭제",
+    "password": "비밀번호",
+    "confirmPassword": "비밀번호 확인",
+    "isAdmin": "관리자",
+    "isActive": "활성",
+    "addFirstUser": "첫 번째 사용자 추가",
+    "save": "저장",
+    "cancel": "취소",
+    "saveSuccess": "저장되었습니다",
+    "saveFailed": "저장 실패",
+    "deleteSuccess": "삭제되었습니다",
+    "deleteFailed": "삭제 실패",
+    "deleteConfirm": "사용자 \"{email}\"을(를) 삭제하시겠습니까?",
+    "deleteConfirmTitle": "삭제 확인",
+    "cannotDeleteSelf": "자신의 계정은 삭제할 수 없습니다",
+    "cannotDeactivateSelf": "자신의 계정을 비활성화할 수 없습니다",
+    "cannotRemoveOwnAdmin": "자신의 관리자 권한을 제거할 수 없습니다",
+    "passwordTooShort": "비밀번호는 8자 이상이어야 합니다",
+    "emailAlreadyExists": "이메일이 이미 등록되어 있습니다",
+    "invalidEmail": "이메일 형식이 올바르지 않습니다",
+    "passwordMismatch": "비밀번호가 일치하지 않습니다",
+    "roles": {
+      "admin": "관리자",
+      "user": "일반 사용자"
+    },
+    "statusActive": "활성",
+    "statusInactive": "비활성",
+    "managePermissions": "권한 관리",
+    "newPassword": "새 비밀번호",
+    "newPasswordPlaceholder": "비워두면 현재 비밀번호를 유지합니다"
+  },
+  "pagination": {
+    "page": "페이지",
+    "of": "/",
+    "itemsPerPage": "개/페이지",
+    "firstPage": "첫 페이지",
+    "previousPage": "이전 페이지",
+    "nextPage": "다음 페이지",
+    "lastPage": "마지막 페이지",
+    "jumpTo": "이동"
   }
 }

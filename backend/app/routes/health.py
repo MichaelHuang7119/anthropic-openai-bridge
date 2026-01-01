@@ -1,8 +1,9 @@
 """健康检查API端点"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 
 from ..services.health_service import HealthService
+from ..core.auth import require_health
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
@@ -24,7 +25,9 @@ def get_health_service() -> HealthService:
 
 
 @router.get("")
-async def get_all_health():
+async def get_all_health(
+    current_user: dict = Depends(require_health())
+):
     """获取所有供应商健康状态，包括每个类别的健康状态"""
     try:
         health_service = get_health_service()
@@ -43,7 +46,9 @@ async def get_all_health():
 
 
 @router.get("/latest")
-async def get_latest_health():
+async def get_latest_health(
+    current_user: dict = Depends(require_health())
+):
     """从数据库获取最新的健康检查结果（不进行新的检查）"""
     try:
         health_service = get_health_service()
@@ -70,7 +75,10 @@ async def get_latest_health():
 
 
 @router.get("/{name}")
-async def get_provider_health(name: str):
+async def get_provider_health(
+    name: str,
+    current_user: dict = Depends(require_health())
+):
     """获取单个供应商健康状态，包括每个类别的健康状态"""
     try:
         health_service = get_health_service()

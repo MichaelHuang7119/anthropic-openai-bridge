@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { onDestroy } from "svelte";
+  import { goto } from "$app/navigation";
   import Button from "$components/ui/Button.svelte";
   import Card from "$components/ui/Card.svelte";
   import Badge from "$components/ui/Badge.svelte";
@@ -13,8 +14,10 @@
   import type { Provider } from "$types/provider";
   import Input from "$components/ui/Input.svelte";
   import { tStore } from "$stores/language";
+  import { authService } from "$services/auth";
 
   let showForm = $state(false);
+  let hasPermission = $state(true);
   let editingProvider: Provider | null = $state(null);
   let loading = $state(true);
   let saving = $state(false);
@@ -235,6 +238,15 @@
   });
 
   onMount(async () => {
+    // 检查权限
+    if (!authService.hasPermission('providers')) {
+      hasPermission = false;
+      loading = false;
+      toast.error(t('common.accessDenied'));
+      setTimeout(() => goto('/chat'), 1000);
+      return;
+    }
+
     abortController = new AbortController();
     try {
       await loadProviders();
@@ -676,7 +688,16 @@
     </div>
   </div>
 
-  {#if loading}
+  {#if !hasPermission}
+    <div class="access-denied">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+      </svg>
+      <p>{t('common.accessDenied')}</p>
+      <p class="redirect-hint">{t('common.redirecting')}</p>
+    </div>
+  {:else if loading}
     <div class="loading">
       <p>{t("providers.loading")}</p>
     </div>
@@ -2740,5 +2761,31 @@
     .actions-column {
       min-width: 120px;
     }
+  }
+
+  .access-denied {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+  }
+
+  .access-denied svg {
+    color: var(--danger-color, #dc3545);
+    margin-bottom: 1rem;
+  }
+
+  .access-denied p {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .access-denied .redirect-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
   }
 </style>

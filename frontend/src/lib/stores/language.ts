@@ -367,7 +367,7 @@ const languageStore = writable<Language>(DEFAULT_LANGUAGE);
 
 // 创建翻译函数store
 const tStore = derived(languageStore, (currentLang) => {
-  return (key: string): string => {
+  return (key: string, params?: Record<string, string | number>): string => {
     // 处理嵌套key（如 "nav.home"）
     const keys = key.split(".");
     let value = translations[currentLang];
@@ -382,7 +382,14 @@ const tStore = derived(languageStore, (currentLang) => {
     }
 
     if (value) {
-      return value as string;
+      let result = value as string;
+      // 参数插值
+      if (params) {
+        for (const [paramKey, paramValue] of Object.entries(params)) {
+          result = result.replace(new RegExp(`\\{${paramKey}\\}`, "g"), String(paramValue));
+        }
+      }
+      return result;
     }
 
     // 如果当前语言没有翻译，尝试默认语言
@@ -395,7 +402,14 @@ const tStore = derived(languageStore, (currentLang) => {
       }
     }
 
-    return (value as string) || key;
+    let result = (value as string) || key;
+    // 参数插值
+    if (params) {
+      for (const [paramKey, paramValue] of Object.entries(params)) {
+        result = result.replace(new RegExp(`\\{${paramKey}\\}`, "g"), String(paramValue));
+      }
+    }
+    return result;
   };
 });
 

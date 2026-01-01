@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from ..core.auth import require_admin
+from ..core.auth import require_preferences
 from ..database import get_database
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
@@ -14,11 +14,11 @@ class LanguagePreferenceModel(BaseModel):
 
 
 @router.get("/language", response_model=LanguagePreferenceModel)
-async def get_language_preference(user: dict = Depends(require_admin())):
+async def get_language_preference(user: dict = Depends(require_preferences())):
     """获取用户语言偏好"""
     try:
         db = get_database()
-        language = await db.get_user_language(user['user_id'])
+        language = await db.get_user_language(user['id'])
 
         return {"language": language}
     except Exception as e:
@@ -28,12 +28,12 @@ async def get_language_preference(user: dict = Depends(require_admin())):
 @router.put("/language", response_model=dict)
 async def update_language_preference(
     preference: LanguagePreferenceModel,
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_preferences())
 ):
     """更新用户语言偏好"""
     try:
         db = get_database()
-        await db.update_user_language(user['user_id'], preference.language)
+        await db.update_user_language(user['id'], preference.language)
 
         return {
             "success": True,

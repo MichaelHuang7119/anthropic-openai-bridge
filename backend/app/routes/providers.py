@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from pydantic import BaseModel
 
-from ..core.auth import require_admin
+from ..core.auth import require_admin, require_providers, require_user
 from ..services.provider_service import ProviderService
 
 router = APIRouter(prefix="/api/providers", tags=["providers"])
@@ -38,8 +38,22 @@ def get_provider_service() -> ProviderService:
         raise RuntimeError("Provider service not initialized. Call set_provider_service() first.")
     return _provider_service
 
+@router.get("/public", response_model=List[dict])
+async def get_public_providers(user: dict = Depends(require_user())):
+    """获取所有供应商（公开端点，不包含敏感信息）
+
+    用于首页/聊天页面等不需要管理权限的地方。
+    只需要用户认证，不需要 providers 权限。
+    返回的数据不包含 API keys。
+    """
+    try:
+        provider_service = get_provider_service()
+        return provider_service.get_providers(include_secrets=False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load providers: {str(e)}")
+
 @router.get("", response_model=List[dict])
-async def get_providers(include_secrets: bool = False, user: dict = Depends(require_admin())):
+async def get_providers(include_secrets: bool = False, user: dict = Depends(require_providers())):
     """获取所有供应商
 
     Args:
@@ -52,7 +66,7 @@ async def get_providers(include_secrets: bool = False, user: dict = Depends(requ
         raise HTTPException(status_code=500, detail=f"Failed to load providers: {str(e)}")
 
 @router.post("", status_code=201)
-async def create_provider(provider: ProviderModel, user: dict = Depends(require_admin())):
+async def create_provider(provider: ProviderModel, user: dict = Depends(require_providers())):
     """创建新供应商"""
     try:
         provider_service = get_provider_service()
@@ -69,7 +83,7 @@ async def update_provider(
     name: str,
     provider: ProviderModel,
     api_format: Optional[str] = Query(None, description="API format for precise identification"),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_providers())
 ):
     """更新供应商"""
     try:
@@ -99,7 +113,7 @@ async def toggle_provider_enabled(
     name: str,
     enabled: bool = Query(..., description="Enable or disable the provider"),
     api_format: Optional[str] = Query(None, description="API format for precise identification"),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_providers())
 ):
     """切换供应商启用状态"""
     try:
@@ -115,7 +129,7 @@ async def toggle_provider_enabled(
 async def delete_provider(
     name: str,
     api_format: Optional[str] = Query(None, description="API format for precise identification"),
-    user: dict = Depends(require_admin())
+    user: dict = Depends(require_providers())
 ):
     """删除供应商"""
     try:
@@ -128,7 +142,7 @@ async def delete_provider(
         raise HTTPException(status_code=500, detail=f"Failed to delete provider: {str(e)}")
 
 @router.post("/{name}/test")
-async def test_provider(name: str, user: dict = Depends(require_admin())):
+async def test_provider(name: str, user: dict = Depends(require_providers())):
     """测试供应商连接 - 通过本地的 /v1/messages 接口测试完整流程
     
     测试所有类别（big, middle, small）的健康状态，返回每个类别的详细状态。

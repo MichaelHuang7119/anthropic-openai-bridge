@@ -106,7 +106,7 @@ if [ -z "$FRONTEND_PORT" ] || ! [[ "$FRONTEND_PORT" =~ ^[0-9]+$ ]]; then
 fi
 
 # 导出端口环境变量，供子脚本使用
-export BACKEND_PORT
+export BACKEND_PORT=$BACKEND_PORT
 export EXPOSE_PORT=$FRONTEND_PORT
 
 echo ""

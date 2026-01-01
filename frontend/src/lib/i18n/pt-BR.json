@@ -7,6 +7,7 @@
     "home": "Início",
     "chat": "Chat",
     "providers": "Fornecedores",
+    "users": "Usuários",
     "apiKeys": "Chaves API",
     "stats": "Estatísticas",
     "health": "Saúde",
@@ -57,6 +58,11 @@
     "copiedToClipboard": "Copiado para a área de transferência",
     "copyFailed": "Falha ao copiar, copie manualmente",
     "copyErrorMessage": "Copiar mensagem de erro",
+    "accessDenied": "Acesso negado",
+    "saving": "Salvando...",
+    "back": "Voltar",
+    "loginSuccess": "Bem-vindo, ",
+    "redirecting": "Redirecionando...",
     "close": "Fechar"
   },
   "header": {
@@ -417,7 +423,9 @@
     "failureThreshold": "Limite de falha",
     "failureThresholdHelp": "Quantas falhas consecutivas para acionar o disjuntor (1-20)",
     "recoveryTimeout": "Timeout de recuperação (segundos)",
-    "recoveryTimeoutHelp": "Quanto esperar antes de tentar recuperação após o disjuntor abrir (10-600 segundos)"
+    "recoveryTimeoutHelp": "Quanto esperar antes de tentar recuperação após o disjuntor abrir (10-600 segundos)",
+    "retryOnZeroOutput": "Repetir com saída token zero",
+    "retryOnZeroOutputDesc": "Repetir automaticamente com outro fornecedor quando uma solicitação retorna zero tokens de saída"
   },
   "stats": {
     "title": "Estatísticas de uso",
@@ -657,5 +665,78 @@
     "step3Title": "Começar a conversar",
     "step3Desc": "Vá para a página Chat para iniciar sua conversa de IA",
     "getStarted": "Começar"
+  },
+  "permissions": {
+    "title": "Gerenciamento de permissões",
+    "manage": "Gerenciar permissões",
+    "categories": {
+      "feature": "Permissões de recursos",
+      "admin": "Permissões de administrador",
+      "system": "Permissões do sistema"
+    },
+    "loadFailed": "Falha ao carregar permissões",
+    "saveFailed": "Falha ao salvar permissões",
+    "saved": "Permissões salvas",
+    "reset": "Restaurar para padrão",
+    "resetConfirm": "Tem certeza de que deseja restaurar as permissões para o padrão?",
+    "resetSuccess": "Permissões restauradas para o padrão",
+    "resetFailed": "Falha ao restaurar permissões",
+    "accessDenied": "Você não tem permissão para acessar esta página",
+    "adminUser": "Administrador - Permissões não podem ser editadas"
+  },
+  "users": {
+    "title": "Gerenciamento de usuários",
+    "searchPlaceholder": "Buscar usuários...",
+    "email": "Email",
+    "name": "Nome",
+    "role": "Função",
+    "status": "Status",
+    "createdAt": "Criado em",
+    "lastLogin": "Último login",
+    "actions": "Ações",
+    "noUsers": "Nenhum usuário encontrado",
+    "fetchFailed": "Falha ao obter usuários",
+    "addUser": "Adicionar usuário",
+    "editUser": "Editar usuário",
+    "deleteUser": "Excluir usuário",
+    "password": "Senha",
+    "confirmPassword": "Confirmar senha",
+    "isAdmin": "Administrador",
+    "isActive": "Ativo",
+    "addFirstUser": "Adicionar o primeiro usuário",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "saveSuccess": "Salvo com sucesso",
+    "saveFailed": "Falha ao salvar",
+    "deleteSuccess": "Excluído com sucesso",
+    "deleteFailed": "Falha ao excluir",
+    "deleteConfirm": "Tem certeza de que deseja excluir o usuário \"{email}\"?",
+    "deleteConfirmTitle": "Confirmar exclusão",
+    "cannotDeleteSelf": "Não é possível excluir sua própria conta",
+    "cannotDeactivateSelf": "Não é possível desativar sua própria conta",
+    "cannotRemoveOwnAdmin": "Não é possível remover seus próprios privilégios de administrador",
+    "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",
+    "emailAlreadyExists": "O email já está registrado",
+    "invalidEmail": "Formato de email inválido",
+    "passwordMismatch": "As senhas não coincidem",
+    "roles": {
+      "admin": "Administrador",
+      "user": "Usuário"
+    },
+    "statusActive": "Ativo",
+    "statusInactive": "Inativo",
+    "managePermissions": "Gerenciar permissões",
+    "newPassword": "Nova senha",
+    "newPasswordPlaceholder": "Deixe em branco para manter a senha atual"
+  },
+  "pagination": {
+    "page": "Página",
+    "of": "de",
+    "itemsPerPage": "itens/página",
+    "firstPage": "Primeira página",
+    "previousPage": "Página anterior",
+    "nextPage": "Próxima página",
+    "lastPage": "Última página",
+    "jumpTo": "Ir para"
   }
 }

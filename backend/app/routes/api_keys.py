@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 import logging
 
-from ..core.auth import require_admin, generate_api_key, hash_api_key, get_api_key_prefix
+from ..core.auth import require_admin, require_api_keys, generate_api_key, hash_api_key, get_api_key_prefix
 from ..database import get_database
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ async def get_api_keys(
     offset: int = Query(0, ge=0),
     name_filter: Optional[str] = Query(None, description="Filter by name (partial match)"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """获取所有API Key列表（需要管理员权限）"""
     db = get_database()
@@ -106,7 +106,7 @@ async def get_api_keys(
 @router.get("/{api_key_id}", response_model=APIKeyResponse)
 async def get_api_key(
     api_key_id: int,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """获取指定API Key详情（需要管理员权限）"""
     db = get_database()
@@ -136,7 +136,7 @@ async def get_api_key(
 @router.post("", response_model=CreateAPIKeyResponse)
 async def create_api_key(
     request: CreateAPIKeyRequest,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """创建新API Key（需要管理员权限）"""
     db = get_database()
@@ -163,7 +163,7 @@ async def create_api_key(
         encrypted_key=encrypted_key,
         name=request.name,
         email=request.email.lower() if request.email else None,
-        user_id=current_user.get("user_id")
+        user_id=current_user.get("id")
     )
 
     if not api_key_id:
@@ -186,7 +186,7 @@ async def create_api_key(
 async def update_api_key(
     api_key_id: int,
     request: UpdateAPIKeyRequest,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """更新API Key（需要管理员权限）"""
     db = get_database()
@@ -233,7 +233,7 @@ async def update_api_key(
 @router.delete("/{api_key_id}")
 async def delete_api_key(
     api_key_id: int,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """删除API Key（需要管理员权限）"""
     db = get_database()
@@ -262,7 +262,7 @@ async def delete_api_key(
 @router.get("/{api_key_id}/full", response_model=dict)
 async def get_full_api_key(
     api_key_id: int,
-    current_user: dict = Depends(require_admin())
+    current_user: dict = Depends(require_api_keys())
 ):
     """获取完整API Key（需要管理员权限，仅在需要时调用）"""
     from ..database import get_database
