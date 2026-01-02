@@ -12,7 +12,7 @@ export const permissionsService = {
    */
   async getAllPermissions(): Promise<PermissionInfo[]> {
     const response = await apiClient.get<PermissionListResponse>(
-      "/api/admin/permissions"
+      "/api/admin/permissions",
     );
     return response.permissions;
   },
@@ -22,7 +22,7 @@ export const permissionsService = {
    */
   async getUserPermissions(userId: number): Promise<UserPermissions> {
     return apiClient.get<UserPermissions>(
-      `/api/admin/permissions/user/${userId}`
+      `/api/admin/permissions/user/${userId}`,
     );
   },
 
@@ -31,7 +31,7 @@ export const permissionsService = {
    */
   async updateUserPermissions(
     userId: number,
-    permissions: Record<PermissionCategory, boolean>
+    permissions: Record<PermissionCategory, boolean>,
   ): Promise<{
     success: boolean;
     message: string;

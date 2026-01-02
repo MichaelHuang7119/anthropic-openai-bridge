@@ -425,9 +425,9 @@
 
 <!-- Add/Edit User Modal -->
 {#if showModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="modal-overlay" onclick={closeModal} role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="modal" onclick={(e) => e.stopPropagation()} role="presentation">
       <div class="modal-header">
         <h2 id="modal-title">{modalMode === "add" ? t("users.addUser") : t("users.editUser")}</h2>
@@ -535,9 +535,9 @@
 
 <!-- Delete Confirmation Modal -->
 {#if showDeleteConfirm && deletingUser}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="modal-overlay" onclick={closeDeleteConfirm} role="alertdialog" aria-modal="true" aria-labelledby="delete-modal-title" tabindex="-1">
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="modal confirm-modal" onclick={(e) => e.stopPropagation()} role="presentation">
       <div class="modal-header">
         <h2 id="delete-modal-title">{t("users.deleteConfirmTitle")}</h2>

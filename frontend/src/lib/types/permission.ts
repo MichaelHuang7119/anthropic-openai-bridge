@@ -1,20 +1,20 @@
 /** Permission types for frontend */
 
 export type PermissionCategory =
-  | 'chat'
-  | 'conversations'
-  | 'preferences'
-  | 'providers'
-  | 'api_keys'
-  | 'stats'
-  | 'health'
-  | 'config'
-  | 'users';
+  | "chat"
+  | "conversations"
+  | "preferences"
+  | "providers"
+  | "api_keys"
+  | "stats"
+  | "health"
+  | "config"
+  | "users";
 
 export interface PermissionInfo {
   code: PermissionCategory;
   name: string;
-  category: 'feature' | 'admin' | 'system';
+  category: "feature" | "admin" | "system";
   description: string;
 }
 

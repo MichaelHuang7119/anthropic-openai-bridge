@@ -386,7 +386,10 @@ const tStore = derived(languageStore, (currentLang) => {
       // 参数插值
       if (params) {
         for (const [paramKey, paramValue] of Object.entries(params)) {
-          result = result.replace(new RegExp(`\\{${paramKey}\\}`, "g"), String(paramValue));
+          result = result.replace(
+            new RegExp(`\\{${paramKey}\\}`, "g"),
+            String(paramValue),
+          );
         }
       }
       return result;
@@ -406,7 +409,10 @@ const tStore = derived(languageStore, (currentLang) => {
     // 参数插值
     if (params) {
       for (const [paramKey, paramValue] of Object.entries(params)) {
-        result = result.replace(new RegExp(`\\{${paramKey}\\}`, "g"), String(paramValue));
+        result = result.replace(
+          new RegExp(`\\{${paramKey}\\}`, "g"),
+          String(paramValue),
+        );
       }
     }
     return result;

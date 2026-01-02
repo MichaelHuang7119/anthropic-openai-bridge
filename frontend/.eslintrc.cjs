@@ -41,5 +41,7 @@ module.exports = {
     "no-constant-condition": "warn",
     // Allow {@html} for controlled SVG icons (not user-generated content)
     "svelte/no-at-html-tags": "off",
+    // Disable unused svelte-ignore warnings since they may be suppressed by Svelte version
+    "svelte/no-unused-svelte-ignore": "off",
   },
 };

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/stores';
   import Header from '$components/layout/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
@@ -9,7 +9,6 @@
   import { authService } from '$services/auth';
   import {
     initAuthState,
-    getAuthState,
     subscribeAuth,
     checkPermission,
     getIsLoggingOut,
@@ -112,35 +111,6 @@
     return currentPathname.startsWith(href);
   }
 
-  // 权限检查函数
-  function checkRoutePermission(pathname: string): boolean {
-    // 公开路由不需要权限检查
-    if (pathname === '/login' || pathname.startsWith('/oauth/')) {
-      return true;
-    }
-
-    // 未初始化或未登录用户跳转到登录页
-    if (!authState?.isAuthenticated) {
-      console.log('[Layout] Auth check failed, redirecting to login');
-      goto('/login');
-      return false;
-    }
-
-    // 权限检查（使用 auth store 中的权限检查）
-    if (!authService.canAccessRoute(pathname)) {
-      console.log('[Layout] Permission denied for route:', pathname);
-      const defaultRedirect = authService.getDefaultRedirectUrl();
-      if (pathname !== defaultRedirect) {
-        toast.error(t('common.accessDenied'));
-        goto(defaultRedirect);
-        return false;
-      }
-    }
-
-    console.log('[Layout] Auth check passed for:', pathname);
-    return true;
-  }
-
   // 在导航前检查权限
   beforeNavigate((nav) => {
     const pathname = nav.to?.url.pathname || '';
@@ -236,7 +206,7 @@
       }
     };
 
-    window.addEventListener('auth:login', handleAuthLogin as EventListener);
+    window.addEventListener('auth:login', handleAuthLogin as any);
 
     // 监听 storage 变化（用于多标签页同步）
     const handleStorageChange = (event: StorageEvent) => {
@@ -252,7 +222,7 @@
     // 返回清理函数
     return () => {
       window.removeEventListener('keydown', handleKeydown);
-      window.removeEventListener('auth:login', handleAuthLogin as EventListener);
+      window.removeEventListener('auth:login', handleAuthLogin as any);
       window.removeEventListener('storage', handleStorageChange);
     };
   });

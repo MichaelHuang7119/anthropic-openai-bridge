@@ -15,7 +15,7 @@ import {
   setAuthState,
   clearAuthState,
   initAuthState,
-  updateUserState
+  updateUserState,
 } from "$stores/auth.svelte";
 
 const TOKEN_KEY = "auth_token";
@@ -248,7 +248,7 @@ class AuthService {
     if (browser) {
       localStorage.removeItem("welcome_shown");
       // Set page title before redirect
-      document.title = 'Login - Anthropic OpenAI Bridge';
+      document.title = "Login - Anthropic OpenAI Bridge";
       goto("/login");
     }
   }
@@ -332,7 +332,9 @@ class AuthService {
   /**
    * OAuth2 登录 - 获取授权 URL（备用方法）
    */
-  async getOAuthAuthorizationUrl(provider: string): Promise<OAuthLoginResponse> {
+  async getOAuthAuthorizationUrl(
+    provider: string,
+  ): Promise<OAuthLoginResponse> {
     const response = await fetch(`/oauth/${provider}/login`, {
       method: "GET",
       headers: {
@@ -341,12 +343,15 @@ class AuthService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "OAuth login failed" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "OAuth login failed" }));
       throw new Error(error.detail || error.message || "OAuth login failed");
     }
 
     // 后端返回的是重定向，我们解析 Location header
-    const location = response.headers.get("Location") || response.headers.get("location");
+    const location =
+      response.headers.get("Location") || response.headers.get("location");
     if (!location) {
       throw new Error("No authorization URL in response");
     }
@@ -365,9 +370,12 @@ class AuthService {
   async oauthCallback(
     provider: string,
     code: string,
-    idToken?: string
+    idToken?: string,
   ): Promise<OAuthCallbackResponse> {
-    const body: { provider: string; code: string; id_token?: string } = { provider, code };
+    const body: { provider: string; code: string; id_token?: string } = {
+      provider,
+      code,
+    };
     if (idToken) {
       body.id_token = idToken;
     }
@@ -381,7 +389,9 @@ class AuthService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "OAuth callback failed" }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: "OAuth callback failed" }));
       throw new Error(error.detail || error.message || "OAuth callback failed");
     }
 
@@ -549,9 +559,9 @@ class AuthService {
    */
   canAccessRoute(route: string): boolean {
     // 公开路由，任何人都可以访问（包括所有 /api/ 路由）
-    const publicRoutes = ['/login', '/oauth', '/auth', '/api/'];
-    if (publicRoutes.some(r => route.startsWith(r))) {
-      console.info('[Auth] canAccessRoute: public route', route);
+    const publicRoutes = ["/login", "/oauth", "/auth", "/api/"];
+    if (publicRoutes.some((r) => route.startsWith(r))) {
+      console.info("[Auth] canAccessRoute: public route", route);
       return true;
     }
 
@@ -559,61 +569,76 @@ class AuthService {
     // 注意：/chat 和 / 必须分开处理，因为 '/' 是所有路径的前缀
     const routePermissions: Record<string, string[]> = {
       // 聊天
-      '/chat': ['chat'],
+      "/chat": ["chat"],
 
       // 对话管理
-      '/conversations': ['conversations'],
+      "/conversations": ["conversations"],
 
       // 用户偏好设置
-      '/preferences': ['preferences'],
+      "/preferences": ["preferences"],
 
       // 管理后台路由
-      '/admin': ['providers'],
-      '/admin/users': ['providers'],
+      "/admin": ["providers"],
+      "/admin/users": ["providers"],
 
       // 需要 admin 权限的路由
-      '/providers': ['providers'],
-      '/api-keys': ['api_keys'],
-      '/stats': ['stats'],
-      '/health': ['health'],
-      '/config': ['config'],
+      "/providers": ["providers"],
+      "/api-keys": ["api_keys"],
+      "/stats": ["stats"],
+      "/health": ["health"],
+      "/config": ["config"],
 
       // 首页（需要 providers 权限，普通用户默认不可访问）- 放在最后
-      '/': ['providers'],
+      "/": ["providers"],
     };
 
     // 先检查精确匹配（处理 /chat 等）
     if (routePermissions[route]) {
       const perms = routePermissions[route];
-      console.info('[Auth] canAccessRoute: exact match', route, 'required perms', perms);
-      const result = perms.some(perm => this.hasPermission(perm));
-      console.info('[Auth] canAccessRoute: result for', route, ':', result);
+      console.info(
+        "[Auth] canAccessRoute: exact match",
+        route,
+        "required perms",
+        perms,
+      );
+      const result = perms.some((perm) => this.hasPermission(perm));
+      console.info("[Auth] canAccessRoute: result for", route, ":", result);
       return result;
     }
 
     // 再检查带参数的路由（如 /admin/users/123）
     for (const [baseRoute, perms] of Object.entries(routePermissions)) {
       // 跳过根路由 '/'，它已经在上面精确匹配处理了
-      if (baseRoute === '/') continue;
+      if (baseRoute === "/") continue;
       if (route.startsWith(baseRoute)) {
-        console.info('[Auth] canAccessRoute: param route', route, 'matched', baseRoute, 'required perms', perms);
-        const result = perms.some(perm => this.hasPermission(perm));
-        console.info('[Auth] canAccessRoute: result for', route, ':', result);
+        console.info(
+          "[Auth] canAccessRoute: param route",
+          route,
+          "matched",
+          baseRoute,
+          "required perms",
+          perms,
+        );
+        const result = perms.some((perm) => this.hasPermission(perm));
+        console.info("[Auth] canAccessRoute: result for", route, ":", result);
         return result;
       }
     }
 
     // 最后检查根路由
-    if (route === '/') {
-      const perms = routePermissions['/'];
-      console.info('[Auth] canAccessRoute: root route / required perms', perms);
-      const result = perms.some(perm => this.hasPermission(perm));
-      console.info('[Auth] canAccessRoute: result for /:', result);
+    if (route === "/") {
+      const perms = routePermissions["/"];
+      console.info("[Auth] canAccessRoute: root route / required perms", perms);
+      const result = perms.some((perm) => this.hasPermission(perm));
+      console.info("[Auth] canAccessRoute: result for /:", result);
       return result;
     }
 
     // 未配置的路由不允许访问
-    console.info('[Auth] canAccessRoute: route not configured, denying access to', route);
+    console.info(
+      "[Auth] canAccessRoute: route not configured, denying access to",
+      route,
+    );
     return false;
   }
 
@@ -623,10 +648,10 @@ class AuthService {
    */
   getDefaultRedirectUrl(): string {
     // 首页需要 providers 权限
-    if (this.canAccessRoute('/')) {
-      return '/';
+    if (this.canAccessRoute("/")) {
+      return "/";
     }
-    return '/chat';
+    return "/chat";
   }
 }
 
