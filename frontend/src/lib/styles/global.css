@@ -189,6 +189,8 @@ body {
   overflow-x: hidden;
   /* 移动端触摸优化 */
   touch-action: manipulation;
+  /* 预分配滚动条空间防止页面抖动 */
+  overflow-y: scroll;
 }
 
 h1,

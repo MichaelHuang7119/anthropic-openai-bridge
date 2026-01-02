@@ -12,6 +12,7 @@
     getAuthState,
     subscribeAuth,
     checkPermission,
+    getIsLoggingOut,
     type AuthState
   } from '$stores/auth.svelte';
   import { handleKeyboardEvent } from '$lib/config/keyboardShortcuts';
@@ -21,13 +22,37 @@
   // 获取翻译函数（响应式）
   const t = $derived($tStore);
 
-  // 使用响应式的 auth store
-  let authState = $state<AuthState>({ isAuthenticated: false, user: null });
+  // 使用响应式的 auth store（SSR 时为 null，onMount 后初始化）
+  let authState = $state<AuthState | null>(null);
+
+  // 获取初始认证状态（同步读取 localStorage，避免闪烁）
+  function getInitialAuthState(): AuthState {
+    const token = localStorage.getItem('auth_token');
+    const userStr = localStorage.getItem('auth_user');
+
+    if (!token) return { isAuthenticated: false, user: null };
+
+    // token 存在，尝试从 localStorage 恢复用户信息
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        return { isAuthenticated: true, user };
+      } catch {
+        return { isAuthenticated: true, user: null };
+      }
+    }
+
+    // token 存在但没有用户数据，先标记为已登录
+    return { isAuthenticated: true, user: null };
+  }
 
   // 初始化 auth store 并订阅状态变化
   $effect(() => {
     if (typeof window !== 'undefined') {
-      // 初始化 auth 状态
+      // 初始化 auth 状态（同步读取 localStorage 避免闪烁）
+      authState = getInitialAuthState();
+
+      // 初始化 auth store（异步验证 token）
       initAuthState();
 
       // 订阅 auth 状态变化（登录/登出时自动更新导航栏）
@@ -41,6 +66,16 @@
 
   // 导航项配置（根据权限动态显示 - 使用响应式 authState）
   let navItems = $derived.by(() => {
+    // SSR 或正在初始化时，不显示任何导航项
+    if (!authState) {
+      return [];
+    }
+
+    // 如果未登录且不在登出过程中，不在非登录页显示导航栏
+    if (!authState.isAuthenticated && !getIsLoggingOut() && currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')) {
+      return [];
+    }
+
     const items = [
       { href: '/', label: 'nav.home', permission: 'providers' },
       { href: '/chat', label: 'nav.chat', permission: 'chat' },
@@ -51,12 +86,6 @@
       { href: '/stats', label: 'nav.stats', permission: 'stats' },
       { href: '/api-keys', label: 'nav.apiKeys', permission: 'api_keys' }
     ];
-
-    // 如果未登录，只显示登录选项（但登录页会处理跳转）
-    if (!authState.isAuthenticated) {
-      console.log('[Layout] Nav: not authenticated, showing all items');
-      return items;
-    }
 
     // 调试日志
     console.log('[Layout] Nav: user:', JSON.stringify(authState.user));
@@ -90,8 +119,8 @@
       return true;
     }
 
-    // 未登录用户跳转到登录页
-    if (!authState.isAuthenticated) {
+    // 未初始化或未登录用户跳转到登录页
+    if (!authState?.isAuthenticated) {
       console.log('[Layout] Auth check failed, redirecting to login');
       goto('/login');
       return false;
@@ -124,8 +153,8 @@
     }
 
     // 未登录用户跳转到登录页（使用响应式 authState）
-    console.log('[Layout] Auth check for', pathname, ':', authState.isAuthenticated ? 'authenticated' : 'not authenticated');
-    if (!authState.isAuthenticated) {
+    console.log('[Layout] Auth check for', pathname, ':', authState?.isAuthenticated ? 'authenticated' : 'not authenticated');
+    if (!authState?.isAuthenticated) {
       console.log('[Layout] Not authenticated, redirecting to /login');
       // 不使用 nav.cancel()，而是直接用 goto 重定向
       // 这样可以避免触发浏览器的导航拦截对话框
@@ -180,7 +209,7 @@
     // 轮询机制已经在 auth.svelte.ts 中实现
 
     // 未登录且不在登录页，重定向到登录页
-    if (!authState.isAuthenticated && currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')) {
+    if (!authState?.isAuthenticated && currentPathname !== '/login' && !currentPathname.startsWith('/oauth/')) {
       console.log('[Layout] Not authenticated on load, redirecting to login');
       goto('/login', { replaceState: true, noScroll: true });
     }
@@ -196,7 +225,7 @@
     const handleAuthLogin = (event: CustomEvent) => {
       console.log('[Layout] Received auth:login event', event.detail);
       // 重新验证认证状态（使用响应式 authState）
-      if (authState.isAuthenticated) {
+      if (authState?.isAuthenticated) {
         console.log('[Layout] OAuth login successful, user is now authenticated');
         // 如果当前在登录页，自动跳转到默认页面（不要直接跳转到 /，避免权限问题）
         if (currentPathname === '/login') {
@@ -276,6 +305,11 @@
     background: var(--bg-secondary);
     padding: 2rem 0;
     min-height: 0;
+  }
+
+  :global(.app > .main:only-child) {
+    /* 登录页无 Header/Footer 时移除顶部 padding，避免页面抖动 */
+    padding-top: 0;
   }
 
   :global(.chat-layout) .main {

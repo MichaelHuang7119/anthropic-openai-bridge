@@ -22,6 +22,7 @@ export interface AuthState {
 let isAuthenticated = $state(false);
 let user = $state<User | null>(null);
 let initialized = $state(false);
+let isLoggingOut = $state(false); // 标记是否正在登出，用于避免闪烁
 
 // 订阅者列表
 const subscribers: Set<(state: AuthState) => void> = new Set();
@@ -232,6 +233,9 @@ export function setAuthState(newUser: User, token: string): void {
 export function clearAuthState(redirectToLogin: boolean = true): void {
   if (!browser) return;
 
+  // 标记正在登出（避免导航栏闪烁）
+  isLoggingOut = true;
+
   // 停止轮询
   stopStoragePoll();
 
@@ -253,6 +257,13 @@ export function clearAuthState(redirectToLogin: boolean = true): void {
       window.location.href = '/login';
     }
   }
+}
+
+/**
+ * 获取登出状态
+ */
+export function getIsLoggingOut(): boolean {
+  return isLoggingOut;
 }
 
 /**

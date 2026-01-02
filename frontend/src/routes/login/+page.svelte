@@ -131,11 +131,12 @@
             required
             disabled={loading}
             class="floating-input"
+            autocomplete="off"
           />
           <label for="email" class="floating-label">{t('login.email')}</label>
         </div>
 
-        <!-- 密码输入框 - 浮动标签设计 -->
+        <!-- 密码输入框 -->
         <div class="floating-input-group password-group">
           <input
             id="password"
@@ -145,7 +146,7 @@
             required
             disabled={loading}
             class="floating-input"
-            oninput={() => {}}
+            autocomplete="off"
           />
           <label for="password" class="floating-label">{t('login.password')}</label>
           {#if password.length > 0}
@@ -305,54 +306,44 @@
   .floating-input {
     width: 100%;
     padding: 1rem 0.75rem 0.5rem;
-    border: 1px solid var(--input-border, var(--border-color, #ced4da));
+    border: 1px solid var(--input-border, #ced4da);
     border-radius: 0.375rem;
     font-size: 1rem;
     font-family: inherit;
-    background: var(--input-bg, var(--bg-primary, white));
+    background: var(--input-bg, white);
     color: var(--text-primary, #333);
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.2s ease;
     box-sizing: border-box;
   }
 
   .floating-input:focus {
     outline: none;
-    border-color: var(--input-border-focus, var(--primary-color, #007bff));
+    border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
   }
 
   .floating-input:disabled {
-    background-color: var(--bg-tertiary, #e9ecef);
-    opacity: 1;
+    background-color: #e9ecef;
     cursor: not-allowed;
   }
 
   .floating-label {
     position: absolute;
     left: 0.75rem;
-    top: 50%;
+    top: 0;
     transform: translateY(-50%);
-    font-size: 1rem;
-    color: var(--text-secondary, #999);
+    font-size: 0.75rem;
+    color: #999;
     pointer-events: none;
-    transition: all 0.2s ease;
-    background: var(--input-bg, var(--bg-primary, white));
+    transition: color 0.2s ease;
+    background: var(--input-bg, white);
     padding: 0 0.25rem;
     border-radius: 0.25rem;
   }
 
-  /* 在获得焦点或输入内容时，标签上移到顶部 */
-  .floating-input:focus ~ .floating-label,
-  .floating-input:not(:placeholder-shown) ~ .floating-label {
-    top: 0;
-    transform: translateY(-50%);
-    font-size: 0.75rem;
-    color: var(--input-border-focus, var(--primary-color, #007bff));
-  }
-
-  /* 获得焦点时改变颜色 */
+  /* 焦点时颜色变化 */
   .floating-input:focus ~ .floating-label {
-    color: var(--primary-color, #007bff);
+    color: #007bff;
   }
 
   /* 密码输入框组的切换按钮 */
