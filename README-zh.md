@@ -29,7 +29,8 @@ backend/app/
 │   ├── constants.py           # 常量定义 (API_VERSION, MAX_MESSAGE_LENGTH 等)
 │   ├── lifecycle.py           # 启动/关闭事件
 │   ├── model_manager.py       # 供应商和模型路由
-│   └── models.py              # Pydantic 模型 (Message, MessagesRequest 等)
+│   ├── models.py              # Pydantic 模型 (Message, MessagesRequest 等)
+│   └── permissions.py         # 权限定义和检查
 ├── routes/                    # API 路由（统一在 /routes/ 下）
 │   ├── messages.py            # /v1/messages 端点
 │   ├── auth.py                # /api/auth/* (登录、注册)
@@ -40,7 +41,9 @@ backend/app/
 │   ├── stats.py               # /api/stats/* (统计数据)
 │   ├── config.py              # /api/config/* (配置管理)
 │   ├── preferences.py         # /api/preferences/* (用户偏好)
-│   └── event_logging.py       # /api/event_logging/* (事件日志)
+│   ├── event_logging.py       # /api/event_logging/* (事件日志)
+│   ├── admin_permissions.py   # /api/admin/permissions/* (用户与权限管理)
+│   └── oauth.py               # /oauth/* (OAuth 登录)
 ├── services/                  # 业务逻辑服务
 │   ├── handlers/              # 请求处理器 (OpenAI/Anthropic 格式)
 │   │   ├── base.py
@@ -50,7 +53,8 @@ backend/app/
 │   ├── health_service.py      # 健康监控服务
 │   ├── provider_service.py    # 供应商管理服务
 │   ├── token_counter.py       # Token 计数和历史查询
-│   └── config_service.py      # 配置服务
+│   ├── config_service.py      # 配置服务
+│   └── oauth_service.py       # OAuth 服务
 ├── converters/                # 格式转换 (Anthropic ↔ OpenAI)
 │   ├── anthropic_request_convert.py  # Anthropic → OpenAI 请求转换
 │   └── openai_response_convert.py    # OpenAI → Anthropic 响应转换
@@ -71,7 +75,9 @@ backend/app/
 │   ├── request_logs.py        # 请求日志
 │   ├── token_usage.py         # Token 使用统计
 │   ├── health_history.py      # 健康历史
-│   └── config_changes.py      # 配置变更历史
+│   ├── config_changes.py      # 配置变更历史
+│   ├── oauth_accounts.py      # OAuth 账户关联
+│   └── encryption.py          # 加密工具
 ├── utils/                     # 工具函数
 │   ├── token_extractor.py     # 统一 Token 提取 (支持 OpenAI/Anthropic)
 │   ├── security_utils.py      # 加密、验证、API Key 掩码
@@ -87,28 +93,71 @@ backend/app/
 frontend/src/
 ├── lib/
 │   ├── components/            # 可复用的 Svelte 组件
-│   │   ├── chat/              # 聊天相关组件
-│   │   ├── layout/            # 布局组件
+│   │   ├── chat/              # 聊天相关组件 (ChatArea, MessageBubble 等)
+│   │   ├── layout/            # 布局组件 (Header, MobileNav)
 │   │   ├── providers/         # 供应商管理组件
 │   │   ├── settings/          # 设置组件
-│   │   └── ui/                # 基础 UI 组件
+│   │   ├── ui/                # 基础 UI 组件 (Button, Input, Card 等)
+│   │   ├── i18n/              # 国际化组件 (Translate)
+│   │   ├── ErrorMessageModal.svelte
+│   │   ├── Pagination.svelte
+│   │   ├── ProviderForm.svelte
+│   │   ├── SettingsModal.svelte
+│   │   ├── WelcomeModal.svelte
+│   │   └── OAuthIcon.svelte
 │   ├── services/              # API 客户端服务
 │   │   ├── api.ts             # 主 API 客户端
 │   │   ├── chatService.ts     # 聊天服务
-│   │   └── authService.ts     # 认证服务
-│   ├── stores/                # Svelte 状态存储
-│   │   ├── auth.ts            # 认证状态
-│   │   ├── chat.ts            # 聊天状态
-│   │   └── providers.ts       # 供应商状态
-│   ├── i18n/                  # 国际化 (16种语言)
-│   └── utils/                 # 工具函数
+│   │   ├── auth.ts            # 认证服务
+│   │   ├── permissions.ts     # 权限管理服务
+│   │   ├── oauthProviders.ts  # OAuth 提供商配置
+│   │   ├── apiKeys.ts         # API Key 服务
+│   │   ├── apiKeyStorage.ts   # API Key 安全存储
+│   │   ├── providers.ts       # 供应商服务
+│   │   ├── health.ts          # 健康监控服务
+│   │   ├── stats.ts           # 统计服务
+│   │   ├── config.ts          # 配置服务
+│   │   └── preferences.ts     # 用户偏好服务
+│   ├── stores/                # Svelte 状态存储 (Svelte 5 $state)
+│   │   ├── auth.svelte.ts     # 认证状态
+│   │   ├── chatSession.ts     # 聊天会话状态
+│   │   ├── providers.ts       # 供应商状态
+│   │   ├── health.ts          # 健康状态
+│   │   ├── language.ts        # 国际化状态
+│   │   ├── theme.ts           # 主题状态
+│   │   ├── toast.ts           # Toast 消息状态
+│   │   └── config.ts          # 配置状态
+│   ├── types/                 # TypeScript 类型定义
+│   │   ├── permission.ts      # 权限类型
+│   │   ├── apiKey.ts          # API Key 类型
+│   │   ├── provider.ts        # 供应商类型
+│   │   ├── health.ts          # 健康类型
+│   │   ├── config.ts          # 配置类型
+│   │   └── language.ts        # 语言类型
+│   ├── config/                # 配置文件
+│   │   └── keyboardShortcuts.ts  # 键盘快捷键
+│   ├── utils/                 # 工具函数
+│   │   ├── gesture.ts         # 手势检测
+│   │   └── session.ts         # 会话管理
+│   └── i18n/                  # 国际化资源文件 (16种语言)
 ├── routes/                    # SvelteKit 页面
-│   ├── +layout.svelte         # 根布局
+│   ├── +layout.svelte         # 根布局 (认证、权限检查)
 │   ├── +page.svelte           # 首页
-│   ├── chat/                  # 聊天路由
+│   ├── login/                 # 登录页 (支持邮箱 + OAuth)
+│   │   └── +page.ts
+│   ├── chat/                  # 聊天页面
 │   ├── providers/             # 供应商管理
-│   ├── settings/              # 设置
-│   └── admin/                 # 管理路由
+│   ├── api-keys/              # API Key 管理
+│   ├── health/                # 健康监控
+│   ├── stats/                 # 使用统计
+│   ├── config/                # 系统配置
+│   ├── admin/
+│   │   └── users/             # 用户管理
+│   │       ├── +page.svelte   # 用户列表
+│   │       └── [id]/          # 用户详情与权限配置
+│   └── oauth/
+│       └── [provider]/        # OAuth 回调处理
+│           └── callback/      # OAuth 回调页面
 └── app.html                   # HTML 模板
 ```
 
@@ -138,6 +187,9 @@ API 路由 (/routes/messages.py, /routes/*.py)
 
 - **🔥 高性能架构** - 异步数据库 + 连接池，HTTP 连接池优化，支持 10k QPS
 - **🛡️ 企业级安全** - JWT 密钥管理、数据加密存储、强密码策略
+- **🔐 多方式认证** - 支持邮箱密码登录 + OAuth 社交登录（GitHub、Google、飞书、Microsoft、OIDC）
+- **👥 用户管理** - 完整的用户生命周期管理（创建、编辑、删除、启用/禁用）
+- **🛡️ 细粒度权限控制** - 9 个权限点精确控制功能访问，支持按用户配置权限
 - **🌍 国际化支持** - 16种语言支持（中文、英文、日文、韩文等）
 - **🌐 现代管理界面** - Svelte 5 + TypeScript，PWA 支持，深色/浅色主题
 - **🔧 智能管理** - OpenTelemetry 集成，健康监控，自动故障转移，熔断器模式
@@ -294,6 +346,37 @@ ANTHROPIC_BASE_URL=http://localhost:5175
 ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # 使用创建的 API Key
 ```
 
+### 🔐 配置 OAuth 登录（可选）
+
+系统支持多种 OAuth 提供商进行社交登录。配置相应的环境变量即可启用：
+
+```bash
+# GitHub OAuth
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+
+# Google OAuth
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# 飞书 OAuth（企业微信）
+export FEISHU_CLIENT_ID="your-feishu-client-id"
+export FEISHU_CLIENT_SECRET="your-feishu-client-secret"
+
+# Microsoft OAuth（Azure AD）
+export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
+export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+export MICROSOFT_TENANT_ID="common"  # 或特定 tenant ID
+
+# 通用 OIDC（支持 Logto、Keycloak、Authentik 等）
+export OIDC_CLIENT_ID="your-oidc-client-id"
+export OIDC_CLIENT_SECRET="your-oidc-client-secret"
+export OIDC_AUTHORIZATION_URL="https://your-oidc-server/oauth/authorize"
+export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
+```
+
+配置完成后，登录页面将显示对应的 OAuth 登录按钮。
+
 ## 📚 API 使用示例
 
 ### 基础消息请求
@@ -391,7 +474,16 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## 📝 更新日志
 
-### v1.6.0 (2025-11-29) - 国际化与用户体验全面提升
+### (2026-01-XX) - 用户认证与权限管理增强
+
+- **OAuth 多提供商支持**：新增 GitHub、Google、飞书、Microsoft、OIDC 五种 OAuth 登录方式
+- **用户管理系统**：完整的用户 CRUD 操作，支持分页、搜索、启用/禁用
+- **细粒度权限控制**：9 个权限点（chat、conversations、preferences、providers、api_keys、stats、health、config、users）
+- **按用户权限配置**：支持为每个用户单独配置权限，管理员拥有所有权限
+- **前端权限路由保护**：未授权用户访问受限页面将自动重定向
+- **API Key 管理增强**：安全存储、完整 Key 一次性展示、一键复制
+
+### (2025-11-29) - 国际化与用户体验全面提升
 
 - **新增 16 种语言支持**：中文、English、日本語、한국어、Français、Español、Deutsch、Русский、Português、Italiano、Nederlands、العربية、हिन्दी、ไทย、Tiếng Việt、Bahasa Indonesia
 - **智能语言切换**：支持顶部导航栏一键切换语言，自动记忆用户偏好

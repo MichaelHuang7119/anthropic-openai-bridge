@@ -29,7 +29,8 @@ backend/app/
 │   ├── constants.py           # Constants (API_VERSION, MAX_MESSAGE_LENGTH, etc.)
 │   ├── lifecycle.py           # Startup/shutdown events
 │   ├── model_manager.py       # Provider & model routing
-│   └── models.py              # Pydantic models (Message, MessagesRequest, etc.)
+│   ├── models.py              # Pydantic models (Message, MessagesRequest, etc.)
+│   └── permissions.py         # Permission definitions & checks
 ├── routes/                    # API routes (unified under /routes/)
 │   ├── messages.py            # /v1/messages endpoint
 │   ├── auth.py                # /api/auth/* (login, register)
@@ -40,7 +41,9 @@ backend/app/
 │   ├── stats.py               # /api/stats/* (statistics)
 │   ├── config.py              # /api/config/* (config management)
 │   ├── preferences.py         # /api/preferences/* (user preferences)
-│   └── event_logging.py       # /api/event_logging/* (event logging)
+│   ├── event_logging.py       # /api/event_logging/* (event logging)
+│   ├── admin_permissions.py   # /api/admin/permissions/* (user & permission management)
+│   └── oauth.py               # /oauth/* (OAuth login)
 ├── services/                  # Business logic services
 │   ├── handlers/              # Request handlers (OpenAI/Anthropic format)
 │   │   ├── base.py
@@ -50,7 +53,8 @@ backend/app/
 │   ├── health_service.py      # Health monitoring service
 │   ├── provider_service.py    # Provider management service
 │   ├── token_counter.py       # Token counting & history lookup
-│   └── config_service.py      # Config service
+│   ├── config_service.py      # Config service
+│   └── oauth_service.py       # OAuth service
 ├── converters/                # Format conversion (Anthropic ↔ OpenAI)
 │   ├── anthropic_request_convert.py  # Anthropic → OpenAI request
 │   └── openai_response_convert.py    # OpenAI → Anthropic response
@@ -71,7 +75,9 @@ backend/app/
 │   ├── request_logs.py        # Request logging
 │   ├── token_usage.py         # Token usage tracking
 │   ├── health_history.py      # Health history
-│   └── config_changes.py      # Config change history
+│   ├── config_changes.py      # Config change history
+│   ├── oauth_accounts.py      # OAuth account associations
+│   └── encryption.py          # Encryption utilities
 ├── utils/                     # Utility functions
 │   ├── token_extractor.py     # Unified token extraction (supports OpenAI/Anthropic)
 │   ├── security_utils.py      # Encryption, validation, API key masking
@@ -87,28 +93,71 @@ backend/app/
 frontend/src/
 ├── lib/
 │   ├── components/            # Reusable Svelte components
-│   │   ├── chat/              # Chat-related components
-│   │   ├── layout/            # Layout components
+│   │   ├── chat/              # Chat-related components (ChatArea, MessageBubble, etc.)
+│   │   ├── layout/            # Layout components (Header, MobileNav)
 │   │   ├── providers/         # Provider management components
 │   │   ├── settings/          # Settings components
-│   │   └── ui/                # Base UI components
+│   │   ├── ui/                # Base UI components (Button, Input, Card, etc.)
+│   │   ├── i18n/              # Internationalization component (Translate)
+│   │   ├── ErrorMessageModal.svelte
+│   │   ├── Pagination.svelte
+│   │   ├── ProviderForm.svelte
+│   │   ├── SettingsModal.svelte
+│   │   ├── WelcomeModal.svelte
+│   │   └── OAuthIcon.svelte
 │   ├── services/              # API client services
 │   │   ├── api.ts             # Main API client
 │   │   ├── chatService.ts     # Chat service
-│   │   └── authService.ts     # Auth service
-│   ├── stores/                # Svelte stores
-│   │   ├── auth.ts            # Auth state
-│   │   ├── chat.ts            # Chat state
-│   │   └── providers.ts       # Provider state
-│   ├── i18n/                  # Internationalization (16 languages)
-│   └── utils/                 # Utility functions
+│   │   ├── auth.ts            # Auth service
+│   │   ├── permissions.ts     # Permission management service
+│   │   ├── oauthProviders.ts  # OAuth provider configuration
+│   │   ├── apiKeys.ts         # API Key service
+│   │   ├── apiKeyStorage.ts   # Secure API Key storage
+│   │   ├── providers.ts       # Provider service
+│   │   ├── health.ts          # Health monitoring service
+│   │   ├── stats.ts           # Statistics service
+│   │   ├── config.ts          # Config service
+│   │   └── preferences.ts     # User preferences service
+│   ├── stores/                # Svelte stores (Svelte 5 $state)
+│   │   ├── auth.svelte.ts     # Auth state
+│   │   ├── chatSession.ts     # Chat session state
+│   │   ├── providers.ts       # Provider state
+│   │   ├── health.ts          # Health state
+│   │   ├── language.ts        # Internationalization state
+│   │   ├── theme.ts           # Theme state
+│   │   ├── toast.ts           # Toast message state
+│   │   └── config.ts          # Config state
+│   ├── types/                 # TypeScript type definitions
+│   │   ├── permission.ts      # Permission types
+│   │   ├── apiKey.ts          # API Key types
+│   │   ├── provider.ts        # Provider types
+│   │   ├── health.ts          # Health types
+│   │   ├── config.ts          # Config types
+│   │   └── language.ts        # Language types
+│   ├── config/                # Configuration files
+│   │   └── keyboardShortcuts.ts  # Keyboard shortcuts
+│   ├── utils/                 # Utility functions
+│   │   ├── gesture.ts         # Gesture detection
+│   │   └── session.ts         # Session management
+│   └── i18n/                  # Internationalization resources (16 languages)
 ├── routes/                    # SvelteKit pages
-│   ├── +layout.svelte         # Root layout
+│   ├── +layout.svelte         # Root layout (auth & permission checks)
 │   ├── +page.svelte           # Home page
-│   ├── chat/                  # Chat routes
+│   ├── login/                 # Login page (email + OAuth)
+│   │   └── +page.ts
+│   ├── chat/                  # Chat page
 │   ├── providers/             # Provider management
-│   ├── settings/              # Settings
-│   └── admin/                 # Admin routes
+│   ├── api-keys/              # API Key management
+│   ├── health/                # Health monitoring
+│   ├── stats/                 # Usage statistics
+│   ├── config/                # System configuration
+│   ├── admin/
+│   │   └── users/             # User management
+│   │       ├── +page.svelte   # User list
+│   │       └── [id]/          # User details & permission config
+│   └── oauth/
+│       └── [provider]/        # OAuth callback handling
+│           └── callback/      # OAuth callback page
 └── app.html                   # HTML template
 ```
 
@@ -138,6 +187,9 @@ Client
 
 - **🔥 High-Performance Architecture** - Async database + connection pool, HTTP connection pool optimization, supports 10k QPS
 - **🛡️ Enterprise-Grade Security** - JWT key management, encrypted data storage, strong password policies
+- **🔐 Multiple Authentication Methods** - Email/password login + OAuth social login (GitHub, Google, Feishu, Microsoft, OIDC)
+- **👥 User Management** - Complete user lifecycle management (create, edit, delete, enable/disable)
+- **🛡️ Fine-Grained Permission Control** - 9 permission points for precise access control, per-user permission configuration
 - **🌍 Internationalization Support** - 16 languages supported (Chinese, English, Japanese, Korean, etc.)
 - **🌐 Modern Management Interface** - Svelte 5 + TypeScript, PWA support, dark/light themes
 - **🔧 Smart Management** - OpenTelemetry integration, health monitoring, automatic failover, circuit breaker pattern
@@ -294,6 +346,37 @@ ANTHROPIC_BASE_URL=http://localhost:5175
 ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # Use the created API Key
 ```
 
+### 🔐 Configure OAuth Login (Optional)
+
+The system supports multiple OAuth providers for social login. Configure the corresponding environment variables to enable:
+
+```bash
+# GitHub OAuth
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+
+# Google OAuth
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Feishu OAuth (Lark)
+export FEISHU_CLIENT_ID="your-feishu-client-id"
+export FEISHU_CLIENT_SECRET="your-feishu-client-secret"
+
+# Microsoft OAuth (Azure AD)
+export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
+export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+export MICROSOFT_TENANT_ID="common"  # or specific tenant ID
+
+# Generic OIDC (supports Logto, Keycloak, Authentik, etc.)
+export OIDC_CLIENT_ID="your-oidc-client-id"
+export OIDC_CLIENT_SECRET="your-oidc-client-secret"
+export OIDC_AUTHORIZATION_URL="https://your-oidc-server/oauth/authorize"
+export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
+```
+
+After configuration, the login page will display the corresponding OAuth login buttons.
+
 ## 📚 API Usage Examples
 
 ### Basic Message Request
@@ -391,7 +474,16 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## 📝 Changelog
 
-### v1.6.0 (2025-11-29) - Comprehensive internationalization and user experience improvements
+### (2026-01-XX) - User Authentication & Permission Management Enhancements
+
+- **OAuth Multi-Provider Support**: Added GitHub, Google, Feishu, Microsoft, OIDC OAuth login methods
+- **User Management System**: Complete user CRUD with pagination, search, enable/disable
+- **Fine-Grained Permission Control**: 9 permission points (chat, conversations, preferences, providers, api_keys, stats, health, config, users)
+- **Per-User Permission Configuration**: Support configuring permissions per user, admins have all permissions
+- **Frontend Route Protection**: Unauthorized users are automatically redirected when accessing restricted pages
+- **Enhanced API Key Management**: Secure storage, one-time full key display, one-click copy
+
+### (2025-11-29) - Comprehensive internationalization and user experience improvements
 
 - **16 Language Support Added**: Chinese, English, 日本語, 한국어, Français, Español, Deutsch, Русский, Português, Italiano, Nederlands, العربية, हिन्दी, ไทย, Tiếng Việt, Bahasa Indonesia
 - **Smart Language Switching**: One-click language switching in top navigation bar, automatically remembers user preferences
