@@ -1,6 +1,8 @@
 """Main FastAPI application for Anthropic OpenAI Bridge"""
 import os
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from fastapi import FastAPI
 
 from .config.settings import config
@@ -38,9 +40,42 @@ log_level_map = {
     'ERROR': logging.ERROR,
     'CRITICAL': logging.CRITICAL,
 }
-logging.basicConfig(level=log_level_map.get(log_level, logging.INFO))
+log_level_int = log_level_map.get(log_level, logging.INFO)
+
+# Create logs directory
+logs_dir = Path(__file__).parent.parent.parent / 'logs'
+logs_dir.mkdir(exist_ok=True)
+
+# Configure root logger with rotating file handler and console output
+root_logger = logging.getLogger()
+root_logger.setLevel(log_level_int)
+
+# File handler - rotating log files (max 10MB, keep 5 backup files)
+log_file = logs_dir / 'backend.log'
+file_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=20 * 1024 * 1024,  # 50MB per file
+    backupCount=10,
+    encoding='utf-8'
+)
+file_handler.setLevel(log_level_int)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+))
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(log_level_int)
+console_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(message)s'
+))
+
+root_logger.addHandler(file_handler)
+root_logger.addHandler(console_handler)
+
 logger = logging.getLogger(__name__)
 logger.info(f"Logging level set to: {log_level}")
+logger.info(f"Log files will be saved to: {logs_dir}")
 
 
 watchdog_log_level = log_level_map.get(os.getenv('WATCHDOG_LOG_LEVEL', 'WARNING').upper(), logging.WARNING)
