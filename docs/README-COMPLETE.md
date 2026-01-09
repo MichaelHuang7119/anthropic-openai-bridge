@@ -69,56 +69,44 @@ Backend is based on **FastAPI** framework, using a layered architecture design:
 
 ```
 backend/app/
-├── api/                    # API routing layer
-│   ├── auth.py            # Authentication
-│   ├── providers.py       # Provider management
-│   ├── health.py          # Health checks
-│   ├── stats.py           # Statistics
-│   ├── conversations.py   # Conversation management
-│   ├── api_keys.py        # API Key management
-│   ├── config.py          # Configuration
-│   └── preferences.py     # User preferences
-│
-├── routes/                # Special routes
-│   ├── messages.py        # Message routes (core)
-│   └── health.py          # Health check routes
-│
-├── services/              # Business service layer
-│   ├── message_service.py # Message processing service
-│   ├── provider_service.py# Provider service
-│   ├── health_service.py  # Health monitoring service
-│   ├── config_service.py  # Configuration service
-│   └── token_counter.py   # Token counting
-│
-├── database/              # Data access layer
-│   ├── core.py            # Database core (connection pool)
-│   ├── users.py           # User management
-│   ├── conversations.py   # Conversation data
-│   ├── api_keys.py        # API Key data
-│   ├── request_logs.py    # Request logs
-│   ├── health_history.py  # Health history
-│   ├── token_usage.py     # Token usage statistics
-│   └── encryption.py      # Data encryption
-│
-├── core/                  # Core logic
-│   └── model_manager.py   # Model management
-│
-├── infrastructure/        # Infrastructure
-│   ├── cache.py           # Cache implementation
-│   ├── telemetry.py       # OpenTelemetry
-│   └── circuit_breaker.py # Circuit breaker
-│
-├── security/              # Security module
-│   └── validate_config.py # Configuration validation
-│
-├── converters/            # Data conversion
+├── routes/                  # API routes
+│   ├── messages.py          # Message API (Anthropic compatible)
+│   ├── health.py            # Health check routes
+│   ├── auth.py              # Authentication routes
+│   ├── oauth.py             # OAuth routes
+│   └── ...
+├── services/                # Business logic layer
+│   ├── message_service.py   # Message handling
+│   ├── provider_service.py  # Provider management
+│   ├── auth_service.py      # Authentication service
+│   ├── health_service.py    # Health monitoring
+│   ├── token_counter.py     # Token counting
+│   └── ...
+├── converters/              # Format converters
 │   ├── anthropic_to_openai.py
 │   ├── openai_to_anthropic.py
 │   └── streaming_format.py
-│
-└── utils/                 # Utilities
-    ├── auth.py
-    └── logging.py
+├── infrastructure/          # Infrastructure services
+│   ├── cache.py             # In-memory/Redis cache
+│   └── telemetry.py         # OpenTelemetry integration
+├── database/                # Data access layer (async SQLite)
+│   ├── core.py              # Database connection & schema
+│   ├── users.py             # User management
+│   ├── api_keys.py          # API key storage
+│   ├── conversations.py     # Chat conversations & messages
+│   ├── request_logs.py      # Request logging
+│   ├── token_usage.py       # Token usage tracking
+│   ├── health_history.py    # Health history
+│   ├── config_changes.py    # Config change history
+│   ├── oauth_accounts.py    # OAuth account associations
+│   └── encryption.py        # Encryption utilities
+├── utils/                   # Utility functions
+│   ├── token_extractor.py   # Unified token extraction (supports OpenAI/Anthropic)
+│   ├── security_utils.py    # Encryption, validation, API key masking
+│   ├── color_logger.py      # Colored logging
+│   ├── error_handler.py     # Error response formatting
+│   └── response.py          # Response utilities
+└── encryption_key.py        # Encryption key management
 ```
 
 #### Core Components
@@ -154,82 +142,74 @@ Frontend is based on **Svelte 5** framework, using modern responsive design:
 
 ```
 frontend/src/
-├── routes/                    # Page routes
-│   ├── +layout.svelte         # Root layout
-│   ├── login/                 # Login page
-│   ├── chat/                  # Chat interface
-│   ├── providers/             # Provider management
-│   ├── health/                # Health monitoring
-│   ├── stats/                 # Statistics
-│   ├── config/                # Configuration management
-│   └── api-keys/              # API Key management
-│
 ├── lib/
-│   ├── components/            # Reusable components
-│   │   ├── ui/                # Basic UI components
-│   │   │   ├── Button.svelte
-│   │   │   ├── Input.svelte
-│   │   │   ├── Card.svelte
-│   │   │   ├── Badge.svelte
-│   │   │   ├── Toast.svelte
-│   │   │   ├── Tooltip.svelte
-│   │   │   ├── Chart.svelte
-│   │   │   └── ...
-│   │   ├── layout/            # Layout components
-│   │   │   └── Header.svelte
-│   │   ├── chat/              # Chat components
-│   │   │   ├── ChatArea.svelte
-│   │   │   ├── MessageBubble.svelte
-│   │   │   ├── MessageInput.svelte
-│   │   │   ├── ModelSelector.svelte
-│   │   │   └── ConversationSidebar.svelte
-│   │   └── config/            # Configuration components
-│   │       └── ProviderForm.svelte
-│   │
-│   ├── services/              # API services
-│   │   ├── api.ts             # Generic API client
-│   │   ├── auth.ts            # Authentication service
+│   ├── components/            # Reusable Svelte components
+│   │   ├── chat/              # Chat-related components (ChatArea, MessageBubble, etc.)
+│   │   ├── layout/            # Layout components (Header, MobileNav)
+│   │   ├── providers/         # Provider management components
+│   │   ├── settings/          # Settings components
+│   │   ├── ui/                # Base UI components (Button, Input, Card, etc.)
+│   │   ├── i18n/              # Internationalization component (Translate)
+│   │   ├── ErrorMessageModal.svelte
+│   │   ├── Pagination.svelte
+│   │   ├── ProviderForm.svelte
+│   │   ├── SettingsModal.svelte
+│   │   ├── WelcomeModal.svelte
+│   │   └── OAuthIcon.svelte
+│   ├── services/              # API client services
+│   │   ├── api.ts             # Main API client
 │   │   ├── chatService.ts     # Chat service
+│   │   ├── auth.ts            # Auth service
+│   │   ├── permissions.ts     # Permission management service
+│   │   ├── oauthProviders.ts  # OAuth provider configuration
+│   │   ├── apiKeys.ts         # API Key service
+│   │   ├── apiKeyStorage.ts   # Secure API Key storage
 │   │   ├── providers.ts       # Provider service
-│   │   ├── health.ts          # Health check service
+│   │   ├── health.ts          # Health monitoring service
 │   │   ├── stats.ts           # Statistics service
-│   │   ├── config.ts          # Configuration service
-│   │   ├── preferences.ts     # Preferences service
-│   │   └── apiKeys.ts         # API Key service
-│   │
-│   ├── stores/                # State management
-│   │   ├── auth.ts            # Authentication state
-│   │   ├── language.ts        # Language state (i18n)
-│   │   ├── theme.ts           # Theme state
-│   │   ├── health.ts          # Health state
+│   │   ├── config.ts          # Config service
+│   │   └── preferences.ts     # User preferences service
+│   ├── stores/                # Svelte stores (Svelte 5 $state)
+│   │   ├── auth.svelte.ts     # Auth state
+│   │   ├── chatSession.ts     # Chat session state
 │   │   ├── providers.ts       # Provider state
-│   │   ├── config.ts          # Configuration state
-│   │   └── toast.ts           # Toast state
-│   │
+│   │   ├── health.ts          # Health state
+│   │   ├── language.ts        # Internationalization state
+│   │   ├── theme.ts           # Theme state
+│   │   ├── toast.ts           # Toast message state
+│   │   └── config.ts          # Config state
 │   ├── types/                 # TypeScript type definitions
-│   │   ├── provider.ts
-│   │   ├── health.ts
-│   │   ├── config.ts
-│   │   ├── apiKey.ts
-│   │   └── language.ts
-│   │
-│   ├── i18n/                  # Internationalization
-│   │   ├── zh-CN.json         # Chinese translations
-│   │   ├── en-US.json         # English translations
-│   │   ├── ja-JP.json         # Japanese translations
-│   │   ├── ko-KR.json         # Korean translations
-│   │   └── ...
-│   │
-│   ├── styles/                # Styles
-│   │   └── global.css         # Global styles
-│   │
-│   └── utils/                 # Utilities
-│       └── ...
-│
-└── static/                    # Static assets
-    ├── favicon.svg
-    ├── manifest.json
-    └── service-worker.js      # PWA support
+│   │   ├── permission.ts      # Permission types
+│   │   ├── apiKey.ts          # API Key types
+│   │   ├── provider.ts        # Provider types
+│   │   ├── health.ts          # Health types
+│   │   ├── config.ts          # Config types
+│   │   └── language.ts        # Language types
+│   ├── config/                # Configuration files
+│   │   └── keyboardShortcuts.ts  # Keyboard shortcuts
+│   ├── utils/                 # Utility functions
+│   │   ├── gesture.ts         # Gesture detection
+│   │   └── session.ts         # Session management
+│   └── i18n/                  # Internationalization resources (16 languages)
+├── routes/                    # SvelteKit pages
+│   ├── +layout.svelte         # Root layout (auth & permission checks)
+│   ├── +page.svelte           # Home page
+│   ├── login/                 # Login page (email + OAuth)
+│   │   └── +page.ts
+│   ├── chat/                  # Chat page
+│   ├── providers/             # Provider management
+│   ├── api-keys/              # API Key management
+│   ├── health/                # Health monitoring
+│   ├── stats/                 # Usage statistics
+│   ├── config/                # System configuration
+│   ├── admin/
+│   │   └── users/             # User management
+│   │       ├── +page.svelte   # User list
+│   │       └── [id]/          # User details & permission config
+│   └── oauth/
+│       └── [provider]/        # OAuth callback handling
+│           └── callback/      # OAuth callback page
+└── app.html                   # HTML template
 ```
 
 #### Core Features
@@ -421,6 +401,8 @@ Using SQLite database to store all data:
 - **Direct Mode** - Supports Anthropic API format providers (no conversion needed)
 - **Smart Model Mapping** - haiku→small, sonnet→middle, opus→big
 - **Provider Token Limits** - Supports configuring max_tokens_limit
+- **Fine-Grained Permission Control** - 9 permission points for precise access control, per-user permission configuration
+- **Multiple Authentication Methods** - Email/password login + OAuth social login (GitHub, Google, Feishu, Microsoft, OIDC)
 
 ## 📝 Latest Updates
 
@@ -461,7 +443,7 @@ Using SQLite database to store all data:
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 
 # Start all services (backend + frontend)
@@ -492,7 +474,7 @@ EXPOSE_PORT=5175 docker-compose up -d
 
 ```bash
 cd backend
-bash start.sh
+bash start.sh  # With hot reload for development mode: bash start.sh --dev
 # Or run directly
 python start_proxy.py
 ```
@@ -504,7 +486,7 @@ cd frontend
 pnpm install  # Install dependencies first time
 pnpm dev
 # Or specify port
-pnpm dev -- --port 5175
+pnpm dev -- --port 5173
 ```
 
 ### 🔑 First Login
@@ -625,24 +607,122 @@ Edit the `backend/provider.json` file:
 ## 🔑 Configure Claude Code
 
 1. **Create API Key**:
-   - Login to management interface
-   - Visit "API Key Management" page
-   - Click "Create API Key"
-   - Fill in name and email (optional)
-   - Copy the generated API Key (**Note: Cannot view full key after creation**)
+
+**Method 1: Create via cURL using backend API**
+
+> Creating an API Key requires admin privileges. You must obtain a JWT token first.
+
+```bash
+# Step 1: Login to get JWT token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+```
+
+Response example:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Administrator",
+    "is_admin": true
+  }
+}
+```
+
+```bash
+# Step 2: Create API Key
+curl -X POST http://localhost:8000/api/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_JWT_token>" \
+  -d '{"name": "my-api-key", "email": "admin@example.com"}'
+```
+
+Response example:
+```json
+{
+  "id": 1,
+  "api_key": "sk-abc123...",  // Full API Key is only shown now, please store it safely
+  "key_prefix": "sk-abc1...",
+  "name": "my-api-key",
+  "email": "admin@example.com",
+  "is_active": true
+}
+```
+
+**Method 2: Create via frontend interface**
+
+- Login to management interface
+- Visit "API Key Management" page
+- Click "Create API Key"
+- Fill in name and email (optional)
+- Copy the generated API Key (**Note: Cannot view the full key after creation**)
 
 2. **Configure Claude Code Environment Variables**:
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:5175
-ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # Use the created API Key
+# Backend only (assuming backend port is 8000)
+export ANTHROPIC_BASE_URL=http://localhost:8000
+
+# When both frontend and backend are running, you can also access via frontend proxy (e.g., port 5173)
+export ANTHROPIC_BASE_URL=http://localhost:5173
+
+# API Key: in development mode, can be any value; in production, use the created valid key
+export ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"
+
+# Claude Code model configuration: haiku (small), sonnet (middle), opus (big)
+# These correspond to the small, middle, big model tiers in provider.json
+# For example:
+# export ANTHROPIC_MODEL="sonnet"
+# export ANTHROPIC_SMALL_FAST_MODEL="haiku"
+# export ANTHROPIC_DEFAULT_SONNET_MODEL="sonnet"
+# export ANTHROPIC_DEFAULT_OPUS_MODEL="opus"
+# export ANTHROPIC_DEFAULT_HAIKU_MODEL="haiku"
 ```
+
+### 🔐 Configure OAuth Login (Optional)
+
+The system supports multiple OAuth providers for social login. Configure the corresponding environment variables to enable:
+
+```bash
+# GitHub OAuth
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+
+# Google OAuth
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Feishu OAuth (Lark)
+export FEISHU_CLIENT_ID="your-feishu-client-id"
+export FEISHU_CLIENT_SECRET="your-feishu-client-secret"
+
+# Microsoft OAuth (Azure AD)
+export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
+export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+export MICROSOFT_TENANT_ID="common"  # or specific tenant ID
+
+# Generic OIDC (supports Logto, Keycloak, Authentik, etc.)
+export OIDC_CLIENT_ID="your-oidc-client-id"
+export OIDC_CLIENT_SECRET="your-oidc-client-secret"
+export OIDC_AUTHORIZATION_URL="https://your-oidc-server/oauth/authorize"
+export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
+```
+
+After configuration, the login page will display the corresponding OAuth login buttons.
+
+![Login](images/Login.png)
 
 ## 📚 API Usage Examples
 
 ### Basic Message Request
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -656,6 +736,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Streaming Request
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -670,6 +752,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Tool Calling (Function Calling)
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -697,6 +781,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Multimodal Input (Images)
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -721,6 +807,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### System Prompt
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -737,6 +825,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### System Prompt with Tools
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -762,6 +852,8 @@ curl -X POST http://localhost:8000/v1/messages \
 
 ```bash
 # Use big model (opus/claude-3-opus)
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -775,6 +867,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Custom Temperature and Top-P
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -790,6 +884,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Response Metadata
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -811,7 +907,8 @@ Response will include:
 ### Real-time Health Monitoring
 
 ```bash
-# Get overall health status
+# Access backend directly (http://localhost:8000/health)
+# Or via frontend proxy (http://localhost:5173/health)
 curl http://localhost:8000/health
 
 # Get detailed provider health information
@@ -826,7 +923,8 @@ curl -X POST -H "Authorization: Bearer <your-jwt-token>" \
 ### Performance Statistics
 
 ```bash
-# Get token usage statistics
+# Access backend directly (http://localhost:8000/api/stats/token-usage)
+# Or via frontend proxy (http://localhost:5173/api/stats/token-usage)
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/token-usage
 
@@ -842,7 +940,8 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 ### Request Logs
 
 ```bash
-# Get recent request logs
+# Access backend directly (http://localhost:8000/api/stats/requests)
+# Or via frontend proxy (http://localhost:5173/api/stats/requests)
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/requests
 

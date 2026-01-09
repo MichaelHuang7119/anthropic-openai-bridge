@@ -77,56 +77,44 @@ Backend is based on **FastAPI** framework, using a layered architecture design:
 
 ```
 backend/app/
-├── api/                    # API routing layer
-│   ├── auth.py            # Authentication
-│   ├── providers.py       # Provider management
-│   ├── health.py          # Health checks
-│   ├── stats.py           # Statistics
-│   ├── conversations.py   # Conversation management
-│   ├── api_keys.py        # API Key management
-│   ├── config.py          # Configuration
-│   └── preferences.py     # User preferences
-│
-├── routes/                # Special routes
-│   ├── messages.py        # Message routes (core)
-│   └── health.py          # Health check routes
-│
-├── services/              # Business service layer
-│   ├── message_service.py # Message processing service
-│   ├── provider_service.py# Provider service
-│   ├── health_service.py  # Health monitoring service
-│   ├── config_service.py  # Configuration service
-│   └── token_counter.py   # Token counting
-│
-├── database/              # Data access layer
-│   ├── core.py            # Database core (connection pool)
-│   ├── users.py           # User management
-│   ├── conversations.py   # Conversation data
-│   ├── api_keys.py        # API Key data
-│   ├── request_logs.py    # Request logs
-│   ├── health_history.py  # Health history
-│   ├── token_usage.py     # Token usage statistics
-│   └── encryption.py      # Data encryption
-│
-├── core/                  # Core logic
-│   └── model_manager.py   # Model management
-│
-├── infrastructure/        # Infrastructure
-│   ├── cache.py           # Cache implementation
-│   ├── telemetry.py       # OpenTelemetry
-│   └── circuit_breaker.py # Circuit breaker
-│
-├── security/              # Security module
-│   └── validate_config.py # Configuration validation
-│
-├── converters/            # Data conversion
+├── routes/                  # API routes
+│   ├── messages.py          # Message API (Anthropic compatible)
+│   ├── health.py            # Health check routes
+│   ├── auth.py              # Authentication routes
+│   ├── oauth.py             # OAuth routes
+│   └── ...
+├── services/                # Business logic layer
+│   ├── message_service.py   # Message handling
+│   ├── provider_service.py  # Provider management
+│   ├── auth_service.py      # Authentication service
+│   ├── health_service.py    # Health monitoring
+│   ├── token_counter.py     # Token counting
+│   └── ...
+├── converters/              # Format converters
 │   ├── anthropic_to_openai.py
 │   ├── openai_to_anthropic.py
 │   └── streaming_format.py
-│
-└── utils/                 # Utilities
-    ├── auth.py
-    └── logging.py
+├── infrastructure/          # Infrastructure services
+│   ├── cache.py             # In-memory/Redis cache
+│   └── telemetry.py         # OpenTelemetry integration
+├── database/                # Data access layer (async SQLite)
+│   ├── core.py              # Database connection & schema
+│   ├── users.py             # User management
+│   ├── api_keys.py          # API key storage
+│   ├── conversations.py     # Chat conversations & messages
+│   ├── request_logs.py      # Request logging
+│   ├── token_usage.py       # Token usage tracking
+│   ├── health_history.py    # Health history
+│   ├── config_changes.py    # Config change history
+│   ├── oauth_accounts.py    # OAuth account associations
+│   └── encryption.py        # Encryption utilities
+├── utils/                   # Utility functions
+│   ├── token_extractor.py   # Unified token extraction (supports OpenAI/Anthropic)
+│   ├── security_utils.py    # Encryption, validation, API key masking
+│   ├── color_logger.py      # Colored logging
+│   ├── error_handler.py     # Error response formatting
+│   └── response.py          # Response utilities
+└── encryption_key.py        # Encryption key management
 ```
 
 #### Core Components
@@ -162,80 +150,74 @@ Frontend is based on **Svelte 5** framework, using modern responsive design:
 
 ```
 frontend/src/
-├── routes/                    # Page routes
-│   ├── +layout.svelte         # Root layout
-│   ├── login/                 # Login page
-│   ├── chat/                  # Chat interface
-│   ├── providers/             # Provider management
-│   ├── health/                # Health monitoring
-│   ├── stats/                 # Statistics
-│   ├── config/                # Configuration
-│   └── api-keys/              # API Key management
-│
 ├── lib/
-│   ├── components/            # Reusable components
-│   │   ├── ui/                # Basic UI components
-│   │   │   ├── Button.svelte
-│   │   │   ├── Input.svelte
-│   │   │   ├── Card.svelte
-│   │   │   ├── Badge.svelte
-│   │   │   ├── Toast.svelte
-│   │   │   └── ...
-│   │   ├── layout/            # Layout components
-│   │   │   └── Header.svelte
-│   │   ├── chat/              # Chat components
-│   │   │   ├── ChatArea.svelte
-│   │   │   ├── MessageBubble.svelte
-│   │   │   ├── MessageInput.svelte
-│   │   │   ├── ModelSelector.svelte
-│   │   │   └── ConversationSidebar.svelte
-│   │   └── config/            # Configuration components
-│   │       └── ProviderForm.svelte
-│   │
-│   ├── services/              # API services
-│   │   ├── api.ts             # Generic API client
-│   │   ├── auth.ts            # Authentication service
+│   ├── components/            # Reusable Svelte components
+│   │   ├── chat/              # Chat-related components (ChatArea, MessageBubble, etc.)
+│   │   ├── layout/            # Layout components (Header, MobileNav)
+│   │   ├── providers/         # Provider management components
+│   │   ├── settings/          # Settings components
+│   │   ├── ui/                # Base UI components (Button, Input, Card, etc.)
+│   │   ├── i18n/              # Internationalization component (Translate)
+│   │   ├── ErrorMessageModal.svelte
+│   │   ├── Pagination.svelte
+│   │   ├── ProviderForm.svelte
+│   │   ├── SettingsModal.svelte
+│   │   ├── WelcomeModal.svelte
+│   │   └── OAuthIcon.svelte
+│   ├── services/              # API client services
+│   │   ├── api.ts             # Main API client
 │   │   ├── chatService.ts     # Chat service
+│   │   ├── auth.ts            # Auth service
+│   │   ├── permissions.ts     # Permission management service
+│   │   ├── oauthProviders.ts  # OAuth provider configuration
+│   │   ├── apiKeys.ts         # API Key service
+│   │   ├── apiKeyStorage.ts   # Secure API Key storage
 │   │   ├── providers.ts       # Provider service
-│   │   ├── health.ts          # Health check service
+│   │   ├── health.ts          # Health monitoring service
 │   │   ├── stats.ts           # Statistics service
-│   │   ├── config.ts          # Configuration service
-│   │   ├── preferences.ts     # Preferences service
-│   │   └── apiKeys.ts         # API Key service
-│   │
-│   ├── stores/                # State management
-│   │   ├── auth.ts            # Authentication state
-│   │   ├── language.ts        # Language state (i18n)
-│   │   ├── theme.ts           # Theme state
-│   │   ├── health.ts          # Health state
+│   │   ├── config.ts          # Config service
+│   │   └── preferences.ts     # User preferences service
+│   ├── stores/                # Svelte stores (Svelte 5 $state)
+│   │   ├── auth.svelte.ts     # Auth state
+│   │   ├── chatSession.ts     # Chat session state
 │   │   ├── providers.ts       # Provider state
-│   │   ├── config.ts          # Configuration state
-│   │   └── toast.ts           # Toast state
-│   │
+│   │   ├── health.ts          # Health state
+│   │   ├── language.ts        # Internationalization state
+│   │   ├── theme.ts           # Theme state
+│   │   ├── toast.ts           # Toast message state
+│   │   └── config.ts          # Config state
 │   ├── types/                 # TypeScript type definitions
-│   │   ├── provider.ts
-│   │   ├── health.ts
-│   │   ├── config.ts
-│   │   ├── apiKey.ts
-│   │   └── language.ts
-│   │
-│   ├── i18n/                  # Internationalization
-│   │   ├── zh-CN.json         # Chinese translations
-│   │   ├── en-US.json         # English translations
-│   │   ├── ja-JP.json         # Japanese translations
-│   │   ├── ko-KR.json         # Korean translations
-│   │   └── ...
-│   │
-│   ├── styles/                # Styles
-│   │   └── global.css         # Global styles
-│   │
-│   └── utils/                 # Utilities
-│       └── ...
-│
-└── static/                    # Static assets
-    ├── favicon.svg
-    ├── manifest.json
-    └── service-worker.js      # PWA support
+│   │   ├── permission.ts      # Permission types
+│   │   ├── apiKey.ts          # API Key types
+│   │   ├── provider.ts        # Provider types
+│   │   ├── health.ts          # Health types
+│   │   ├── config.ts          # Config types
+│   │   └── language.ts        # Language types
+│   ├── config/                # Configuration files
+│   │   └── keyboardShortcuts.ts  # Keyboard shortcuts
+│   ├── utils/                 # Utility functions
+│   │   ├── gesture.ts         # Gesture detection
+│   │   └── session.ts         # Session management
+│   └── i18n/                  # Internationalization resources (16 languages)
+├── routes/                    # SvelteKit pages
+│   ├── +layout.svelte         # Root layout (auth & permission checks)
+│   ├── +page.svelte           # Home page
+│   ├── login/                 # Login page (email + OAuth)
+│   │   └── +page.ts
+│   ├── chat/                  # Chat page
+│   ├── providers/             # Provider management
+│   ├── api-keys/              # API Key management
+│   ├── health/                # Health monitoring
+│   ├── stats/                 # Usage statistics
+│   ├── config/                # System configuration
+│   ├── admin/
+│   │   └── users/             # User management
+│   │       ├── +page.svelte   # User list
+│   │       └── [id]/          # User details & permission config
+│   └── oauth/
+│       └── [provider]/        # OAuth callback handling
+│           └── callback/      # OAuth callback page
+└── app.html                   # HTML template
 ```
 
 #### Core Features
@@ -427,6 +409,8 @@ Using SQLite database to store all data:
 - **Direct Mode** - Supports Anthropic API format providers (no conversion needed)
 - **Smart Model Mapping** - haiku→small, sonnet→middle, opus→big
 - **Provider Token Limits** - Supports configuring max_tokens_limit
+- **Fine-Grained Permission Control** - 9 permission points for precise access control, per-user permission configuration
+- **Multiple Authentication Methods** - Email/password login + OAuth social login (GitHub, Google, Feishu, Microsoft, OIDC)
 
 ## 🔧 Development Environment Setup
 
@@ -435,7 +419,7 @@ Using SQLite database to store all data:
 **1. Clone the Project**
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 ```
 
@@ -519,6 +503,28 @@ pnpm run preview
 ```
 
 ### Project Structure Explanation
+
+**Request Flow**
+
+```
+Client Request
+  ↓
+API Routes (/routes/messages.py, /routes/*.py)
+  ↓
+Message Service (message_service.py)
+  ↓
+Converters (converters/)
+  ↓
+Provider Handler (services/handlers/)
+  ↓
+Provider Client (infrastructure/clients/)
+  ↓
+Backend AI Provider (OpenAI/Anthropic format)
+  ↓
+Response Conversion
+  ↓
+Client
+```
 
 **Backend Core Flow**
 

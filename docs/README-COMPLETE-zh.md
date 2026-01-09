@@ -68,56 +68,44 @@ Anthropic OpenAI Bridge 是一个企业级 API 代理服务，它实现了 Anthr
 
 ```
 backend/app/
-├── api/                    # API 路由层
-│   ├── auth.py            # 认证相关
-│   ├── providers.py       # 供应商管理
-│   ├── health.py          # 健康检查
-│   ├── stats.py           # 统计信息
-│   ├── conversations.py   # 对话管理
-│   ├── api_keys.py        # API Key 管理
-│   ├── config.py          # 配置管理
-│   └── preferences.py     # 用户偏好设置
-│
-├── routes/                # 特殊路由
-│   ├── messages.py        # 消息路由（核心）
-│   └── health.py          # 健康检查路由
-│
-├── services/              # 业务服务层
-│   ├── message_service.py # 消息处理服务
-│   ├── provider_service.py# 供应商服务
-│   ├── health_service.py  # 健康监控服务
-│   ├── config_service.py  # 配置服务
-│   └── token_counter.py   # Token 计算
-│
-├── database/              # 数据访问层
-│   ├── core.py            # 数据库核心（连接池）
-│   ├── users.py           # 用户管理
-│   ├── conversations.py   # 对话数据
-│   ├── api_keys.py        # API Key 数据
-│   ├── request_logs.py    # 请求日志
-│   ├── health_history.py  # 健康历史
-│   ├── token_usage.py     # Token 使用统计
-│   └── encryption.py      # 数据加密
-│
-├── core/                  # 核心逻辑
-│   └── model_manager.py   # 模型管理
-│
-├── infrastructure/        # 基础设施
-│   ├── cache.py           # 缓存实现
-│   ├── telemetry.py       # OpenTelemetry
-│   └── circuit_breaker.py # 熔断器
-│
-├── security/              # 安全模块
-│   └── validate_config.py # 配置验证
-│
-├── converters/            # 数据转换
+├── routes/                  # API 路由
+│   ├── messages.py          # 消息 API（兼容 Anthropic）
+│   ├── health.py            # 健康检查路由
+│   ├── auth.py              # 认证路由
+│   ├── oauth.py             # OAuth 路由
+│   └── ...
+├── services/                # 业务逻辑层
+│   ├── message_service.py   # 消息处理
+│   ├── provider_service.py  # 供应商管理
+│   ├── auth_service.py      # 认证服务
+│   ├── health_service.py    # 健康监控
+│   ├── token_counter.py     # Token 计数
+│   └── ...
+├── converters/              # 格式转换器
 │   ├── anthropic_to_openai.py
 │   ├── openai_to_anthropic.py
 │   └── streaming_format.py
-│
-└── utils/                 # 工具函数
-    ├── auth.py
-    └── logging.py
+├── infrastructure/          # 基础设施服务
+│   ├── cache.py             # 内存/Redis 缓存
+│   └── telemetry.py         # OpenTelemetry 集成
+├── database/                # 数据访问层（异步 SQLite）
+│   ├── core.py              # 数据库连接和 schema
+│   ├── users.py             # 用户管理
+│   ├── api_keys.py          # API Key 存储
+│   ├── conversations.py     # 对话和消息
+│   ├── request_logs.py      # 请求日志
+│   ├── token_usage.py       # Token 使用统计
+│   ├── health_history.py    # 健康历史
+│   ├── config_changes.py    # 配置变更历史
+│   ├── oauth_accounts.py    # OAuth 账户关联
+│   └── encryption.py        # 加密工具
+├── utils/                   # 工具函数
+│   ├── token_extractor.py   # 统一 Token 提取（支持 OpenAI/Anthropic）
+│   ├── security_utils.py    # 加密、验证、API Key 脱敏
+│   ├── color_logger.py      # 彩色日志
+│   ├── error_handler.py     # 错误响应格式化
+│   └── response.py          # 响应工具
+└── encryption_key.py        # 加密密钥管理
 ```
 
 #### 核心组件
@@ -153,80 +141,74 @@ backend/app/
 
 ```
 frontend/src/
-├── routes/                    # 页面路由
-│   ├── +layout.svelte         # 根布局
-│   ├── login/                 # 登录页
-│   ├── chat/                  # 聊天界面
-│   ├── providers/             # 供应商管理
-│   ├── health/                # 健康监控
-│   ├── stats/                 # 统计信息
-│   ├── config/                # 配置管理
-│   └── api-keys/              # API Key 管理
-│
 ├── lib/
-│   ├── components/            # 可复用组件
-│   │   ├── ui/                # 基础 UI 组件
-│   │   │   ├── Button.svelte
-│   │   │   ├── Input.svelte
-│   │   │   ├── Card.svelte
-│   │   │   ├── Badge.svelte
-│   │   │   ├── Toast.svelte
-│   │   │   └── ...
-│   │   ├── layout/            # 布局组件
-│   │   │   └── Header.svelte
-│   │   ├── chat/              # 聊天组件
-│   │   │   ├── ChatArea.svelte
-│   │   │   ├── MessageBubble.svelte
-│   │   │   ├── MessageInput.svelte
-│   │   │   ├── ModelSelector.svelte
-│   │   │   └── ConversationSidebar.svelte
-│   │   └── config/            # 配置组件
-│   │       └── ProviderForm.svelte
-│   │
-│   ├── services/              # API 服务
-│   │   ├── api.ts             # 通用 API 客户端
-│   │   ├── auth.ts            # 认证服务
+│   ├── components/            # 可复用的 Svelte 组件
+│   │   ├── chat/              # 聊天相关组件（ChatArea、MessageBubble 等）
+│   │   ├── layout/            # 布局组件（Header、MobileNav）
+│   │   ├── providers/         # 供应商管理组件
+│   │   ├── settings/          # 设置组件
+│   │   ├── ui/                # 基础 UI 组件（Button、Input、Card 等）
+│   │   ├── i18n/              # 国际化组件（Translate）
+│   │   ├── ErrorMessageModal.svelte
+│   │   ├── Pagination.svelte
+│   │   ├── ProviderForm.svelte
+│   │   ├── SettingsModal.svelte
+│   │   ├── WelcomeModal.svelte
+│   │   └── OAuthIcon.svelte
+│   ├── services/              # API 客户端服务
+│   │   ├── api.ts             # 主 API 客户端
 │   │   ├── chatService.ts     # 聊天服务
+│   │   ├── auth.ts            # 认证服务
+│   │   ├── permissions.ts     # 权限管理服务
+│   │   ├── oauthProviders.ts  # OAuth 供应商配置
+│   │   ├── apiKeys.ts         # API Key 服务
+│   │   ├── apiKeyStorage.ts   # 安全 API Key 存储
 │   │   ├── providers.ts       # 供应商服务
-│   │   ├── health.ts          # 健康检查服务
+│   │   ├── health.ts          # 健康监控服务
 │   │   ├── stats.ts           # 统计服务
 │   │   ├── config.ts          # 配置服务
-│   │   ├── preferences.ts     # 偏好设置服务
-│   │   └── apiKeys.ts         # API Key 服务
-│   │
-│   ├── stores/                # 状态管理
-│   │   ├── auth.ts            # 认证状态
-│   │   ├── language.ts        # 语言状态（国际化）
-│   │   ├── theme.ts           # 主题状态
-│   │   ├── health.ts          # 健康状态
+│   │   └── preferences.ts     # 用户偏好服务
+│   ├── stores/                # Svelte store（Svelte 5 $state）
+│   │   ├── auth.svelte.ts     # 认证状态
+│   │   ├── chatSession.ts     # 聊天会话状态
 │   │   ├── providers.ts       # 供应商状态
-│   │   ├── config.ts          # 配置状态
-│   │   └── toast.ts           # 提示状态
-│   │
+│   │   ├── health.ts          # 健康状态
+│   │   ├── language.ts        # 国际化状态
+│   │   ├── theme.ts           # 主题状态
+│   │   ├── toast.ts           # 提示消息状态
+│   │   └── config.ts          # 配置状态
 │   ├── types/                 # TypeScript 类型定义
-│   │   ├── provider.ts
-│   │   ├── health.ts
-│   │   ├── config.ts
-│   │   ├── apiKey.ts
-│   │   └── language.ts
-│   │
-│   ├── i18n/                  # 国际化
-│   │   ├── zh-CN.json         # 中文翻译
-│   │   ├── en-US.json         # 英文翻译
-│   │   ├── ja-JP.json         # 日文翻译
-│   │   ├── ko-KR.json         # 韩文翻译
-│   │   └── ...
-│   │
-│   ├── styles/                # 样式
-│   │   └── global.css         # 全局样式
-│   │
-│   └── utils/                 # 工具函数
-│       └── ...
-│
-└── static/                    # 静态资源
-    ├── favicon.svg
-    ├── manifest.json
-    └── service-worker.js      # PWA 支持
+│   │   ├── permission.ts      # 权限类型
+│   │   ├── apiKey.ts          # API Key 类型
+│   │   ├── provider.ts        # 供应商类型
+│   │   ├── health.ts          # 健康类型
+│   │   ├── config.ts          # 配置类型
+│   │   └── language.ts        # 语言类型
+│   ├── config/                # 配置文件
+│   │   └── keyboardShortcuts.ts  # 键盘快捷键
+│   ├── utils/                 # 工具函数
+│   │   ├── gesture.ts         # 手势检测
+│   │   └── session.ts         # 会话管理
+│   └── i18n/                  # 国际化资源（16 种语言）
+├── routes/                    # SvelteKit 页面
+│   ├── +layout.svelte         # 根布局（认证和权限检查）
+│   ├── +page.svelte           # 首页
+│   ├── login/                 # 登录页（邮箱 + OAuth）
+│   │   └── +page.ts
+│   ├── chat/                  # 聊天页面
+│   ├── providers/             # 供应商管理
+│   ├── api-keys/              # API Key 管理
+│   ├── health/                # 健康监控
+│   ├── stats/                 # 使用统计
+│   ├── config/                # 系统配置
+│   ├── admin/
+│   │   └── users/             # 用户管理
+│   │       ├── +page.svelte   # 用户列表
+│   │       └── [id]/          # 用户详情和权限配置
+│   └── oauth/
+│       └── [provider]/        # OAuth 回调处理
+│           └── callback/      # OAuth 回调页面
+└── app.html                   # HTML 模板
 ```
 
 #### 核心特性
@@ -418,6 +400,8 @@ frontend/src/
 - **直连模式** - 支持 Anthropic API 格式提供商（无需转换）
 - **智能模型映射** - haiku→small, sonnet→middle, opus→big
 - **供应商 Token 限制** - 支持配置 max_tokens_limit
+- **细粒度权限控制** - 9 个权限点精确控制，支持按用户配置权限
+- **多种认证方式** - 邮箱密码登录 + OAuth 社交登录（GitHub、Google、飞书、Microsoft、OIDC）
 
 ## 🎉 最新更新
 
@@ -458,7 +442,7 @@ frontend/src/
 
 ```bash
 # 克隆项目
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 
 # 启动所有服务（后端 + 前端）
@@ -480,7 +464,7 @@ docker-compose logs -f backend
 #### 自定义前端端口
 
 ```bash
-EXPOSE_PORT=5175 docker-compose up -d
+EXPOSE_PORT=5173 docker-compose up -d
 ```
 
 #### 本地开发方式
@@ -489,7 +473,7 @@ EXPOSE_PORT=5175 docker-compose up -d
 
 ```bash
 cd backend
-bash start.sh
+bash start.sh # 如果需保持热重载，可指定为 "开发模式"，即：bash start.sh --dev
 # 或直接运行
 python start_proxy.py
 ```
@@ -498,10 +482,11 @@ python start_proxy.py
 
 ```bash
 cd frontend
-pnpm install  # 首次运行需要安装依赖
-pnpm dev
-# 或指定端口
-pnpm dev -- --port 5175
+# bash 启动
+bash start.sh # 如果需保持热重载，可指定为 "开发模式"，即：bash start.sh --dev
+# npm/pnpm启动（可指定端口）
+pnpm install  # or: npm install, 首次运行需要安装依赖
+pnpm dev -- --port 5173 # or: npm dev -- --port 5173
 ```
 
 ### 🔑 首次登录
@@ -516,7 +501,7 @@ pnpm dev -- --port 5175
 
 ### ⚙️ 配置必需环境变量
 
-**生产环境必须设置以下环境变量**：
+**生产环境请设置以下环境变量，以保证数据安全和支持更多的配置**：
 
 ```bash
 # 必需 - JWT 密钥
@@ -557,7 +542,7 @@ export SERVICE_VERSION=1.0.0
 **1. 克隆项目**
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 ```
 
@@ -967,18 +952,7 @@ docs(readme): update deployment guide
 
 **启动前必须先配置供应商信息！**
 
-#### 方式一：通过环境变量（推荐）
-
-```bash
-# 设置环境变量
-export QWEN_API_KEY="your-qwen-api-key"
-export MODELSCOPE_API_KEY="your-modelscope-api-key"
-export AIPING_API_KEY="your-aiping-api-key"
-export MOONSHOT_API_KEY="your-moonshot-api-key"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-
-#### 方式二：配置文件
+#### 方式一：编辑配置文件（推荐）
 
 编辑 `backend/provider.json` 文件：
 
@@ -1023,7 +997,7 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 }
 ```
 
-#### 方式三：Web 界面配置
+#### 方式二：Web 界面配置
 
 1. 启动服务后登录管理界面
 2. 访问"供应商"页面
@@ -1032,27 +1006,127 @@ export ANTHROPIC_API_KEY="your-anthropic-api-key"
 5. 配置模型列表（大、中、小三个类别）
 6. 保存配置
 
+![Providers](images/Providers.png)
+
 ### 🔑 配置 Claude Code
 
 1. **创建 API Key**：
-   - 登录管理界面
-   - 访问"API Key 管理"页面
-   - 点击"创建 API Key"
-   - 填写名称和邮箱（可选）
-   - 复制生成的 API Key（**注意：创建后无法再次查看完整 Key**）
+
+**方式一：使用 cURL 通过后端接口创建**
+
+> 创建 API Key 需要管理员权限，需先获取 JWT Token。
+
+```bash
+# 步骤 1：登录获取 JWT Token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+```
+
+返回示例：
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Administrator",
+    "is_admin": true
+  }
+}
+```
+
+```bash
+# 步骤 2：创建 API Key
+curl -X POST http://localhost:8000/api/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <你的_JWT_token>" \
+  -d '{"name": "my-api-key", "email": "admin@example.com"}'
+```
+
+返回示例：
+```json
+{
+  "id": 1,
+  "api_key": "sk-abc123...",  // 完整 API Key 仅在此刻返回，请妥善保管
+  "key_prefix": "sk-abc1...",
+  "name": "my-api-key",
+  "email": "admin@example.com",
+  "is_active": true
+}
+```
+
+**方式二：通过前端界面创建**
+
+- 登录管理界面
+- 访问「API Key 管理」页面
+- 点击「创建 API Key」
+- 填写名称和邮箱（可选）
+- 复制生成的 API Key（**注意：创建后无法再次查看完整 Key**）
 
 2. **配置 Claude Code 环境变量**：
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:5175
-ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # 使用创建的 API Key
+# 仅启动后端时（假设后端端口为 8000）
+export ANTHROPIC_BASE_URL=http://localhost:8000
+
+# 前后端同时启动时，也可直接通过前端代理访问（前端端口如 5173）
+export ANTHROPIC_BASE_URL=http://localhost:5173
+
+# API Key：开发模式下可设为任意值；生产模式下需使用创建的有效 Key
+export ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"
+
+# Claude Code 模型配置：haiku（小模型）、sonnet（中模型）、opus（大模型）
+# 分别对应 provider.json 中的 small、middle、big 三类模型
+# 例如：
+# export ANTHROPIC_MODEL="sonnet"
+# export ANTHROPIC_SMALL_FAST_MODEL="haiku"
+# export ANTHROPIC_DEFAULT_SONNET_MODEL="sonnet"
+# export ANTHROPIC_DEFAULT_OPUS_MODEL="opus"
+# export ANTHROPIC_DEFAULT_HAIKU_MODEL="haiku"
 ```
+
+### 🔐 配置 OAuth 登录（可选）
+
+系统支持多种 OAuth 提供商进行社交登录。配置相应的环境变量以启用：
+
+```bash
+# GitHub OAuth
+export GITHUB_CLIENT_ID="your-github-client-id"
+export GITHUB_CLIENT_SECRET="your-github-client-secret"
+
+# Google OAuth
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# 飞书 OAuth (Lark)
+export FEISHU_CLIENT_ID="your-feishu-client-id"
+export FEISHU_CLIENT_SECRET="your-feishu-client-secret"
+
+# Microsoft OAuth (Azure AD)
+export MICROSOFT_CLIENT_ID="your-microsoft-client-id"
+export MICROSOFT_CLIENT_SECRET="your-microsoft-client-secret"
+export MICROSOFT_TENANT_ID="common"  # 或特定的租户 ID
+
+# 通用 OIDC（支持 Logto、Keycloak、Authentik 等）
+export OIDC_CLIENT_ID="your-oidc-client-id"
+export OIDC_CLIENT_SECRET="your-oidc-client-secret"
+export OIDC_AUTHORIZATION_URL="https://your-oidc-server/oauth/authorize"
+export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
+```
+
+配置完成后，登录页面将显示相应的 OAuth 登录按钮。
+
+![Login](images/Login.png)
 
 ## 📚 API 使用示例
 
 ### 基础消息请求
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -1066,6 +1140,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### 流式请求
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -1080,6 +1156,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### 工具调用（Function Calling）
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -1226,7 +1304,7 @@ kubectl get pods -n anthropic-bridge
 pip install aiohttp
 
 # 运行压力测试（目标 10k QPS）
-python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
+python scripts/load_test.py --url http://localhost:5173 --qps 10000 --duration 60
 ```
 
 ### 🔄 CI/CD 流水线
@@ -1263,7 +1341,7 @@ CI/CD 配置文件位于：`.github/workflows/ci-cd.yml`
 #### 健康检查
 
 - 后端：`http://localhost:8000/health`
-- 前端：`http://localhost:5175/`
+- 前端：`http://localhost:5173/`
 
 ## 🏛️ 项目架构
 
@@ -1743,11 +1821,11 @@ A: 请参考 [DEPLOYMENT.md](./DEPLOYMENT.md) 中的生产环境配置建议，�
 
 ```bash
 # 基本用法
-python scripts/load_test.py --url http://localhost:5175 --qps 10000 --duration 60
+python scripts/load_test.py --url http://localhost:5173 --qps 10000 --duration 60
 
 # 高级参数
 python scripts/load_test.py \
-  --url http://localhost:5175 \
+  --url http://localhost:5173 \
   --qps 10000 \
   --duration 60 \
   --concurrency 100 \
