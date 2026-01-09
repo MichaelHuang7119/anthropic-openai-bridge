@@ -212,7 +212,7 @@ Client
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 
 # Start all services (backend + frontend)
@@ -237,17 +237,18 @@ After starting the services:
 
 ```bash
 cd backend
-bash start.sh
+bash start.sh  # With hot reload for development mode: bash start.sh --dev
 ```
 
 **2. Start Frontend Service (New Terminal)**
 
 ```bash
 cd frontend
-pnpm install  # Install dependencies first time
-pnpm dev
-# Or specify port
-pnpm dev -- --port 5175
+# Using bash start script
+bash start.sh  # With hot reload for development mode: bash start.sh --dev
+# Using npm/pnpm (can specify port)
+pnpm install  # or: npm install, install dependencies first time
+pnpm dev -- --port 5173  # or: npm dev -- --port 5173
 ```
 
 ### 🔑 First Login
@@ -262,7 +263,7 @@ pnpm dev -- --port 5175
 
 ### ⚙️ Required Environment Variables
 
-**Production environment must set the following environment variables**:
+**Production environment please set the following environment variables for data security and extended configuration**:
 
 ```bash
 # Required - JWT secret key
@@ -283,9 +284,11 @@ export ENABLE_TELEMETRY=true
 export OTLP_ENDPOINT=http://jaeger:4318
 ```
 
-### 🏢 Configure AI Providers
+### 🔑 Configure Claude Code
 
-**Must configure provider information before startup!**
+1. **Configure AI Providers**:
+
+**Option 1: Edit backend configuration file**
 
 Edit the `backend/provider.json` file:
 
@@ -330,20 +333,89 @@ Edit the `backend/provider.json` file:
 }
 ```
 
-### 🔑 Configure Claude Code
+**Option 2: Configure via frontend**
 
-1. **Create an API Key**:
-   - Login to the management interface
-   - Go to "API Key Management" page
-   - Click "Create API Key"
-   - Fill in name and email (optional)
-   - Copy the generated API Key (**Note: Cannot view the full key after creation**)
+![Providers](images/Providers.png)
 
-2. **Configure Claude Code Environment Variables**:
+
+2. **Create an API Key**:
+
+**Method 1: Create via cURL using backend API**
+
+> Creating an API Key requires admin privileges. You must obtain a JWT token first.
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:5175
-ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # Use the created API Key
+# Step 1: Login to get JWT token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+```
+
+Response example:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Administrator",
+    "is_admin": true
+  }
+}
+```
+
+```bash
+# Step 2: Create API Key
+curl -X POST http://localhost:8000/api/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_JWT_token>" \
+  -d '{"name": "my-api-key", "email": "admin@example.com"}'
+```
+
+Response example:
+```json
+{
+  "id": 1,
+  "api_key": "sk-abc123...",  // Full API Key is only shown now, please store it safely
+  "key_prefix": "sk-abc1...",
+  "name": "my-api-key",
+  "email": "admin@example.com",
+  "is_active": true
+}
+```
+
+**Method 2: Create via frontend interface**
+
+- Login to the management interface
+- Go to "API Key Management" page
+- Click "Create API Key"
+- Fill in name and email (optional)
+- Copy the generated API Key (**Note: Cannot view the full key after creation**)
+
+![ApiKeys](images/ApiKeys.png)
+
+
+3. **Configure Claude Code Environment Variables**:
+
+```bash
+# Backend only (assuming backend port is 8000)
+export ANTHROPIC_BASE_URL=http://localhost:8000
+
+# When both frontend and backend are running, you can also access via frontend proxy (e.g., port 5173)
+export ANTHROPIC_BASE_URL=http://localhost:5173
+
+# API Key: in development mode, can be any value; in production, use the created valid key
+export ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"
+
+# Claude Code model configuration: haiku (small), sonnet (middle), opus (big)
+# These correspond to the small, middle, big model tiers in provider.json
+# For example:
+# export ANTHROPIC_MODEL="sonnet"
+# export ANTHROPIC_SMALL_FAST_MODEL="haiku"
+# export ANTHROPIC_DEFAULT_SONNET_MODEL="sonnet"
+# export ANTHROPIC_DEFAULT_OPUS_MODEL="opus"
+# export ANTHROPIC_DEFAULT_HAIKU_MODEL="haiku"
 ```
 
 ### 🔐 Configure OAuth Login (Optional)
@@ -377,11 +449,15 @@ export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
 
 After configuration, the login page will display the corresponding OAuth login buttons.
 
+![Login](images/Login.png)
+
 ## 📚 API Usage Examples
 
 ### Basic Message Request
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -395,6 +471,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Streaming Request
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -409,6 +487,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Tool Calling (Function Calling)
 
 ```bash
+# Access backend directly (http://localhost:8000/v1/messages)
+# Or via frontend proxy (http://localhost:5173/v1/messages)
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -438,12 +518,16 @@ curl -X POST http://localhost:8000/v1/messages \
 ### Check Health Status
 
 ```bash
+# Access backend directly (http://localhost:8000/health)
+# Or via frontend proxy (http://localhost:5173/health)
 curl http://localhost:8000/health
 ```
 
 ### Get Token Usage Statistics
 
 ```bash
+# Access backend directly (http://localhost:8000/api/stats/token-usage)
+# Or via frontend proxy (http://localhost:5173/api/stats/token-usage)
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/token-usage
 ```
@@ -451,6 +535,8 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 ### View Request Logs
 
 ```bash
+# Access backend directly (http://localhost:8000/api/stats/requests)
+# Or via frontend proxy (http://localhost:5173/api/stats/requests)
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/requests
 ```
@@ -474,7 +560,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## 📝 Changelog
 
-### (2026-01-XX) - User Authentication & Permission Management Enhancements
+### (2026-01-03) - User Authentication & Permission Management Enhancements
 
 - **OAuth Multi-Provider Support**: Added GitHub, Google, Feishu, Microsoft, OIDC OAuth login methods
 - **User Management System**: Complete user CRUD with pagination, search, enable/disable

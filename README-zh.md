@@ -212,7 +212,7 @@ API 路由 (/routes/messages.py, /routes/*.py)
 
 ```bash
 # 克隆项目
-git clone <your-repo-url>
+git clone https://github.com/MichaelHuang7119/anthropic-openai-bridge.git
 cd anthropic-openai-bridge
 
 # 启动所有服务（后端 + 前端）
@@ -237,17 +237,18 @@ docker-compose logs -f backend
 
 ```bash
 cd backend
-bash start.sh
+bash start.sh # 如果需保持热重载，可指定为 "开发模式"，即：bash start.sh --dev
 ```
 
 **2. 启动前端服务（新终端）**
 
 ```bash
 cd frontend
-pnpm install  # 首次运行需要安装依赖
-pnpm dev
-# 或指定端口
-pnpm dev -- --port 5175
+# bash 启动
+bash start.sh # 如果需保持热重载，可指定为 "开发模式"，即：bash start.sh --dev
+# npm/pnpm启动（可指定端口）
+pnpm install  # or: npm install, 首次运行需要安装依赖
+pnpm dev -- --port 5173 # or: npm dev -- --port 5173
 ```
 
 ### 🔑 首次登录
@@ -262,7 +263,7 @@ pnpm dev -- --port 5175
 
 ### ⚙️ 配置必需环境变量
 
-**生产环境必须设置以下环境变量**：
+**生产环境请设置以下环境变量，以保证数据安全和支持更多的配置**：
 
 ```bash
 # 必需 - JWT 密钥
@@ -283,9 +284,11 @@ export ENABLE_TELEMETRY=true
 export OTLP_ENDPOINT=http://jaeger:4318
 ```
 
-### 🏢 配置 AI 供应商
+### 🔑 配置 Claude Code
 
-**启动前必须先配置供应商信息！**
+1. **🏢 配置 AI 供应商**：
+
+***可以编辑后端的配置文件***
 
 编辑 `backend/provider.json` 文件：
 
@@ -330,20 +333,88 @@ export OTLP_ENDPOINT=http://jaeger:4318
 }
 ```
 
-### 🔑 配置 Claude Code
+***或者通过前端配置***
 
-1. **创建 API Key**：
-   - 登录管理界面
-   - 访问"API Key 管理"页面
-   - 点击"创建 API Key"
-   - 填写名称和邮箱（可选）
-   - 复制生成的 API Key（**注意：创建后无法再次查看完整 Key**）
+![Providers](images/Providers.png)
 
-2. **配置 Claude Code 环境变量**：
+
+2. **创建 API Key**：
+
+**方式一：使用 cURL 通过后端接口创建**
+
+> 创建 API Key 需要管理员权限，需先获取 JWT Token。
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:5175
-ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"  # 使用创建的 API Key
+# 步骤 1：登录获取 JWT Token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "admin123"}'
+```
+
+返回示例：
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Administrator",
+    "is_admin": true
+  }
+}
+```
+
+```bash
+# 步骤 2：创建 API Key
+curl -X POST http://localhost:8000/api/api-keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <你的_JWT_token>" \
+  -d '{"name": "my-api-key", "email": "admin@example.com"}'
+```
+
+返回示例：
+```json
+{
+  "id": 1,
+  "api_key": "sk-abc123...",  // 完整 API Key 仅在此刻返回，请妥善保管
+  "key_prefix": "sk-abc1...",
+  "name": "my-api-key",
+  "email": "admin@example.com",
+  "is_active": true
+}
+```
+
+**方式二：通过前端界面创建**
+
+- 登录管理界面
+- 访问「API Key 管理」页面
+- 点击「创建 API Key」
+- 填写名称和邮箱（可选）
+- 复制生成的 API Key（**注意：创建后无法再次查看完整 Key**）
+
+![ApiKeys](images/ApiKeys.png)
+
+3. **配置 Claude Code 环境变量**：
+
+```bash
+# 仅启动后端时（假设后端端口为 8000）
+export ANTHROPIC_BASE_URL=http://localhost:8000
+
+# 前后端同时启动时，也可直接通过前端代理访问（前端端口如 5173）
+export ANTHROPIC_BASE_URL=http://localhost:5173
+
+# API Key：开发模式下可设为任意值；生产模式下需使用创建的有效 Key
+export ANTHROPIC_API_KEY="sk-xxxxxxxxxxxxx"
+
+# Claude Code 模型配置：haiku（小模型）、sonnet（中模型）、opus（大模型）
+# 分别对应 provider.json 中的 small、middle、big 三类模型
+# 例如：
+# export ANTHROPIC_MODEL="sonnet"
+# export ANTHROPIC_SMALL_FAST_MODEL="haiku"
+# export ANTHROPIC_DEFAULT_SONNET_MODEL="sonnet"
+# export ANTHROPIC_DEFAULT_OPUS_MODEL="opus"
+# export ANTHROPIC_DEFAULT_HAIKU_MODEL="haiku"
 ```
 
 ### 🔐 配置 OAuth 登录（可选）
@@ -377,11 +448,15 @@ export OIDC_TOKEN_URL="https://your-oidc-server/oauth/token"
 
 配置完成后，登录页面将显示对应的 OAuth 登录按钮。
 
+![Login](images/Login.png)
+
 ## 📚 API 使用示例
 
 ### 基础消息请求
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -395,6 +470,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### 流式请求
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -409,6 +486,8 @@ curl -X POST http://localhost:8000/v1/messages \
 ### 工具调用（Function Calling）
 
 ```bash
+# 可直接访问后端（http://localhost:8000/v1/messages）
+# 或通过前端代理（http://localhost:5173/v1/messages）
 curl -X POST http://localhost:8000/v1/messages \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk-xxxxxxxxxxxxx" \
@@ -438,12 +517,16 @@ curl -X POST http://localhost:8000/v1/messages \
 ### 查看健康状态
 
 ```bash
+# 可直接访问后端（http://localhost:8000/health）
+# 或通过前端代理（http://localhost:5173/health）
 curl http://localhost:8000/health
 ```
 
 ### 获取 Token 使用统计
 
 ```bash
+# 可直接访问后端（http://localhost:8000/api/stats/token-usage）
+# 或通过前端代理（http://localhost:5173/api/stats/token-usage）
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/token-usage
 ```
@@ -451,6 +534,8 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 ### 查看请求日志
 
 ```bash
+# 可直接访问后端（http://localhost:8000/api/stats/requests）
+# 或通过前端代理（http://localhost:5173/api/stats/requests）
 curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8000/api/stats/requests
 ```
@@ -474,7 +559,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## 📝 更新日志
 
-### (2026-01-XX) - 用户认证与权限管理增强
+### (2026-01-03) - 用户认证与权限管理增强
 
 - **OAuth 多提供商支持**：新增 GitHub、Google、飞书、Microsoft、OIDC 五种 OAuth 登录方式
 - **用户管理系统**：完整的用户 CRUD 操作，支持分页、搜索、启用/禁用
